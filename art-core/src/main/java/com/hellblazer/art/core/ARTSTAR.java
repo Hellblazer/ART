@@ -61,7 +61,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Vector input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -99,7 +99,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -158,7 +158,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -204,7 +204,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Vector input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -232,7 +232,7 @@ public final class ARTSTAR extends BaseART {
     /**
      * Calculate stability measure update based on learning consistency.
      */
-    private double calculateStabilityUpdate(Vector input, ARTSTARWeight weight, ARTSTARParameters params) {
+    private double calculateStabilityUpdate(Pattern input, ARTSTARWeight weight, ARTSTARParameters params) {
         // Calculate how similar the input is to the current category
         double similarity = weight.calculateSimilarity(input);
         
@@ -244,7 +244,7 @@ public final class ARTSTAR extends BaseART {
     /**
      * Calculate adaptability measure update based on learning novelty.
      */
-    private double calculateAdaptabilityUpdate(Vector input, ARTSTARWeight weight, ARTSTARParameters params) {
+    private double calculateAdaptabilityUpdate(Pattern input, ARTSTARWeight weight, ARTSTARParameters params) {
         // Calculate pattern novelty (inverse of similarity)
         double similarity = weight.calculateSimilarity(input);
         double novelty = 1.0 - similarity;
@@ -368,7 +368,7 @@ public final class ARTSTAR extends BaseART {
      * Perform a learning step with regulation tracking.
      * This method should be called instead of stepFit to get ARTSTAR regulation benefits.
      */
-    public ActivationResult stepFitWithRegulation(Vector input, ARTSTARParameters parameters) {
+    public ActivationResult stepFitWithRegulation(Pattern input, ARTSTARParameters parameters) {
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
         totalLearningEvents++;

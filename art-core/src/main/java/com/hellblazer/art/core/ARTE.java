@@ -52,7 +52,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Vector input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -97,7 +97,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -163,7 +163,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -180,7 +180,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Vector input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -194,7 +194,7 @@ public final class ARTE extends BaseART {
     /**
      * Enhanced learning step with ART-E optimizations.
      */
-    public ActivationResult stepFitEnhanced(Vector input, ARTEParameters parameters) {
+    public ActivationResult stepFitEnhanced(Pattern input, ARTEParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         

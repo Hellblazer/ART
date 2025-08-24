@@ -56,7 +56,7 @@ public final class GaussianART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected double calculateActivation(Vector input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -109,7 +109,7 @@ public final class GaussianART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -154,7 +154,7 @@ public final class GaussianART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -190,7 +190,7 @@ public final class GaussianART extends BaseART {
      * @throws NullPointerException if input or parameters are null
      */
     @Override
-    protected WeightVector createInitialWeight(Vector input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         

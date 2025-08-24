@@ -45,7 +45,7 @@ class HypersphereARTTest {
     @Test
     @DisplayName("First input should create single hypersphere category")
     void testFirstInput() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         var result = hypersphereART.stepFit(input, defaultParams);
         
         // Should create first category
@@ -70,11 +70,11 @@ class HypersphereARTTest {
     @DisplayName("Points within hypersphere radius should be classified to same category")
     void testPointsWithinRadius() {
         // First input creates hypersphere at (0.5, 0.5) with radius 0.5
-        var input1 = Vector.of(0.5, 0.5);
+        var input1 = Pattern.of(0.5, 0.5);
         var result1 = hypersphereART.stepFit(input1, defaultParams);
         
         // Point within radius should go to same category
-        var input2 = Vector.of(0.7, 0.6); // Distance ≈ 0.22, within radius 0.5
+        var input2 = Pattern.of(0.7, 0.6); // Distance ≈ 0.22, within radius 0.5
         var result2 = hypersphereART.stepFit(input2, defaultParams);
         
         // Should still have only 1 category
@@ -98,11 +98,11 @@ class HypersphereARTTest {
     @DisplayName("Points outside hypersphere radius should create new categories")
     void testPointsOutsideRadius() {
         // First input with small radius
-        var input1 = Vector.of(0.2, 0.2);
+        var input1 = Pattern.of(0.2, 0.2);
         hypersphereART.stepFit(input1, smallRadiusParams);
         
         // Distant point should create new category
-        var input2 = Vector.of(0.8, 0.8); // Distance ≈ 0.85, outside radius 0.1
+        var input2 = Pattern.of(0.8, 0.8); // Distance ≈ 0.85, outside radius 0.1
         var result2 = hypersphereART.stepFit(input2, smallRadiusParams);
         
         // Should have 2 categories now
@@ -125,13 +125,13 @@ class HypersphereARTTest {
     @DisplayName("Distance-based activation should work correctly")
     void testDistanceBasedActivation() {
         // Create hypersphere at origin
-        var center = Vector.of(0.0, 0.0);
+        var center = Pattern.of(0.0, 0.0);
         hypersphereART.stepFit(center, defaultParams);
         
         // Test points at various distances (all within vigilance range)
-        var closePoint = Vector.of(0.1, 0.0); // Distance = 0.1
-        var mediumPoint = Vector.of(0.2, 0.0); // Distance = 0.2  
-        var farPoint = Vector.of(0.3, 0.0); // Distance = 0.3
+        var closePoint = Pattern.of(0.1, 0.0); // Distance = 0.1
+        var mediumPoint = Pattern.of(0.2, 0.0); // Distance = 0.2  
+        var farPoint = Pattern.of(0.3, 0.0); // Distance = 0.3
         
         var result1 = hypersphereART.stepFit(closePoint, defaultParams);
         var result2 = hypersphereART.stepFit(mediumPoint, defaultParams);
@@ -156,7 +156,7 @@ class HypersphereARTTest {
     void testRadiusExpansion() {
         // Create hypersphere with zero initial radius for guaranteed expansion
         var zeroRadiusParams = HypersphereParameters.of(0.1, 0.0, false);
-        var input1 = Vector.of(0.5, 0.5);
+        var input1 = Pattern.of(0.5, 0.5);
         hypersphereART.stepFit(input1, zeroRadiusParams);
         
         var initialWeight = (HypersphereWeight) hypersphereART.getCategory(0);
@@ -164,7 +164,7 @@ class HypersphereARTTest {
         assertEquals(0.0, initialRadius, 1e-10);
         
         // Add point that requires radius expansion
-        var input2 = Vector.of(0.55, 0.52); // Distance ≈ 0.054
+        var input2 = Pattern.of(0.55, 0.52); // Distance ≈ 0.054
         
         // Should expand the radius to include this point
         hypersphereART.stepFit(input2, zeroRadiusParams);
@@ -183,13 +183,13 @@ class HypersphereARTTest {
     @DisplayName("Winner-take-all competition should select closest center")
     void testWinnerTakeAllCompetition() {
         // Create two well-separated hyperspheres
-        var input1 = Vector.of(0.1, 0.1);
-        var input2 = Vector.of(0.9, 0.9);
+        var input1 = Pattern.of(0.1, 0.1);
+        var input2 = Pattern.of(0.9, 0.9);
         hypersphereART.stepFit(input1, defaultParams);
         hypersphereART.stepFit(input2, defaultParams);
         
         // Input closer to first hypersphere should activate it
-        var testInput = Vector.of(0.15, 0.12);
+        var testInput = Pattern.of(0.15, 0.12);
         var result = hypersphereART.stepFit(testInput, defaultParams);
         
         var success = (ActivationResult.Success) result;
@@ -203,7 +203,7 @@ class HypersphereARTTest {
     @Test
     @DisplayName("Default radius parameter should control initial hypersphere size")
     void testDefaultRadiusControl() {
-        var input = Vector.of(0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5);
         
         // Test with small default radius
         hypersphereART.stepFit(input, smallRadiusParams);
@@ -222,7 +222,7 @@ class HypersphereARTTest {
     @Test
     @DisplayName("Mathematical properties should be preserved")
     void testMathematicalProperties() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         hypersphereART.stepFit(input, defaultParams);
         
         var weight = (HypersphereWeight) hypersphereART.getCategory(0);
@@ -246,12 +246,12 @@ class HypersphereARTTest {
     @DisplayName("Edge cases should be handled correctly")
     void testEdgeCases() {
         // Very small coordinates
-        var smallInput = Vector.of(0.001, 0.001);
+        var smallInput = Pattern.of(0.001, 0.001);
         var result1 = hypersphereART.stepFit(smallInput, defaultParams);
         assertInstanceOf(ActivationResult.Success.class, result1);
         
         // Very large coordinates (within reasonable range)
-        var largeInput = Vector.of(0.999, 0.999);
+        var largeInput = Pattern.of(0.999, 0.999);
         var result2 = hypersphereART.stepFit(largeInput, defaultParams);
         assertInstanceOf(ActivationResult.Success.class, result2);
         
@@ -261,7 +261,7 @@ class HypersphereARTTest {
         // Zero radius should work
         var zeroRadiusParams = HypersphereParameters.of(0.5, 0.0, false);
         hypersphereART.clear();
-        var result3 = hypersphereART.stepFit(Vector.of(0.5, 0.5), zeroRadiusParams);
+        var result3 = hypersphereART.stepFit(Pattern.of(0.5, 0.5), zeroRadiusParams);
         assertInstanceOf(ActivationResult.Success.class, result3);
         
         var weight = (HypersphereWeight) hypersphereART.getCategory(0);
@@ -271,14 +271,14 @@ class HypersphereARTTest {
     @Test
     @DisplayName("Parameter validation should work correctly")
     void testParameterValidation() {
-        var input = Vector.of(0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5);
         
         // Add a category first to enable parameter validation
         hypersphereART.stepFit(input, defaultParams);
         
         // Wrong parameter type should throw exception
         assertThrows(IllegalArgumentException.class, () -> {
-            hypersphereART.stepFit(Vector.of(0.6, 0.4), "wrong_params");
+            hypersphereART.stepFit(Pattern.of(0.6, 0.4), "wrong_params");
         });
         
         // Null parameters should throw exception
@@ -296,11 +296,11 @@ class HypersphereARTTest {
     @DisplayName("Dimension validation should work correctly")
     void testDimensionValidation() {
         // Create 2D hypersphere
-        var input2D = Vector.of(0.3, 0.4);
+        var input2D = Pattern.of(0.3, 0.4);
         hypersphereART.stepFit(input2D, defaultParams);
         
         // Try with 3D input - should throw exception when trying to calculate activation
-        var input3D = Vector.of(0.3, 0.4, 0.5);
+        var input3D = Pattern.of(0.3, 0.4, 0.5);
         assertThrows(IllegalArgumentException.class, () -> {
             hypersphereART.stepFit(input3D, defaultParams);
         });
@@ -312,12 +312,12 @@ class HypersphereARTTest {
     @Test
     @DisplayName("Multiple learning cycles should maintain consistency")
     void testMultipleLearningCycles() {
-        var inputs = new Vector[]{
-            Vector.of(0.2, 0.3),
-            Vector.of(0.25, 0.35),
-            Vector.of(0.8, 0.7),
-            Vector.of(0.75, 0.72),
-            Vector.of(0.22, 0.32)
+        var inputs = new Pattern[]{
+            Pattern.of(0.2, 0.3),
+            Pattern.of(0.25, 0.35),
+            Pattern.of(0.8, 0.7),
+            Pattern.of(0.75, 0.72),
+            Pattern.of(0.22, 0.32)
         };
         
         // Process all inputs
@@ -340,7 +340,7 @@ class HypersphereARTTest {
     @Test
     @DisplayName("Activation function should be mathematically correct")
     void testActivationFunction() {
-        var center = Vector.of(0.5, 0.5);
+        var center = Pattern.of(0.5, 0.5);
         hypersphereART.stepFit(center, defaultParams);
         
         // Test activation at center (distance = 0)
@@ -349,7 +349,7 @@ class HypersphereARTTest {
         assertEquals(1.0, success1.activationValue(), 1e-10); // 1/(1+0) = 1
         
         // Test activation at known distance
-        var testPoint = Vector.of(0.5, 0.6); // Distance = 0.1
+        var testPoint = Pattern.of(0.5, 0.6); // Distance = 0.1
         hypersphereART.clear();
         hypersphereART.stepFit(center, defaultParams);
         var result2 = hypersphereART.stepFit(testPoint, defaultParams);
@@ -365,14 +365,14 @@ class HypersphereARTTest {
     void testHypersphereExpansion() {
         // Start with zero radius
         var params = HypersphereParameters.of(0.5, 0.0, false);
-        var center = Vector.of(0.5, 0.5);
+        var center = Pattern.of(0.5, 0.5);
         hypersphereART.stepFit(center, params);
         
         var initialWeight = (HypersphereWeight) hypersphereART.getCategory(0);
         assertEquals(0.0, initialWeight.radius(), 1e-10);
         
         // Add point at distance 0.3 - should expand radius
-        var distantPoint = Vector.of(0.8, 0.5); // Distance = 0.3
+        var distantPoint = Pattern.of(0.8, 0.5); // Distance = 0.3
         hypersphereART.stepFit(distantPoint, params);
         
         assertEquals(1, hypersphereART.getCategoryCount()); // Should still be one category
@@ -392,7 +392,7 @@ class HypersphereARTTest {
         assertTrue(toString.contains("categories=0"));
         
         // Add a category and check again
-        hypersphereART.stepFit(Vector.of(0.5, 0.5), defaultParams);
+        hypersphereART.stepFit(Pattern.of(0.5, 0.5), defaultParams);
         toString = hypersphereART.toString();
         assertTrue(toString.contains("categories=1"));
     }

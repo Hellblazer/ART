@@ -61,8 +61,8 @@ class ARTMAPTest {
     @Test
     @DisplayName("First training example creates categories and map field connection")
     void testFirstTrainingExample() {
-        var input = Vector.of(0.2, 0.8);
-        var target = Vector.of(1.0, 0.0);
+        var input = Pattern.of(0.2, 0.8);
+        var target = Pattern.of(1.0, 0.0);
         
         var result = artmap.train(input, target, artAParams, artBParams);
         
@@ -84,8 +84,8 @@ class ARTMAPTest {
     @Test
     @DisplayName("Second example with same pattern reinforces existing mapping")
     void testSamePatternReinforcesMapping() {
-        var input = Vector.of(0.2, 0.8);
-        var target = Vector.of(1.0, 0.0);
+        var input = Pattern.of(0.2, 0.8);
+        var target = Pattern.of(1.0, 0.0);
         
         // First training
         artmap.train(input, target, artAParams, artBParams);
@@ -109,13 +109,13 @@ class ARTMAPTest {
     @DisplayName("Different input with same target creates new ARTa category")
     void testDifferentInputSameTarget() {
         // First example
-        var input1 = Vector.of(0.2, 0.8);
-        var target1 = Vector.of(1.0, 0.0);
+        var input1 = Pattern.of(0.2, 0.8);
+        var target1 = Pattern.of(1.0, 0.0);
         artmap.train(input1, target1, artAParams, artBParams);
         
         // Second example - different input, same target
-        var input2 = Vector.of(0.9, 0.1);
-        var target2 = Vector.of(1.0, 0.0); // Same target
+        var input2 = Pattern.of(0.9, 0.1);
+        var target2 = Pattern.of(1.0, 0.0); // Same target
         var result = artmap.train(input2, target2, artAParams, artBParams);
         
         assertTrue(result.isSuccess());
@@ -135,13 +135,13 @@ class ARTMAPTest {
     @DisplayName("Same input with different target creates new ARTb category")
     void testSameInputDifferentTarget() {
         // First example
-        var input1 = Vector.of(0.2, 0.8);
-        var target1 = Vector.of(1.0, 0.0);
+        var input1 = Pattern.of(0.2, 0.8);
+        var target1 = Pattern.of(1.0, 0.0);
         artmap.train(input1, target1, artAParams, artBParams);
         
         // Second example - same input, different target
-        var input2 = Vector.of(0.2, 0.8); // Same input
-        var target2 = Vector.of(0.0, 1.0); // Different target
+        var input2 = Pattern.of(0.2, 0.8); // Same input
+        var target2 = Pattern.of(0.0, 1.0); // Different target
         var result = artmap.train(input2, target2, artAParams, artBParams);
         
         // This should trigger map field mismatch and ARTa vigilance increase
@@ -165,12 +165,12 @@ class ARTMAPTest {
     @DisplayName("Prediction works with trained mappings")
     void testPrediction() {
         // Train with input-output pairs
-        var input1 = Vector.of(0.2, 0.8);
-        var target1 = Vector.of(1.0, 0.0);
+        var input1 = Pattern.of(0.2, 0.8);
+        var target1 = Pattern.of(1.0, 0.0);
         artmap.train(input1, target1, artAParams, artBParams);
         
-        var input2 = Vector.of(0.9, 0.1);
-        var target2 = Vector.of(0.0, 1.0);
+        var input2 = Pattern.of(0.9, 0.1);
+        var target2 = Pattern.of(0.0, 1.0);
         artmap.train(input2, target2, artAParams, artBParams);
         
         // Test prediction for first input
@@ -192,7 +192,7 @@ class ARTMAPTest {
     @DisplayName("Prediction returns empty for unknown inputs")
     void testPredictionUnknownInput() {
         // No training data
-        var unknownInput = Vector.of(0.5, 0.5);
+        var unknownInput = Pattern.of(0.5, 0.5);
         var prediction = artmap.predict(unknownInput, artAParams);
         
         assertTrue(prediction.isEmpty()); // No categories to predict from
@@ -202,8 +202,8 @@ class ARTMAPTest {
     @DisplayName("Clear resets entire ARTMAP network")
     void testClear() {
         // Train some data
-        artmap.train(Vector.of(0.2, 0.8), Vector.of(1.0, 0.0), artAParams, artBParams);
-        artmap.train(Vector.of(0.9, 0.1), Vector.of(0.0, 1.0), artAParams, artBParams);
+        artmap.train(Pattern.of(0.2, 0.8), Pattern.of(1.0, 0.0), artAParams, artBParams);
+        artmap.train(Pattern.of(0.9, 0.1), Pattern.of(0.0, 1.0), artAParams, artBParams);
         
         // Verify network has content
         assertTrue(artA.getCategoryCount() > 0);
@@ -274,8 +274,8 @@ class ARTMAPTest {
     @Test
     @DisplayName("Train validates null inputs")
     void testTrainValidation() {
-        var input = Vector.of(0.2, 0.8);
-        var target = Vector.of(1.0, 0.0);
+        var input = Pattern.of(0.2, 0.8);
+        var target = Pattern.of(1.0, 0.0);
         
         assertThrows(NullPointerException.class,
             () -> artmap.train(null, target, artAParams, artBParams));
@@ -290,7 +290,7 @@ class ARTMAPTest {
     @Test
     @DisplayName("Predict validates null inputs")
     void testPredictValidation() {
-        var input = Vector.of(0.2, 0.8);
+        var input = Pattern.of(0.2, 0.8);
         
         assertThrows(NullPointerException.class,
             () -> artmap.predict(null, artAParams));

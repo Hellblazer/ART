@@ -37,5 +37,5 @@ public interface WeightVector {
      * @throws IllegalArgumentException if input dimension doesn't match
      * @throws NullPointerException if input or parameters is null
      */
-    WeightVector update(Vector input, Object parameters);
+    WeightVector update(Pattern input, Object parameters);
 }

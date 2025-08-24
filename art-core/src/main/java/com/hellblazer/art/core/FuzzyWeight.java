@@ -51,7 +51,7 @@ public record FuzzyWeight(double[] data, int originalDimension) implements Weigh
      * @param input the input vector to complement code
      * @return new FuzzyWeight with complement coding applied
      */
-    public static FuzzyWeight fromInput(Vector input) {
+    public static FuzzyWeight fromInput(Pattern input) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         
         var original = input.dimension();
@@ -101,7 +101,7 @@ public record FuzzyWeight(double[] data, int originalDimension) implements Weigh
      * @return new updated FuzzyWeight
      */
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         

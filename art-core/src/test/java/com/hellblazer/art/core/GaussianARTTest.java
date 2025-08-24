@@ -45,7 +45,7 @@ class GaussianARTTest {
     @Test
     @DisplayName("First input should create single category")
     void testFirstInput() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         var result = gaussianART.stepFit(input, defaultParams);
         
         // Should create first category
@@ -70,11 +70,11 @@ class GaussianARTTest {
     @DisplayName("Similar inputs should be classified to same category")
     void testSimilarInputsClustering() {
         // First input
-        var input1 = Vector.of(0.5, 0.5);
+        var input1 = Pattern.of(0.5, 0.5);
         var result1 = gaussianART.stepFit(input1, lowVigilanceParams);
         
         // Similar input should go to same category
-        var input2 = Vector.of(0.52, 0.48);
+        var input2 = Pattern.of(0.52, 0.48);
         var result2 = gaussianART.stepFit(input2, lowVigilanceParams);
         
         // Should still have only 1 category
@@ -102,11 +102,11 @@ class GaussianARTTest {
     @DisplayName("Dissimilar inputs should create separate categories")
     void testDissimilarInputsSeparation() {
         // First input in one region
-        var input1 = Vector.of(0.2, 0.2);
+        var input1 = Pattern.of(0.2, 0.2);
         gaussianART.stepFit(input1, highVigilanceParams);
         
         // Very different input should create new category
-        var input2 = Vector.of(0.8, 0.8);
+        var input2 = Pattern.of(0.8, 0.8);
         var result2 = gaussianART.stepFit(input2, highVigilanceParams);
         
         // Should have 2 categories now
@@ -129,13 +129,13 @@ class GaussianARTTest {
     @DisplayName("Winner-take-all competition should select highest probability category")
     void testActivationBasedCompetition() {
         // Create two well-separated categories
-        var input1 = Vector.of(0.1, 0.1);
-        var input2 = Vector.of(0.9, 0.9);
+        var input1 = Pattern.of(0.1, 0.1);
+        var input2 = Pattern.of(0.9, 0.9);
         gaussianART.stepFit(input1, defaultParams);
         gaussianART.stepFit(input2, defaultParams);
         
         // Input closer to first category should activate it
-        var testInput = Vector.of(0.15, 0.12);
+        var testInput = Pattern.of(0.15, 0.12);
         var result = gaussianART.stepFit(testInput, defaultParams);
         
         var success = (ActivationResult.Success) result;
@@ -149,11 +149,11 @@ class GaussianARTTest {
     @Test
     @DisplayName("Vigilance parameter should control category creation")
     void testVigilanceControl() {
-        var input1 = Vector.of(0.5, 0.5);
+        var input1 = Pattern.of(0.5, 0.5);
         
         // Low vigilance - should accept similar inputs
         gaussianART.stepFit(input1, lowVigilanceParams);
-        var input2 = Vector.of(0.6, 0.4);
+        var input2 = Pattern.of(0.6, 0.4);
         gaussianART.stepFit(input2, lowVigilanceParams);
         assertEquals(1, gaussianART.getCategoryCount());
         
@@ -161,7 +161,7 @@ class GaussianARTTest {
         gaussianART.clear();
         var veryHighVigilanceParams = GaussianParameters.of(0.9, new double[]{0.1, 0.1});
         gaussianART.stepFit(input1, veryHighVigilanceParams);
-        var input3 = Vector.of(0.8, 0.2); // More different from input1
+        var input3 = Pattern.of(0.8, 0.2); // More different from input1
         gaussianART.stepFit(input3, veryHighVigilanceParams);
         assertEquals(2, gaussianART.getCategoryCount()); // Should create separate categories
     }
@@ -173,7 +173,7 @@ class GaussianARTTest {
         var smallSigmaParams = GaussianParameters.of(0.1, new double[]{0.1, 0.1});
         
         // Start with one input
-        var input1 = Vector.of(0.4, 0.6);
+        var input1 = Pattern.of(0.4, 0.6);
         gaussianART.stepFit(input1, smallSigmaParams);
         
         var weight1 = (GaussianWeight) gaussianART.getCategory(0);
@@ -182,7 +182,7 @@ class GaussianARTTest {
         assertEquals(1L, weight1.sampleCount());
         
         // Add significantly different input - should update statistics
-        var input2 = Vector.of(0.8, 0.2);  // Very different from first input
+        var input2 = Pattern.of(0.8, 0.2);  // Very different from first input
         gaussianART.stepFit(input2, smallSigmaParams);
         
         var weight2 = (GaussianWeight) gaussianART.getCategory(0);
@@ -198,7 +198,7 @@ class GaussianARTTest {
     @Test
     @DisplayName("Mathematical properties should be preserved")
     void testMathematicalProperties() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         gaussianART.stepFit(input, defaultParams);
         
         var weight = (GaussianWeight) gaussianART.getCategory(0);
@@ -225,12 +225,12 @@ class GaussianARTTest {
     @DisplayName("Edge cases should be handled correctly")
     void testEdgeCases() {
         // Very small inputs
-        var smallInput = Vector.of(0.001, 0.001);
+        var smallInput = Pattern.of(0.001, 0.001);
         var result1 = gaussianART.stepFit(smallInput, defaultParams);
         assertInstanceOf(ActivationResult.Success.class, result1);
         
         // Very large inputs (within [0,1] range)
-        var largeInput = Vector.of(0.999, 0.999);
+        var largeInput = Pattern.of(0.999, 0.999);
         var result2 = gaussianART.stepFit(largeInput, defaultParams);
         assertInstanceOf(ActivationResult.Success.class, result2);
         
@@ -241,14 +241,14 @@ class GaussianARTTest {
     @Test
     @DisplayName("Parameter validation should work correctly")
     void testParameterValidation() {
-        var input = Vector.of(0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5);
         
         // Add a category first to enable parameter validation
         gaussianART.stepFit(input, defaultParams);
         
         // Wrong parameter type should throw exception
         assertThrows(IllegalArgumentException.class, () -> {
-            gaussianART.stepFit(Vector.of(0.6, 0.4), "wrong_params");
+            gaussianART.stepFit(Pattern.of(0.6, 0.4), "wrong_params");
         });
         
         // Null parameters should throw exception
@@ -270,7 +270,7 @@ class GaussianARTTest {
         
         // Try with 3D input - should throw exception
         assertThrows(IllegalArgumentException.class, () -> {
-            var input3D = Vector.of(0.3, 0.4, 0.5);
+            var input3D = Pattern.of(0.3, 0.4, 0.5);
             gaussianART.stepFit(input3D, params2D);
         });
     }
@@ -278,12 +278,12 @@ class GaussianARTTest {
     @Test
     @DisplayName("Multiple learning cycles should maintain consistency")
     void testMultipleLearnignCycles() {
-        var inputs = new Vector[]{
-            Vector.of(0.2, 0.3),
-            Vector.of(0.25, 0.35),
-            Vector.of(0.8, 0.7),
-            Vector.of(0.75, 0.72),
-            Vector.of(0.22, 0.32)
+        var inputs = new Pattern[]{
+            Pattern.of(0.2, 0.3),
+            Pattern.of(0.25, 0.35),
+            Pattern.of(0.8, 0.7),
+            Pattern.of(0.75, 0.72),
+            Pattern.of(0.22, 0.32)
         };
         
         // Process all inputs
@@ -313,7 +313,7 @@ class GaussianARTTest {
         assertTrue(toString.contains("categories=0"));
         
         // Add a category and check again
-        gaussianART.stepFit(Vector.of(0.5, 0.5), defaultParams);
+        gaussianART.stepFit(Pattern.of(0.5, 0.5), defaultParams);
         toString = gaussianART.toString();
         assertTrue(toString.contains("categories=1"));
     }
@@ -321,7 +321,7 @@ class GaussianARTTest {
     @Test
     @DisplayName("Probability density calculation should be mathematically correct")
     void testProbabilityDensityCalculation() {
-        var input = Vector.of(0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5);
         var result = gaussianART.stepFit(input, tightParams);
         
         var success = (ActivationResult.Success) result;

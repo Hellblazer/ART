@@ -30,7 +30,7 @@ class WeightVectorTest {
     @Test
     @DisplayName("FuzzyWeight from input vector with complement coding")
     void testFuzzyWeightFromVector() {
-        var input = Vector.of(0.2, 0.8, 0.5);
+        var input = Pattern.of(0.2, 0.8, 0.5);
         var weight = FuzzyWeight.fromInput(input);
         
         assertEquals(6, weight.dimension());
@@ -48,8 +48,8 @@ class WeightVectorTest {
     @Test
     @DisplayName("FuzzyWeight update with learning rate")
     void testFuzzyWeightUpdate() {
-        var input = Vector.of(0.6, 0.4, 0.8);
-        var complementInput = Vector.of(0.6, 0.4, 0.8, 0.4, 0.6, 0.2); // hand-calculated
+        var input = Pattern.of(0.6, 0.4, 0.8);
+        var complementInput = Pattern.of(0.6, 0.4, 0.8, 0.4, 0.6, 0.2); // hand-calculated
         var weight = FuzzyWeight.of(new double[]{1.0, 1.0, 1.0, 0.0, 0.0, 0.0}, 3);
         var params = FuzzyParameters.of(0.5, 0.0, 0.7); // beta = 0.7
         
@@ -84,7 +84,7 @@ class WeightVectorTest {
         var initialSigma = new double[]{1.0, 1.0};
         var weight = GaussianWeight.of(initialMean, initialSigma, 1L);
         
-        var newSample = Vector.of(1.0, 2.0);
+        var newSample = Pattern.of(1.0, 2.0);
         var updated = (GaussianWeight) weight.update(newSample, GaussianParameters.withDimension(2));
         
         assertEquals(2L, updated.sampleCount());
@@ -112,7 +112,7 @@ class WeightVectorTest {
         var weight = HypersphereWeight.of(center, 1.0);
         
         // Point outside current radius should expand it
-        var outsidePoint = Vector.of(3.0, 4.0); // Distance = 5.0
+        var outsidePoint = Pattern.of(3.0, 4.0); // Distance = 5.0
         var expanded = weight.expandToInclude(outsidePoint);
         
         assertEquals(5.0, expanded.radius(), 1e-10);
@@ -200,7 +200,7 @@ class WeightVectorTest {
     @Test
     @DisplayName("WeightVector type safety with sealed interface")
     void testWeightVectorTypePattern() {
-        WeightVector weight = FuzzyWeight.fromInput(Vector.of(0.5, 0.5));
+        WeightVector weight = FuzzyWeight.fromInput(Pattern.of(0.5, 0.5));
         
         var result = switch (weight) {
             case FuzzyWeight fw -> "fuzzy:" + fw.originalDimension();

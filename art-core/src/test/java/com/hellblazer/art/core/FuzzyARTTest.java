@@ -40,7 +40,7 @@ class FuzzyARTTest {
     @Test
     @DisplayName("First input creates initial category with complement coding")
     void testFirstInputCreatesCategory() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         var result = fuzzyART.stepFit(input, defaultParams);
         
         // Should create new category
@@ -67,7 +67,7 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Same input pattern is accepted by existing category")
     void testSameInputAccepted() {
-        var input = Vector.of(0.6, 0.4);
+        var input = Pattern.of(0.6, 0.4);
         
         // Create first category
         fuzzyART.stepFit(input, defaultParams);
@@ -85,8 +85,8 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Similar input pattern is accepted with low vigilance")
     void testSimilarInputAcceptedLowVigilance() {
-        var input1 = Vector.of(0.6, 0.4);
-        var input2 = Vector.of(0.65, 0.35); // Similar pattern
+        var input1 = Pattern.of(0.6, 0.4);
+        var input2 = Pattern.of(0.65, 0.35); // Similar pattern
         
         // Create first category
         fuzzyART.stepFit(input1, lowVigilanceParams);
@@ -104,8 +104,8 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Different input pattern creates new category with high vigilance")
     void testDifferentInputCreatesNewCategoryHighVigilance() {
-        var input1 = Vector.of(0.8, 0.2);
-        var input2 = Vector.of(0.2, 0.8); // Very different pattern
+        var input1 = Pattern.of(0.8, 0.2);
+        var input2 = Pattern.of(0.2, 0.8); // Very different pattern
         
         // Create first category
         fuzzyART.stepFit(input1, highVigilanceParams);
@@ -129,8 +129,8 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Learning updates category weights using fuzzy min rule")
     void testLearningUpdatesWeights() {
-        var input1 = Vector.of(0.8, 0.2);
-        var input2 = Vector.of(0.9, 0.1); // Similar but slightly different
+        var input1 = Pattern.of(0.8, 0.2);
+        var input2 = Pattern.of(0.9, 0.1); // Similar but slightly different
         var learningParams = FuzzyParameters.of(0.1, 0.0, 0.5); // β=0.5 for partial learning
         
         // Create first category
@@ -161,9 +161,9 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Choice function produces higher activation for better matches")
     void testChoiceFunctionActivationOrdering() {
-        var input1 = Vector.of(0.7, 0.3);
-        var input2 = Vector.of(0.8, 0.2); // More similar to input1
-        var input3 = Vector.of(0.2, 0.8); // Less similar to input1
+        var input1 = Pattern.of(0.7, 0.3);
+        var input2 = Pattern.of(0.8, 0.2); // More similar to input1
+        var input3 = Pattern.of(0.2, 0.8); // Less similar to input1
         var params = FuzzyParameters.of(0.8, 0.01, 1.0); // Higher vigilance to create separate categories
         
         // Create categories
@@ -182,12 +182,12 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Multiple inputs create correct category structure")
     void testMultipleInputsCreateCategories() {
-        var inputs = new Vector[]{
-            Vector.of(0.9, 0.1), // Group 1: High first dimension
-            Vector.of(0.8, 0.2),
-            Vector.of(0.1, 0.9), // Group 2: High second dimension  
-            Vector.of(0.2, 0.8),
-            Vector.of(0.95, 0.05) // Should join Group 1 with low vigilance
+        var inputs = new Pattern[]{
+            Pattern.of(0.9, 0.1), // Group 1: High first dimension
+            Pattern.of(0.8, 0.2),
+            Pattern.of(0.1, 0.9), // Group 2: High second dimension  
+            Pattern.of(0.2, 0.8),
+            Pattern.of(0.95, 0.05) // Should join Group 1 with low vigilance
         };
         var params = FuzzyParameters.of(0.3, 0.0, 0.8); // Moderate vigilance
         
@@ -209,17 +209,17 @@ class FuzzyARTTest {
     @DisplayName("FuzzyART handles edge case inputs correctly")
     void testEdgeCaseInputs() {
         // Test with all zeros
-        var zeroInput = Vector.of(0.0, 0.0);
+        var zeroInput = Pattern.of(0.0, 0.0);
         var result1 = fuzzyART.stepFit(zeroInput, highVigilanceParams); // Use high vigilance for separation
         assertTrue(result1 instanceof ActivationResult.Success);
         
         // Test with all ones
-        var oneInput = Vector.of(1.0, 1.0);
+        var oneInput = Pattern.of(1.0, 1.0);
         var result2 = fuzzyART.stepFit(oneInput, highVigilanceParams);
         assertTrue(result2 instanceof ActivationResult.Success);
         
         // Test with mixed
-        var mixedInput = Vector.of(0.0, 1.0);
+        var mixedInput = Pattern.of(0.0, 1.0);
         var result3 = fuzzyART.stepFit(mixedInput, highVigilanceParams);
         assertTrue(result3 instanceof ActivationResult.Success);
         
@@ -230,7 +230,7 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Parameter validation in FuzzyART methods")
     void testParameterValidation() {
-        var input = Vector.of(0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5);
         var wrongParams = new Object();
         
         // Add a category first so parameter validation will occur
@@ -238,7 +238,7 @@ class FuzzyARTTest {
         
         // Test invalid parameter types (now validation will occur)
         assertThrows(IllegalArgumentException.class, 
-            () -> fuzzyART.stepFit(Vector.of(0.6, 0.4), wrongParams));
+            () -> fuzzyART.stepFit(Pattern.of(0.6, 0.4), wrongParams));
         
         // Test null parameters
         assertThrows(NullPointerException.class,
@@ -250,8 +250,8 @@ class FuzzyARTTest {
     @Test
     @DisplayName("FuzzyART integrates correctly with BaseART template framework")
     void testBaseARTIntegration() {
-        var input1 = Vector.of(0.4, 0.6);
-        var input2 = Vector.of(0.45, 0.55);
+        var input1 = Pattern.of(0.4, 0.6);
+        var input2 = Pattern.of(0.45, 0.55);
         
         // Test that stepFit method works (template method from BaseART)
         var result1 = fuzzyART.stepFit(input1, defaultParams);
@@ -278,8 +278,8 @@ class FuzzyARTTest {
     @Test
     @DisplayName("Different vigilance parameters produce different clustering behavior")
     void testVigilanceParameterEffects() {
-        var input1 = Vector.of(0.6, 0.4);
-        var input2 = Vector.of(0.7, 0.3); // Moderately similar
+        var input1 = Pattern.of(0.6, 0.4);
+        var input2 = Pattern.of(0.7, 0.3); // Moderately similar
         
         // Test with low vigilance (more permissive)
         var lowVigilanceFuzzyART = new FuzzyART();
@@ -300,9 +300,9 @@ class FuzzyARTTest {
     @DisplayName("Complement coding dimension handling is correct")
     void testComplementCodingDimensions() {
         // Test various input dimensions
-        var input2D = Vector.of(0.3, 0.7);
-        var input3D = Vector.of(0.2, 0.5, 0.8);
-        var input1D = Vector.of(0.6);
+        var input2D = Pattern.of(0.3, 0.7);
+        var input3D = Pattern.of(0.2, 0.5, 0.8);
+        var input1D = Pattern.of(0.6);
         
         fuzzyART.stepFit(input2D, defaultParams);
         var category2D = (FuzzyWeight) fuzzyART.getCategory(0);
@@ -326,7 +326,7 @@ class FuzzyARTTest {
     @DisplayName("FuzzyART handles numerical edge cases in choice function")
     void testNumericalEdgeCases() {
         // Test with alpha = 0 and small weights (potential division issues)
-        var smallInput = Vector.of(1e-10, 1e-10);
+        var smallInput = Pattern.of(1e-10, 1e-10);
         var zeroAlphaParams = FuzzyParameters.of(0.5, 0.0, 1.0);
         
         // Should not throw division by zero
@@ -335,7 +335,7 @@ class FuzzyARTTest {
         
         // Test with very large alpha
         var largeAlphaParams = FuzzyParameters.of(0.5, 1e6, 1.0);
-        var result2 = fuzzyART.stepFit(Vector.of(0.5, 0.5), largeAlphaParams);
+        var result2 = fuzzyART.stepFit(Pattern.of(0.5, 0.5), largeAlphaParams);
         assertTrue(result2 instanceof ActivationResult.Success);
     }
 }

@@ -51,7 +51,7 @@ public final class ARTMAP {
      * @param artBParameters parameters for ARTb processing
      * @return the result of the training operation
      */
-    public ARTMAPResult train(Vector input, Vector target, Object artAParameters, Object artBParameters) {
+    public ARTMAPResult train(Pattern input, Pattern target, Object artAParameters, Object artBParameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(target, "Target vector cannot be null");
         Objects.requireNonNull(artAParameters, "ARTa parameters cannot be null");
@@ -76,7 +76,7 @@ public final class ARTMAP {
      * @param artAParameters parameters for ARTa processing
      * @return the prediction result or empty if no prediction possible
      */
-    public Optional<ARTMAPResult.Prediction> predict(Vector input, Object artAParameters) {
+    public Optional<ARTMAPResult.Prediction> predict(Pattern input, Object artAParameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(artAParameters, "ARTa parameters cannot be null");
         
@@ -113,7 +113,7 @@ public final class ARTMAP {
      * Implements the core ARTMAP match tracking and vigilance increase mechanism.
      */
     private ARTMAPResult processARTaWithVigilanceSearch(
-            Vector input, int targetBIndex, Object artAParameters, ActivationResult.Success artBSuccess) {
+            Pattern input, int targetBIndex, Object artAParameters, ActivationResult.Success artBSuccess) {
         
         int maxSearchAttempts = artA.getCategoryCount() + 1;  // Limit search to prevent infinite loops
         
@@ -177,7 +177,7 @@ public final class ARTMAP {
     /**
      * Find best matching ARTa category without learning (for prediction).
      */
-    private Optional<CategoryMatch> findBestARTaMatch(Vector input, Object artAParameters) {
+    private Optional<CategoryMatch> findBestARTaMatch(Pattern input, Object artAParameters) {
         if (artA.getCategoryCount() == 0) {
             return Optional.empty();
         }

@@ -43,7 +43,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the result of the activation process
      */
-    public final ActivationResult stepFit(Vector input, Object parameters) {
+    public final ActivationResult stepFit(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -92,7 +92,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the activation value for this category
      */
-    protected abstract double calculateActivation(Vector input, WeightVector weight, Object parameters);
+    protected abstract double calculateActivation(Pattern input, WeightVector weight, Object parameters);
     
     /**
      * Test whether the input matches the category well enough according to vigilance.
@@ -103,7 +103,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the match result (accepted or rejected)
      */
-    protected abstract MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters);
+    protected abstract MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters);
     
     /**
      * Update the category weight based on the input using the learning rule.
@@ -114,7 +114,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the updated weight vector
      */
-    protected abstract WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters);
+    protected abstract WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters);
     
     /**
      * Create an initial weight vector for a new category based on the input.
@@ -124,7 +124,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the initial weight vector for the new category
      */
-    protected abstract WeightVector createInitialWeight(Vector input, Object parameters);
+    protected abstract WeightVector createInitialWeight(Pattern input, Object parameters);
     
     /**
      * Find the winner among categories using winner-take-all competition.

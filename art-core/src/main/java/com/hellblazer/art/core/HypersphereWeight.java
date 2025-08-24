@@ -75,7 +75,7 @@ public record HypersphereWeight(double[] center, double radius) implements Weigh
      * @param point the point to include
      * @return new HypersphereWeight that includes the point
      */
-    public HypersphereWeight expandToInclude(Vector point) {
+    public HypersphereWeight expandToInclude(Pattern point) {
         Objects.requireNonNull(point, "Point cannot be null");
         if (point.dimension() != center.length) {
             throw new IllegalArgumentException("Point dimension " + point.dimension() + 
@@ -97,7 +97,7 @@ public record HypersphereWeight(double[] center, double radius) implements Weigh
      * @param point the point to calculate distance to
      * @return the Euclidean distance
      */
-    private double euclideanDistance(Vector point) {
+    private double euclideanDistance(Pattern point) {
         double sumSquares = 0.0;
         for (int i = 0; i < center.length; i++) {
             var diff = point.get(i) - center[i];
@@ -116,7 +116,7 @@ public record HypersphereWeight(double[] center, double radius) implements Weigh
      * @return new updated HypersphereWeight
      */
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         

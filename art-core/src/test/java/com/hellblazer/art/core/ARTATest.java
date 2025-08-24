@@ -40,7 +40,7 @@ class ARTATest {
     @Test
     @DisplayName("First input creates initial category with attention weights")
     void testFirstInputCreatesCategory() {
-        var input = Vector.of(0.3, 0.7, 0.5);
+        var input = Pattern.of(0.3, 0.7, 0.5);
         var result = arta.stepFit(input, defaultParams);
         
         // Should create new category
@@ -73,14 +73,14 @@ class ARTATest {
     @DisplayName("Second input with similar pattern updates attention weights")
     void testAttentionWeightLearning() {
         // First input
-        var input1 = Vector.of(0.3, 0.7, 0.2);
+        var input1 = Pattern.of(0.3, 0.7, 0.2);
         arta.stepFit(input1, defaultParams);
         
         var initialWeight = (ARTAWeight) arta.getCategory(0);
         var initialAttention = initialWeight.getAttentionWeights();
         
         // Second similar input - should update attention weights
-        var input2 = Vector.of(0.35, 0.75, 0.25);
+        var input2 = Pattern.of(0.35, 0.75, 0.25);
         var result = arta.stepFit(input2, defaultParams);
         
         assertTrue(result instanceof ActivationResult.Success);
@@ -100,11 +100,11 @@ class ARTATest {
     @DisplayName("Different input creates new category with different attention pattern")
     void testDifferentInputCreatesNewCategory() {
         // First input
-        var input1 = Vector.of(0.9, 0.1, 0.1);
+        var input1 = Pattern.of(0.9, 0.1, 0.1);
         arta.stepFit(input1, defaultParams);
         
         // Very different input - should create new category
-        var input2 = Vector.of(0.1, 0.9, 0.9);
+        var input2 = Pattern.of(0.1, 0.9, 0.9);
         var result = arta.stepFit(input2, defaultParams);
         
         assertTrue(result instanceof ActivationResult.Success);
@@ -128,11 +128,11 @@ class ARTATest {
     @Test
     @DisplayName("Attention-weighted activation calculation works correctly")
     void testAttentionWeightedActivation() {
-        var input = Vector.of(0.5, 0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5, 0.5);
         arta.stepFit(input, defaultParams);
         
         // Create a test input
-        var testInput = Vector.of(0.6, 0.4, 0.5);
+        var testInput = Pattern.of(0.6, 0.4, 0.5);
         
         // Calculate activation manually and compare with ART-A calculation
         var weight = (ARTAWeight) arta.getCategory(0);
@@ -142,7 +142,7 @@ class ARTATest {
         // Manual calculation of attention-weighted activation
         double expectedIntersection = 0.0;
         double expectedCategoryMag = 0.0;
-        // Manual calculation using Vector interface methods
+        // Manual calculation using Pattern interface methods
         
         for (int i = 0; i < testInput.dimension(); i++) {
             double fuzzyMin = Math.min(testInput.get(i), categoryWeights[i]);
@@ -161,23 +161,23 @@ class ARTATest {
     @DisplayName("Attention-weighted vigilance testing works correctly")
     void testAttentionWeightedVigilance() {
         // Create initial category with high vigilance parameters
-        var input1 = Vector.of(0.8, 0.2, 0.1);
+        var input1 = Pattern.of(0.8, 0.2, 0.1);
         arta.stepFit(input1, highVigilanceParams);
         
         // Test with very similar input (should pass vigilance with high vigilance=0.9)
-        var verySimilarInput = Vector.of(0.82, 0.21, 0.11);
+        var verySimilarInput = Pattern.of(0.82, 0.21, 0.11);
         var result1 = arta.stepFit(verySimilarInput, highVigilanceParams);
         assertTrue(result1 instanceof ActivationResult.Success);
         assertEquals(0, ((ActivationResult.Success) result1).categoryIndex());
         
         // Test with moderately similar input (should fail high vigilance and create new category)
-        var moderatelySimilarInput = Vector.of(0.85, 0.25, 0.15);
+        var moderatelySimilarInput = Pattern.of(0.85, 0.25, 0.15);
         var result2 = arta.stepFit(moderatelySimilarInput, highVigilanceParams);
         assertTrue(result2 instanceof ActivationResult.Success);
         assertEquals(1, ((ActivationResult.Success) result2).categoryIndex()); // New category
         
         // Test with dissimilar input (should fail vigilance and create new category)
-        var dissimilarInput = Vector.of(0.2, 0.8, 0.9);
+        var dissimilarInput = Pattern.of(0.2, 0.8, 0.9);
         var result3 = arta.stepFit(dissimilarInput, highVigilanceParams);
         assertTrue(result3 instanceof ActivationResult.Success);
         assertEquals(2, ((ActivationResult.Success) result3).categoryIndex()); // New category
@@ -187,9 +187,9 @@ class ARTATest {
     @DisplayName("Attention analysis provides meaningful feature rankings")
     void testAttentionAnalysis() {
         // Train with patterns that emphasize different features
-        arta.stepFit(Vector.of(0.9, 0.1, 0.1), defaultParams); // Feature 0 important
-        arta.stepFit(Vector.of(0.1, 0.9, 0.1), defaultParams); // Feature 1 important
-        arta.stepFit(Vector.of(0.1, 0.1, 0.9), defaultParams); // Feature 2 important
+        arta.stepFit(Pattern.of(0.9, 0.1, 0.1), defaultParams); // Feature 0 important
+        arta.stepFit(Pattern.of(0.1, 0.9, 0.1), defaultParams); // Feature 1 important
+        arta.stepFit(Pattern.of(0.1, 0.1, 0.9), defaultParams); // Feature 2 important
         
         var analysis = arta.analyzeAttentionDistribution();
         
@@ -216,8 +216,8 @@ class ARTATest {
     @DisplayName("Get attention weights for specific categories")
     void testGetAttentionWeights() {
         // Create categories
-        arta.stepFit(Vector.of(0.7, 0.3), defaultParams);
-        arta.stepFit(Vector.of(0.2, 0.8), defaultParams);
+        arta.stepFit(Pattern.of(0.7, 0.3), defaultParams);
+        arta.stepFit(Pattern.of(0.2, 0.8), defaultParams);
         
         // Test getAttentionWeights
         var attention0 = arta.getAttentionWeights(0);
@@ -394,7 +394,7 @@ class ARTATest {
             assertEquals(1.0, attention, 1e-10);
         }
         
-        var vectorWeight = ARTAWeight.fromVector(Vector.of(categoryWeights), 0.5);
+        var vectorWeight = ARTAWeight.fromVector(Pattern.of(categoryWeights), 0.5);
         for (double attention : vectorWeight.getAttentionWeights()) {
             assertEquals(0.5, attention, 1e-10);
         }
@@ -406,7 +406,7 @@ class ARTATest {
         var categoryWeights = new double[]{0.5, 0.7, 0.3};
         var attentionWeights = new double[]{0.9, 0.1, 0.8}; // High attention on features 0,2
         var weight = new ARTAWeight(categoryWeights, attentionWeights);
-        var input = Vector.of(0.6, 0.8, 0.4);
+        var input = Pattern.of(0.6, 0.8, 0.4);
         
         // Test attention-weighted distance
         double distance = weight.attentionWeightedDistance(input);
@@ -418,7 +418,7 @@ class ARTATest {
         
         // Test dimension mismatch
         assertThrows(IllegalArgumentException.class,
-            () -> weight.attentionWeightedDistance(Vector.of(0.5, 0.7)));
+            () -> weight.attentionWeightedDistance(Pattern.of(0.5, 0.7)));
     }
     
     @Test
@@ -483,9 +483,9 @@ class ARTATest {
     @DisplayName("Integration with BaseART template method pattern")
     void testBaseARTIntegration() {
         // Test that ART-A properly integrates with BaseART template methods
-        var input1 = Vector.of(0.8, 0.2);
-        var input2 = Vector.of(0.2, 0.8);
-        var input3 = Vector.of(0.85, 0.15); // Similar to input1
+        var input1 = Pattern.of(0.8, 0.2);
+        var input2 = Pattern.of(0.2, 0.8);
+        var input3 = Pattern.of(0.85, 0.15); // Similar to input1
         
         // First input creates first category
         var result1 = arta.stepFit(input1, defaultParams);

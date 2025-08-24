@@ -74,7 +74,7 @@ public final class ARTSTARWeight implements WeightVector {
     /**
      * Create initial ARTSTAR weight from input vector.
      */
-    public static ARTSTARWeight fromVector(Vector input, double initialStrength) {
+    public static ARTSTARWeight fromVector(Pattern input, double initialStrength) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         
         var weights = new double[input.dimension()];
@@ -119,7 +119,7 @@ public final class ARTSTARWeight implements WeightVector {
     }
     
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -300,7 +300,7 @@ public final class ARTSTARWeight implements WeightVector {
     /**
      * Calculate similarity to input vector using standard fuzzy ART measure.
      */
-    public double calculateSimilarity(Vector input) {
+    public double calculateSimilarity(Pattern input) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         
         if (input.dimension() != dimension()) {
@@ -323,7 +323,7 @@ public final class ARTSTARWeight implements WeightVector {
     /**
      * Calculate stability-weighted similarity that considers regulation state.
      */
-    public double calculateRegulatedSimilarity(Vector input) {
+    public double calculateRegulatedSimilarity(Pattern input) {
         double baseSimilarity = calculateSimilarity(input);
         
         // Higher stability increases similarity (resistance to change)

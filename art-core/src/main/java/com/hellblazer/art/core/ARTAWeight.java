@@ -79,12 +79,12 @@ public final class ARTAWeight implements WeightVector {
     }
     
     /**
-     * Create ART-A weights from a Vector with uniform attention.
+     * Create ART-A weights from a Pattern with uniform attention.
      * @param categoryVector the category prototype as a vector
      * @param uniformAttentionWeight the uniform attention weight
      * @return new ARTAWeight instance
      */
-    public static ARTAWeight fromVector(Vector categoryVector, double uniformAttentionWeight) {
+    public static ARTAWeight fromVector(Pattern categoryVector, double uniformAttentionWeight) {
         Objects.requireNonNull(categoryVector, "Category vector cannot be null");
         var data = new double[categoryVector.dimension()];
         for (int i = 0; i < data.length; i++) {
@@ -178,7 +178,7 @@ public final class ARTAWeight implements WeightVector {
      * @param input the input vector
      * @return attention-weighted distance
      */
-    public double attentionWeightedDistance(Vector input) {
+    public double attentionWeightedDistance(Pattern input) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         
         if (input.dimension() != categoryWeights.length) {
@@ -201,7 +201,7 @@ public final class ARTAWeight implements WeightVector {
      * @param input the input vector
      * @return attention-weighted similarity (0 to 1)
      */
-    public double attentionWeightedSimilarity(Vector input) {
+    public double attentionWeightedSimilarity(Pattern input) {
         double distance = attentionWeightedDistance(input);
         return 1.0 / (1.0 + distance);  // Convert distance to similarity
     }
@@ -226,7 +226,7 @@ public final class ARTAWeight implements WeightVector {
     }
     
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         // This is handled by ARTA.updateWeights() - just return this for now
         // In practice, this would need to implement the ART-A specific update logic
         throw new UnsupportedOperationException("Update should be called through ARTA.updateWeights()");

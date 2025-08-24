@@ -1,7 +1,7 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.WeightVector;
-import com.hellblazer.art.core.Vector;
+import com.hellblazer.art.core.Pattern;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -49,7 +49,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * Create initial VectorizedWeight from input.
      */
-    public static VectorizedWeight fromInput(Vector input, VectorizedParameters params) {
+    public static VectorizedWeight fromInput(Pattern input, VectorizedParameters params) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(params, "Parameters cannot be null");
         
@@ -84,7 +84,7 @@ public final class VectorizedWeight implements WeightVector {
     }
     
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -127,9 +127,9 @@ public final class VectorizedWeight implements WeightVector {
     }
     
     /**
-     * Convert input Vector to float array for SIMD operations.
+     * Convert input Pattern to float array for SIMD operations.
      */
-    public float[] getInputArray(Vector input) {
+    public float[] getInputArray(Pattern input) {
         var array = new float[input.dimension()];
         for (int i = 0; i < input.dimension(); i++) {
             array[i] = (float) input.get(i);
@@ -156,9 +156,9 @@ public final class VectorizedWeight implements WeightVector {
     }
     
     /**
-     * Convert input Vector to JOML Vector3f.
+     * Convert input Pattern to JOML Vector3f.
      */
-    public Vector3f asVector3f(Vector input) {
+    public Vector3f asVector3f(Pattern input) {
         if (input.dimension() != 3) {
             throw new IllegalArgumentException("Input must be 3-dimensional for Vector3f conversion");
         }
@@ -185,9 +185,9 @@ public final class VectorizedWeight implements WeightVector {
     }
     
     /**
-     * Convert input Vector to JOML Vector4f.
+     * Convert input Pattern to JOML Vector4f.
      */
-    public Vector4f asVector4f(Vector input) {
+    public Vector4f asVector4f(Pattern input) {
         if (input.dimension() != 4) {
             throw new IllegalArgumentException("Input must be 4-dimensional for Vector4f conversion");
         }
@@ -198,7 +198,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * Compute vectorized similarity using optimized algorithms.
      */
-    public double computeSimilarity(Vector input, VectorizedParameters params) {
+    public double computeSimilarity(Pattern input, VectorizedParameters params) {
         Objects.requireNonNull(input, "Input cannot be null");
         if (input.dimension() != dimension()) {
             throw new IllegalArgumentException("Input dimension must match weight dimension");
@@ -216,7 +216,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * JOML-optimized 3D similarity computation.
      */
-    private double computeJOMLSimilarity3D(Vector input) {
+    private double computeJOMLSimilarity3D(Pattern input) {
         var inputVec = asVector3f(input);
         var weightVec = asVector3f();
         
@@ -241,7 +241,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * JOML-optimized 4D similarity computation.
      */
-    private double computeJOMLSimilarity4D(Vector input) {
+    private double computeJOMLSimilarity4D(Pattern input) {
         var inputVec = asVector4f(input);
         var weightVec = asVector4f();
         
@@ -268,7 +268,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * Standard similarity computation.
      */
-    private double computeStandardSimilarity(Vector input) {
+    private double computeStandardSimilarity(Pattern input) {
         double intersection = 0.0;
         double union = 0.0;
         
@@ -285,7 +285,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * Compute distance using optimized algorithms.
      */
-    public double computeDistance(Vector input, VectorizedParameters params) {
+    public double computeDistance(Pattern input, VectorizedParameters params) {
         if (dimension() == 3 && params.enableJOML()) {
             return asVector3f().distance(asVector3f(input));
         } else if (dimension() == 4 && params.enableJOML()) {
@@ -298,7 +298,7 @@ public final class VectorizedWeight implements WeightVector {
     /**
      * Standard Euclidean distance computation.
      */
-    private double computeEuclideanDistance(Vector input) {
+    private double computeEuclideanDistance(Pattern input) {
         double sumSquares = 0.0;
         for (int i = 0; i < dimension(); i++) {
             double diff = input.get(i) - weights[i];

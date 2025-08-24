@@ -99,7 +99,7 @@ public record DataBounds(double[] min, double[] max) {
      * @throws NullPointerException if vector is null
      * @throws IllegalArgumentException if vector dimension doesn't match
      */
-    public boolean contains(Vector vector) {
+    public boolean contains(Pattern vector) {
         Objects.requireNonNull(vector, "Vector cannot be null");
         if (vector.dimension() != min.length) {
             throw new IllegalArgumentException("Vector dimension " + vector.dimension() + 
@@ -125,7 +125,7 @@ public record DataBounds(double[] min, double[] max) {
      * @throws NullPointerException if vector is null
      * @throws IllegalArgumentException if vector dimension doesn't match
      */
-    public DataBounds expand(Vector vector) {
+    public DataBounds expand(Pattern vector) {
         Objects.requireNonNull(vector, "Vector cannot be null");
         if (vector.dimension() != min.length) {
             throw new IllegalArgumentException("Vector dimension " + vector.dimension() + 

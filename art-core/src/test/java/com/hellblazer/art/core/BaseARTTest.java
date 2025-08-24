@@ -23,7 +23,7 @@ class BaseARTTest {
     @Test
     @DisplayName("ActivationResult Success creation and validation")
     void testActivationResultSuccess() {
-        var weight = FuzzyWeight.fromInput(Vector.of(0.5, 0.5));
+        var weight = FuzzyWeight.fromInput(Pattern.of(0.5, 0.5));
         var result = new ActivationResult.Success(0, 1.5, weight);
         
         assertEquals(0, result.categoryIndex());
@@ -53,7 +53,7 @@ class BaseARTTest {
     @Test
     @DisplayName("ActivationResult pattern matching")
     void testActivationResultPatternMatching() {
-        var weight = FuzzyWeight.fromInput(Vector.of(0.5, 0.5));
+        var weight = FuzzyWeight.fromInput(Pattern.of(0.5, 0.5));
         var successInstance = new ActivationResult.Success(1, 2.5, weight);
         var noMatchInstance = ActivationResult.NoMatch.instance();
         
@@ -132,7 +132,7 @@ class BaseARTTest {
     @Test
     @DisplayName("CategoryResult creation and validation")
     void testCategoryResultCreation() {
-        var weight = FuzzyWeight.fromInput(Vector.of(0.8, 0.2));
+        var weight = FuzzyWeight.fromInput(Pattern.of(0.8, 0.2));
         var activations = new double[]{0.5, 0.9, 0.3};
         var result = new CategoryResult(1, 0.9, weight, activations);
         
@@ -152,7 +152,7 @@ class BaseARTTest {
     @Test
     @DisplayName("CategoryResult winner margin calculation")
     void testCategoryResultWinnerMargin() {
-        var weight = FuzzyWeight.fromInput(Vector.of(0.5, 0.5));
+        var weight = FuzzyWeight.fromInput(Pattern.of(0.5, 0.5));
         var activations = new double[]{0.7, 0.9, 0.3, 0.6};
         var result = new CategoryResult(1, 0.9, weight, activations);
         
@@ -168,7 +168,7 @@ class BaseARTTest {
     @Test
     @DisplayName("BaseART empty categories initialization")
     void testBaseARTEmptyInitialization() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         var result = art.stepFit(input, params);
         
         // First input should create first category
@@ -192,12 +192,12 @@ class BaseARTTest {
         assertTrue(art.getCategories().isEmpty());
         
         // Add first category
-        art.stepFit(Vector.of(0.8, 0.2), params);
+        art.stepFit(Pattern.of(0.8, 0.2), params);
         assertEquals(1, art.getCategoryCount());
         
         // Categories should be unmodifiable
         assertThrows(UnsupportedOperationException.class,
-            () -> art.getCategories().add(FuzzyWeight.fromInput(Vector.of(0.5, 0.5))));
+            () -> art.getCategories().add(FuzzyWeight.fromInput(Pattern.of(0.5, 0.5))));
         
         // Test bounds checking
         assertThrows(IndexOutOfBoundsException.class,
@@ -216,7 +216,7 @@ class BaseARTTest {
         // Test that template method calls abstract methods in correct order
         art.clearCallLog();
         
-        var input1 = Vector.of(0.9, 0.1);
+        var input1 = Pattern.of(0.9, 0.1);
         var result1 = art.stepFit(input1, params);
         
         // First input: createInitialWeight should be called
@@ -227,7 +227,7 @@ class BaseARTTest {
         art.clearCallLog();
         
         // Second input: all methods should be called
-        var input2 = Vector.of(0.7, 0.3);
+        var input2 = Pattern.of(0.7, 0.3);
         var result2 = art.stepFit(input2, params);
         
         var log2 = art.getCallLog();
@@ -241,8 +241,8 @@ class BaseARTTest {
     @DisplayName("BaseART winner selection")
     void testBaseARTWinnerSelection() {
         // Create multiple categories by presenting different inputs
-        art.stepFit(Vector.of(0.9, 0.1), params); // Category 0
-        art.stepFit(Vector.of(0.1, 0.9), params); // Category 1 (different enough to create new)
+        art.stepFit(Pattern.of(0.9, 0.1), params); // Category 0
+        art.stepFit(Pattern.of(0.1, 0.9), params); // Category 1 (different enough to create new)
         
         assertEquals(2, art.getCategoryCount());
         
@@ -256,8 +256,8 @@ class BaseARTTest {
     @Test
     @DisplayName("BaseART integration with existing foundation")
     void testBaseARTFoundationIntegration() {
-        // Test integration with Vector system
-        var input = Vector.of(0.6, 0.4);
+        // Test integration with Pattern system
+        var input = Pattern.of(0.6, 0.4);
         var normalized = input.normalize(DataBounds.of(
             new double[]{0.0, 0.0}, new double[]{1.0, 1.0}
         ));
@@ -271,7 +271,7 @@ class BaseARTTest {
         
         // Test integration with FuzzyParameters
         var customParams = FuzzyParameters.of(0.8, 0.1, 0.5);
-        var result2 = art.stepFit(Vector.of(0.5, 0.5), customParams);
+        var result2 = art.stepFit(Pattern.of(0.5, 0.5), customParams);
         assertTrue(result2 instanceof ActivationResult.Success);
     }
     
@@ -281,7 +281,7 @@ class BaseARTTest {
         assertThrows(NullPointerException.class,
             () -> art.stepFit(null, params));
         assertThrows(NullPointerException.class,
-            () -> art.stepFit(Vector.of(0.5, 0.5), null));
+            () -> art.stepFit(Pattern.of(0.5, 0.5), null));
     }
     
     @Test
@@ -290,7 +290,7 @@ class BaseARTTest {
         assertTrue(art.toString().contains("TestableBaseART"));
         assertTrue(art.toString().contains("categories=0"));
         
-        art.stepFit(Vector.of(0.5, 0.5), params);
+        art.stepFit(Pattern.of(0.5, 0.5), params);
         assertTrue(art.toString().contains("categories=1"));
     }
     
@@ -301,20 +301,20 @@ class BaseARTTest {
         private final StringBuilder callLog = new StringBuilder();
         
         @Override
-        protected double calculateActivation(Vector input, WeightVector weight, Object parameters) {
+        protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
             callLog.append("calculateActivation;");
             // Simple activation: L1 norm of fuzzy intersection
             if (weight instanceof FuzzyWeight fuzzyWeight) {
                 // Apply complement coding to input to match weight dimension
                 var complementCoded = FuzzyWeight.fromInput(input);
-                var intersection = Vector.of(complementCoded.data()).min(Vector.of(fuzzyWeight.data()));
+                var intersection = Pattern.of(complementCoded.data()).min(Pattern.of(fuzzyWeight.data()));
                 return intersection.l1Norm();
             }
             return 1.0; // Default activation
         }
         
         @Override
-        protected MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters) {
+        protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
             callLog.append("checkVigilance;");
             var fuzzyParams = (FuzzyParameters) parameters;
             
@@ -322,7 +322,7 @@ class BaseARTTest {
                 // Compute match ratio: |input ∧ weight| / |input|
                 // Apply complement coding to input to match weight dimension
                 var complementCoded = FuzzyWeight.fromInput(input);
-                var intersection = Vector.of(complementCoded.data()).min(Vector.of(fuzzyWeight.data()));
+                var intersection = Pattern.of(complementCoded.data()).min(Pattern.of(fuzzyWeight.data()));
                 var matchValue = intersection.l1Norm() / input.l1Norm();
                 
                 if (matchValue >= fuzzyParams.vigilance()) {
@@ -336,21 +336,21 @@ class BaseARTTest {
         }
         
         @Override
-        protected WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters) {
+        protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
             callLog.append("updateWeights;");
             var fuzzyParams = (FuzzyParameters) parameters;
             
             if (currentWeight instanceof FuzzyWeight fuzzyWeight) {
                 // Use existing FuzzyWeight update method
                 var complementCoded = FuzzyWeight.fromInput(input);
-                return fuzzyWeight.update(Vector.of(complementCoded.data()), fuzzyParams);
+                return fuzzyWeight.update(Pattern.of(complementCoded.data()), fuzzyParams);
             }
             
             return currentWeight; // No update for other types
         }
         
         @Override
-        protected WeightVector createInitialWeight(Vector input, Object parameters) {
+        protected WeightVector createInitialWeight(Pattern input, Object parameters) {
             callLog.append("createInitialWeight;");
             // Create FuzzyWeight with complement coding
             return FuzzyWeight.fromInput(input);

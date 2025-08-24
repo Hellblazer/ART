@@ -93,7 +93,7 @@ class ARTETest {
     
     @Test
     void testARTEWeightCreation() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight = ARTEWeight.fromInput(input, params);
         
         assertNotNull(weight);
@@ -122,10 +122,10 @@ class ARTETest {
     
     @Test
     void testARTEWeightUpdate() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight = ARTEWeight.fromInput(input, params);
         
-        var newInput = Vector.of(0.7, 0.5, 0.3);
+        var newInput = Pattern.of(0.7, 0.5, 0.3);
         var updatedWeight = (ARTEWeight) weight.update(newInput, params);
         
         assertNotNull(updatedWeight);
@@ -136,7 +136,7 @@ class ARTETest {
     
     @Test
     void testARTEWeightSimilarity() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight = ARTEWeight.fromInput(input, params);
         
         // Same input should have high familiarity
@@ -144,14 +144,14 @@ class ARTETest {
         assertEquals(1.0, sameSimilarity, TOLERANCE);
         
         // Different input should have lower familiarity
-        var differentInput = Vector.of(0.2, 0.3, 0.1);
+        var differentInput = Pattern.of(0.2, 0.3, 0.1);
         double differentSimilarity = weight.calculateFamiliarity(differentInput);
         assertTrue(differentSimilarity < sameSimilarity);
     }
     
     @Test
     void testARTEWeightPerformanceTracking() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight = ARTEWeight.fromInput(input, params);
         
         assertEquals(1.0, weight.getAveragePerformance(), TOLERANCE);
@@ -171,7 +171,7 @@ class ARTETest {
     
     @Test
     void testFirstInputCreatesCategory() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var result = arte.stepFit(input, params);
         
         assertInstanceOf(ActivationResult.Success.class, result);
@@ -185,8 +185,8 @@ class ARTETest {
     
     @Test
     void testSimilarInputMatchesCategory() {
-        var input1 = Vector.of(0.8, 0.6, 0.4);
-        var input2 = Vector.of(0.75, 0.65, 0.45);
+        var input1 = Pattern.of(0.8, 0.6, 0.4);
+        var input2 = Pattern.of(0.75, 0.65, 0.45);
         
         arte.stepFit(input1, params);
         var result = arte.stepFit(input2, params);
@@ -200,8 +200,8 @@ class ARTETest {
     
     @Test
     void testDifferentInputCreatesNewCategory() {
-        var input1 = Vector.of(0.8, 0.6, 0.4);
-        var input2 = Vector.of(0.1, 0.9, 0.8); // Pattern that won't match well with first
+        var input1 = Pattern.of(0.8, 0.6, 0.4);
+        var input2 = Pattern.of(0.1, 0.9, 0.8); // Pattern that won't match well with first
         
         arte.stepFit(input1, params);
         var result = arte.stepFit(input2, params);
@@ -215,7 +215,7 @@ class ARTETest {
     
     @Test
     void testEnhancedStepFit() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var result = arte.stepFitEnhanced(input, params);
         
         assertInstanceOf(ActivationResult.Success.class, result);
@@ -231,7 +231,7 @@ class ARTETest {
             .uniformFeatureWeights(3)
             .build();
         
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var result = arte.stepFit(input, customParams);
         
         assertInstanceOf(ActivationResult.Success.class, result);
@@ -247,7 +247,7 @@ class ARTETest {
             .uniformFeatureWeights(3)
             .build();
         
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var result = arte.stepFit(input, customParams);
         
         assertInstanceOf(ActivationResult.Success.class, result);
@@ -258,7 +258,7 @@ class ARTETest {
     void testNetworkOptimization() {
         // Train several categories
         for (int i = 0; i < 5; i++) {
-            var input = Vector.of(0.1 * i, 0.2 * i, 0.3 * i);
+            var input = Pattern.of(0.1 * i, 0.2 * i, 0.3 * i);
             arte.stepFitEnhanced(input, params);
         }
         
@@ -282,7 +282,7 @@ class ARTETest {
         
         // Create some categories that might underperform
         for (int i = 0; i < 10; i++) {
-            var input = Vector.of(Math.random(), Math.random(), Math.random());
+            var input = Pattern.of(Math.random(), Math.random(), Math.random());
             arte.stepFitEnhanced(input, lowPerformanceParams);
         }
         
@@ -297,7 +297,7 @@ class ARTETest {
     void testNetworkAnalysis() {
         // Train network with several inputs
         for (int i = 0; i < 10; i++) {
-            var input = Vector.of(0.1 * i, 0.2 * i, 0.3 * i);
+            var input = Pattern.of(0.1 * i, 0.2 * i, 0.3 * i);
             arte.stepFitEnhanced(input, params);
         }
         
@@ -312,7 +312,7 @@ class ARTETest {
     
     @Test
     void testARTECategoryAccess() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         arte.stepFit(input, params);
         
         var category = arte.getARTECategory(0);
@@ -326,7 +326,7 @@ class ARTETest {
         assertThrows(IndexOutOfBoundsException.class, () ->
             arte.getARTECategory(0));
         
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         arte.stepFit(input, params);
         
         assertThrows(IndexOutOfBoundsException.class, () ->
@@ -335,7 +335,7 @@ class ARTETest {
     
     @Test
     void testConvergenceDetection() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         
         // Train with same input multiple times
         for (int i = 0; i < 20; i++) {
@@ -359,7 +359,7 @@ class ARTETest {
     
     @Test
     void testWeightVectorEqualsAndHashCode() throws InterruptedException {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight1 = ARTEWeight.fromInput(input, params);
         Thread.sleep(1); // Ensure different timestamp
         var weight2 = ARTEWeight.fromInput(input, params);
@@ -375,7 +375,7 @@ class ARTETest {
     
     @Test
     void testToStringMethods() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         arte.stepFit(input, params);
         
         assertNotNull(params.toString());
@@ -389,7 +389,7 @@ class ARTETest {
     
     @Test
     void testLearningRateAdaptation() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         arte.stepFit(input, params);
         
         // Get initial weight
@@ -398,7 +398,7 @@ class ARTETest {
         
         // Train with similar input multiple times
         for (int i = 0; i < 5; i++) {
-            var similarInput = Vector.of(0.79, 0.59, 0.39);
+            var similarInput = Pattern.of(0.79, 0.59, 0.39);
             arte.stepFit(similarInput, params);
         }
         
@@ -409,7 +409,7 @@ class ARTETest {
     
     @Test
     void testMostImportantFeature() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         arte.stepFit(input, params);
         
         var weight = arte.getARTECategory(0);
@@ -429,7 +429,7 @@ class ARTETest {
     
     @Test
     void testWeightedSimilarity() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight = ARTEWeight.fromInput(input, params);
         
         // Same input should have similarity close to 1.0
@@ -437,7 +437,7 @@ class ARTETest {
         assertTrue(sameSimilarity > 0.8);
         
         // Different input should have lower similarity
-        var differentInput = Vector.of(0.2, 0.3, 0.1);
+        var differentInput = Pattern.of(0.2, 0.3, 0.1);
         double differentSimilarity = weight.calculateWeightedSimilarity(differentInput);
         assertTrue(differentSimilarity < sameSimilarity);
     }

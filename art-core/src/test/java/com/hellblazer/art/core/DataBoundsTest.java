@@ -47,12 +47,12 @@ class DataBoundsTest {
             new double[]{10.0, 1.0}
         );
         
-        assertTrue(bounds.contains(Vector.of(5.0, 0.0)));
-        assertTrue(bounds.contains(Vector.of(0.0, -1.0))); // Boundary values
-        assertTrue(bounds.contains(Vector.of(10.0, 1.0)));
-        assertFalse(bounds.contains(Vector.of(-1.0, 0.0))); // Below minimum
-        assertFalse(bounds.contains(Vector.of(11.0, 0.0))); // Above maximum
-        assertFalse(bounds.contains(Vector.of(5.0, 2.0))); // Above maximum
+        assertTrue(bounds.contains(Pattern.of(5.0, 0.0)));
+        assertTrue(bounds.contains(Pattern.of(0.0, -1.0))); // Boundary values
+        assertTrue(bounds.contains(Pattern.of(10.0, 1.0)));
+        assertFalse(bounds.contains(Pattern.of(-1.0, 0.0))); // Below minimum
+        assertFalse(bounds.contains(Pattern.of(11.0, 0.0))); // Above maximum
+        assertFalse(bounds.contains(Pattern.of(5.0, 2.0))); // Above maximum
     }
     
     @Test
@@ -63,7 +63,7 @@ class DataBoundsTest {
             new double[]{5.0, 5.0}
         );
         
-        var newPoint = Vector.of(-2.0, 7.0);
+        var newPoint = Pattern.of(-2.0, 7.0);
         var expanded = bounds.expand(newPoint);
         
         assertEquals(-2.0, expanded.min(0), 1e-10);
@@ -80,7 +80,7 @@ class DataBoundsTest {
             new double[]{5.0, 5.0}
         );
         
-        var containedPoint = Vector.of(2.0, 3.0);
+        var containedPoint = Pattern.of(2.0, 3.0);
         var expanded = bounds.expand(containedPoint);
         
         // Should be unchanged
@@ -110,7 +110,7 @@ class DataBoundsTest {
             
         var bounds = DataBounds.of(new double[]{0.0, 0.0}, new double[]{1.0, 1.0});
         assertThrows(IllegalArgumentException.class,
-            () -> bounds.contains(Vector.of(0.5))); // Wrong dimension
+            () -> bounds.contains(Pattern.of(0.5))); // Wrong dimension
     }
     
     @Test

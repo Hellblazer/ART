@@ -17,7 +17,7 @@ import java.util.concurrent.RecursiveTask;
 
 /**
  * High-performance vectorized ART implementation using:
- * - Java Vector API for SIMD operations
+ * - Java Pattern API for SIMD operations
  * - JOML for optimized 3D/4D vector math
  * - Parallel processing with ForkJoinPool
  * - Memory-efficient data structures
@@ -65,7 +65,7 @@ public class VectorizedART extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(com.hellblazer.art.core.Vector input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(com.hellblazer.art.core.Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -82,7 +82,7 @@ public class VectorizedART extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(com.hellblazer.art.core.Vector input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(com.hellblazer.art.core.Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -101,7 +101,7 @@ public class VectorizedART extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(com.hellblazer.art.core.Vector input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(com.hellblazer.art.core.Pattern input, WeightVector currentWeight, Object parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -116,7 +116,7 @@ public class VectorizedART extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(com.hellblazer.art.core.Vector input, Object parameters) {
+    protected WeightVector createInitialWeight(com.hellblazer.art.core.Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -130,7 +130,7 @@ public class VectorizedART extends BaseART {
     /**
      * Enhanced stepFit with performance optimizations and parallel processing.
      */
-    public ActivationResult stepFitEnhanced(com.hellblazer.art.core.Vector input, VectorizedParameters params) {
+    public ActivationResult stepFitEnhanced(com.hellblazer.art.core.Pattern input, VectorizedParameters params) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(params, "Parameters cannot be null");
         
@@ -151,7 +151,7 @@ public class VectorizedART extends BaseART {
     /**
      * High-performance parallel step fit using ForkJoinPool.
      */
-    private ActivationResult parallelStepFit(com.hellblazer.art.core.Vector input, VectorizedParameters params) {
+    private ActivationResult parallelStepFit(com.hellblazer.art.core.Pattern input, VectorizedParameters params) {
         if (getCategoryCount() == 0) {
             return stepFit(input, (Object) params);
         }
@@ -163,9 +163,9 @@ public class VectorizedART extends BaseART {
     }
     
     /**
-     * Vectorized activation computation using Java Vector API and JOML optimizations.
+     * Vectorized activation computation using Java Pattern API and JOML optimizations.
      */
-    private double computeVectorizedActivation(com.hellblazer.art.core.Vector input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeVectorizedActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
         if ((input.dimension() == 3 || input.dimension() == 4) && params.enableJOML()) {
             return computeJOMLActivation(input, weight, params);
         } else if (params.enableSIMD()) {
@@ -178,7 +178,7 @@ public class VectorizedART extends BaseART {
     /**
      * JOML-optimized activation for 3D/4D vectors.
      */
-    private double computeJOMLActivation(com.hellblazer.art.core.Vector input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeJOMLActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
         if (input.dimension() == 3) {
             var inputVec = getCachedVector3f(input);
             var weightVec = weight.asVector3f();
@@ -214,9 +214,9 @@ public class VectorizedART extends BaseART {
     }
     
     /**
-     * SIMD-optimized activation using Vector API for larger dimensions.
+     * SIMD-optimized activation using Pattern API for larger dimensions.
      */
-    private double computeSIMDActivation(com.hellblazer.art.core.Vector input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeSIMDActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
         int dimension = input.dimension();
         var inputArray = weight.getInputArray(input);
         var weightArray = weight.getCategoryWeights();
@@ -254,7 +254,7 @@ public class VectorizedART extends BaseART {
     /**
      * Standard activation computation fallback.
      */
-    private double computeStandardActivation(com.hellblazer.art.core.Vector input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeStandardActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
         double intersection = 0.0;
         double inputNorm = 0.0;
         
@@ -270,7 +270,7 @@ public class VectorizedART extends BaseART {
     /**
      * Get cached Vector3f to avoid repeated allocations.
      */
-    private Vector3f getCachedVector3f(com.hellblazer.art.core.Vector input) {
+    private Vector3f getCachedVector3f(com.hellblazer.art.core.Pattern input) {
         int hash = Arrays.hashCode(new double[]{input.get(0), input.get(1), input.get(2)});
         return vectorCache.computeIfAbsent(hash, k -> 
             new Vector3f((float) input.get(0), (float) input.get(1), (float) input.get(2)));
@@ -280,13 +280,13 @@ public class VectorizedART extends BaseART {
      * Parallel activation computation task.
      */
     private class ParallelActivationTask extends RecursiveTask<ActivationResult> {
-        private final com.hellblazer.art.core.Vector input;
+        private final com.hellblazer.art.core.Pattern input;
         private final VectorizedParameters params;
         private final int startIndex;
         private final int endIndex;
         private static final int THRESHOLD = 100;
         
-        ParallelActivationTask(com.hellblazer.art.core.Vector input, VectorizedParameters params, int startIndex, int endIndex) {
+        ParallelActivationTask(com.hellblazer.art.core.Pattern input, VectorizedParameters params, int startIndex, int endIndex) {
             this.input = input;
             this.params = params;
             this.startIndex = startIndex;
@@ -407,6 +407,74 @@ public class VectorizedART extends BaseART {
         }
         return vWeight;
     }
+    
+    /**
+     * Calculate activations for all categories against the input pattern.
+     * This is a public interface for prediction without modifying categories.
+     * 
+     * @param input the input pattern
+     * @param parameters the vectorized parameters
+     * @return array of activation values for all categories
+     */
+    public double[] calculateAllActivations(Pattern input, VectorizedParameters parameters) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (getCategoryCount() == 0) {
+            return new double[0];
+        }
+        
+        var activations = new double[getCategoryCount()];
+        for (int i = 0; i < getCategoryCount(); i++) {
+            var weight = getCategory(i);
+            activations[i] = calculateActivation(input, weight, parameters);
+        }
+        
+        return activations;
+    }
+    
+    /**
+     * Find the category with highest activation that passes vigilance.
+     * This is designed for prediction without modifying categories.
+     * 
+     * @param input the input pattern
+     * @param parameters the vectorized parameters
+     * @return optional category result with index and activation, empty if no match
+     */
+    public Optional<CategoryActivation> findBestMatch(Pattern input, VectorizedParameters parameters) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (getCategoryCount() == 0) {
+            return Optional.empty();
+        }
+        
+        double bestActivation = -1.0;
+        int bestIndex = -1;
+        
+        for (int i = 0; i < getCategoryCount(); i++) {
+            var weight = getCategory(i);
+            var activation = calculateActivation(input, weight, parameters);
+            
+            // Check if this category passes vigilance
+            var matchResult = checkVigilance(input, weight, parameters);
+            if (matchResult.isAccepted() && activation > bestActivation) {
+                bestActivation = activation;
+                bestIndex = i;
+            }
+        }
+        
+        if (bestIndex >= 0) {
+            return Optional.of(new CategoryActivation(bestIndex, bestActivation));
+        }
+        
+        return Optional.empty();
+    }
+    
+    /**
+     * Record for category activation result.
+     */
+    public record CategoryActivation(int categoryIndex, double activation) {}
     
     /**
      * Close and cleanup resources.

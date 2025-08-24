@@ -47,7 +47,7 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected double calculateActivation(Vector input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -64,8 +64,8 @@ public final class FuzzyART extends BaseART {
         
         // Convert input to complement-coded form to match weight dimensions
         var complementCoded = FuzzyWeight.fromInput(input);
-        var inputVector = Vector.of(complementCoded.data());
-        var weightVector = Vector.of(fuzzyWeight.data());
+        var inputVector = Pattern.of(complementCoded.data());
+        var weightVector = Pattern.of(fuzzyWeight.data());
         
         // Calculate fuzzy intersection: I ∧ w_j (element-wise minimum)
         var intersection = inputVector.min(weightVector);
@@ -101,7 +101,7 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -118,8 +118,8 @@ public final class FuzzyART extends BaseART {
         
         // Convert input to complement-coded form to match weight dimensions
         var complementCoded = FuzzyWeight.fromInput(input);
-        var inputVector = Vector.of(complementCoded.data());
-        var weightVector = Vector.of(fuzzyWeight.data());
+        var inputVector = Pattern.of(complementCoded.data());
+        var weightVector = Pattern.of(fuzzyWeight.data());
         
         // Calculate fuzzy intersection: I ∧ w_j
         var intersection = inputVector.min(weightVector);
@@ -164,7 +164,7 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -181,7 +181,7 @@ public final class FuzzyART extends BaseART {
         
         // Convert input to complement-coded form
         var complementCoded = FuzzyWeight.fromInput(input);
-        var inputVector = Vector.of(complementCoded.data());
+        var inputVector = Pattern.of(complementCoded.data());
         
         // Delegate to FuzzyWeight.update() which implements the fuzzy min learning rule
         return currentWeight.update(inputVector, parameters);
@@ -202,7 +202,7 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if input is null
      */
     @Override
-    protected WeightVector createInitialWeight(Vector input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         // parameters can be null for initial weight creation
         

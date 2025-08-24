@@ -51,7 +51,7 @@ class VectorizedARTTest {
     @Test
     @DisplayName("Basic step fit functionality")
     void testBasicStepFit() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         
         // First input should create new category
         var result = art.stepFit(input, params);
@@ -63,7 +63,7 @@ class VectorizedARTTest {
         assertEquals(1, art.getCategoryCount());
         
         // Similar input should activate same category
-        var similarInput = Vector.of(0.75, 0.55, 0.35);
+        var similarInput = Pattern.of(0.75, 0.55, 0.35);
         var result2 = art.stepFit(similarInput, params);
         assertTrue(result2 instanceof ActivationResult.Success);
         
@@ -75,7 +75,7 @@ class VectorizedARTTest {
     @DisplayName("Enhanced step fit functionality")
     void testEnhancedStepFit() {
         // Test enhanced step fit with normal parameters
-        var testInput = Vector.of(0.5, 0.5, 0.5);
+        var testInput = Pattern.of(0.5, 0.5, 0.5);
         var result = art.stepFitEnhanced(testInput, params);
         
         assertNotNull(result);
@@ -86,7 +86,7 @@ class VectorizedARTTest {
         assertEquals(1, art.getCategoryCount());
         
         // Test with different input - should create or match existing category
-        var testInput2 = Vector.of(0.1, 0.2, 0.3);
+        var testInput2 = Pattern.of(0.1, 0.2, 0.3);
         var result2 = art.stepFitEnhanced(testInput2, params);
         
         assertNotNull(result2);
@@ -115,11 +115,11 @@ class VectorizedARTTest {
         var testArt = new VectorizedART(lowThresholdParams);
         try {
             // Add some categories first
-            testArt.stepFit(Vector.of(0.1, 0.1, 0.1), lowThresholdParams);
-            testArt.stepFit(Vector.of(0.9, 0.9, 0.9), lowThresholdParams);
+            testArt.stepFit(Pattern.of(0.1, 0.1, 0.1), lowThresholdParams);
+            testArt.stepFit(Pattern.of(0.9, 0.9, 0.9), lowThresholdParams);
             
             // Now test enhanced step fit should trigger parallel path
-            var parallelResult = testArt.stepFitEnhanced(Vector.of(0.5, 0.5, 0.5), lowThresholdParams);
+            var parallelResult = testArt.stepFitEnhanced(Pattern.of(0.5, 0.5, 0.5), lowThresholdParams);
             assertNotNull(parallelResult);
             assertTrue(parallelResult instanceof ActivationResult.Success);
             
@@ -134,8 +134,8 @@ class VectorizedARTTest {
     @Test
     @DisplayName("Vectorized activation calculation")
     void testVectorizedActivation() {
-        var input = Vector.of(0.8, 0.6, 0.4);
-        var weight = VectorizedWeight.fromInput(Vector.of(0.7, 0.5, 0.3), params);
+        var input = Pattern.of(0.8, 0.6, 0.4);
+        var weight = VectorizedWeight.fromInput(Pattern.of(0.7, 0.5, 0.3), params);
         
         // Test activation calculation
         var activation = art.calculateActivation(input, weight, params);
@@ -143,7 +143,7 @@ class VectorizedARTTest {
         assertTrue(activation <= 1.0);
         
         // Test with different dimensions
-        var input4D = Vector.of(0.8, 0.6, 0.4, 0.2);
+        var input4D = Pattern.of(0.8, 0.6, 0.4, 0.2);
         var weight4D = VectorizedWeight.fromInput(input4D, params);
         var activation4D = art.calculateActivation(input4D, weight4D, params);
         assertTrue(activation4D >= 0.0);
@@ -153,9 +153,9 @@ class VectorizedARTTest {
     @Test
     @DisplayName("Vigilance testing")
     void testVigilanceTesting() {
-        var input = Vector.of(0.8, 0.6, 0.4);
-        var similarWeight = VectorizedWeight.fromInput(Vector.of(0.85, 0.65, 0.45), params);
-        var differentWeight = VectorizedWeight.fromInput(Vector.of(0.1, 0.1, 0.1), params);
+        var input = Pattern.of(0.8, 0.6, 0.4);
+        var similarWeight = VectorizedWeight.fromInput(Pattern.of(0.85, 0.65, 0.45), params);
+        var differentWeight = VectorizedWeight.fromInput(Pattern.of(0.1, 0.1, 0.1), params);
         
         // Similar input should pass vigilance
         var similarResult = art.checkVigilance(input, similarWeight, params);
@@ -169,8 +169,8 @@ class VectorizedARTTest {
     @Test
     @DisplayName("Weight updates")
     void testWeightUpdates() {
-        var input = Vector.of(0.8, 0.6, 0.4);
-        var originalWeight = VectorizedWeight.fromInput(Vector.of(0.7, 0.5, 0.3), params);
+        var input = Pattern.of(0.8, 0.6, 0.4);
+        var originalWeight = VectorizedWeight.fromInput(Pattern.of(0.7, 0.5, 0.3), params);
         
         var updatedWeight = art.updateWeights(input, originalWeight, params);
         assertNotNull(updatedWeight);
@@ -195,7 +195,7 @@ class VectorizedARTTest {
     @Test
     @DisplayName("Initial weight creation")
     void testInitialWeightCreation() {
-        var input = Vector.of(0.8, 0.6, 0.4);
+        var input = Pattern.of(0.8, 0.6, 0.4);
         var weight = art.createInitialWeight(input, params);
         
         assertNotNull(weight);
@@ -217,7 +217,7 @@ class VectorizedARTTest {
         for (int i = 0; i < dimension; i++) {
             values[i] = Math.random();
         }
-        var input = Vector.of(values);
+        var input = Pattern.of(values);
         
         // Test step fit with various dimensions
         var result = art.stepFit(input, params);
@@ -241,7 +241,7 @@ class VectorizedARTTest {
         var art3D = new VectorizedART(params3D);
         
         try {
-            var input = Vector.of(0.8, 0.6, 0.4);
+            var input = Pattern.of(0.8, 0.6, 0.4);
             var result = art3D.stepFit(input, params3D);
             
             assertNotNull(result);
@@ -264,7 +264,7 @@ class VectorizedARTTest {
         var art4D = new VectorizedART(params4D);
         
         try {
-            var input = Vector.of(0.8, 0.6, 0.4, 0.2);
+            var input = Pattern.of(0.8, 0.6, 0.4, 0.2);
             var result = art4D.stepFit(input, params4D);
             
             assertNotNull(result);
@@ -292,7 +292,7 @@ class VectorizedARTTest {
             for (int i = 0; i < values.length; i++) {
                 values[i] = Math.random();
             }
-            var input = Vector.of(values);
+            var input = Pattern.of(values);
             
             var result = artSIMD.stepFit(input, paramsSIMD);
             assertNotNull(result);
@@ -307,7 +307,7 @@ class VectorizedARTTest {
     void testPerformanceStats() {
         // Perform several operations
         for (int i = 0; i < 10; i++) {
-            var input = Vector.of(Math.random(), Math.random(), Math.random());
+            var input = Pattern.of(Math.random(), Math.random(), Math.random());
             art.stepFit(input, params);
         }
         
@@ -330,7 +330,7 @@ class VectorizedARTTest {
     void testMemoryOptimization() {
         // Fill cache beyond limit
         for (int i = 0; i < params.maxCacheSize() + 100; i++) {
-            var input = Vector.of(Math.random(), Math.random(), Math.random());
+            var input = Pattern.of(Math.random(), Math.random(), Math.random());
             art.stepFit(input, params);
         }
         
@@ -352,7 +352,7 @@ class VectorizedARTTest {
         for (int i = 0; i < threads.length; i++) {
             final int threadIndex = i;
             threads[i] = new Thread(() -> {
-                var input = Vector.of(
+                var input = Pattern.of(
                     0.1 + threadIndex * 0.2,
                     0.2 + threadIndex * 0.2,
                     0.3 + threadIndex * 0.2
@@ -384,7 +384,7 @@ class VectorizedARTTest {
         var testArt = new VectorizedART(params);
         
         // Use the ART instance
-        var input = Vector.of(0.5, 0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5, 0.5);
         testArt.stepFit(input, params);
         
         // Close should not throw exceptions
@@ -397,7 +397,7 @@ class VectorizedARTTest {
     @Test
     @DisplayName("Error handling and validation")
     void testErrorHandling() {
-        var input = Vector.of(0.5, 0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5, 0.5);
         
         // Null input should throw
         assertThrows(NullPointerException.class, () -> art.stepFit(null, params));
@@ -412,11 +412,11 @@ class VectorizedARTTest {
     @DisplayName("Conversion between weight types")
     void testWeightTypeConversion() {
         // Create a FuzzyWeight and ensure VectorizedART can handle it
-        var originalInput = Vector.of(0.7, 0.6, 0.5);
+        var originalInput = Pattern.of(0.7, 0.6, 0.5);
         var fuzzyWeight = FuzzyWeight.fromInput(originalInput);
         
         // Create complement-coded input to match fuzzy weight dimension
-        var complementInput = Vector.of(0.8, 0.6, 0.4, 0.2, 0.4, 0.6);
+        var complementInput = Pattern.of(0.8, 0.6, 0.4, 0.2, 0.4, 0.6);
         
         // VectorizedART should be able to process any WeightVector type
         var activation = art.calculateActivation(complementInput, fuzzyWeight, params);

@@ -30,7 +30,7 @@ class FuzzyARTSimpleTest {
     @Test
     @DisplayName("First input creates initial category")
     void testFirstInputCreatesCategory() {
-        var input = Vector.of(0.3, 0.7);
+        var input = Pattern.of(0.3, 0.7);
         var result = fuzzyART.stepFit(input, defaultParams);
         
         // Should create new category

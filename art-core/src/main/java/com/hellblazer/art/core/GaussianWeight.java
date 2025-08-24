@@ -118,7 +118,7 @@ public record GaussianWeight(double[] mean, double[] sigma, double[] invSigma,
      * @return new updated GaussianWeight
      */
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         

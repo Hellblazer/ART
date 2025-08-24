@@ -76,7 +76,7 @@ public final class ARTEWeight implements WeightVector {
     /**
      * Create initial ARTEWeight from input vector.
      */
-    public static ARTEWeight fromInput(Vector input, ARTEParameters params) {
+    public static ARTEWeight fromInput(Pattern input, ARTEParameters params) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(params, "Parameters cannot be null");
         
@@ -129,7 +129,7 @@ public final class ARTEWeight implements WeightVector {
     }
     
     @Override
-    public WeightVector update(Vector input, Object parameters) {
+    public WeightVector update(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -190,7 +190,7 @@ public final class ARTEWeight implements WeightVector {
     /**
      * Calculate familiarity score based on input similarity.
      */
-    public double calculateFamiliarity(Vector input) {
+    public double calculateFamiliarity(Pattern input) {
         double intersection = 0.0;
         double union = 0.0;
         
@@ -205,7 +205,7 @@ public final class ARTEWeight implements WeightVector {
     /**
      * Update feature importances based on input variability.
      */
-    private double[] updateFeatureImportances(Vector input, ARTEParameters params) {
+    private double[] updateFeatureImportances(Pattern input, ARTEParameters params) {
         if (!params.featureWeightingEnabled()) {
             return featureImportances.clone();
         }
@@ -236,7 +236,7 @@ public final class ARTEWeight implements WeightVector {
     /**
      * Calculate performance metric for current update.
      */
-    private double calculatePerformanceMetric(Vector input, double[] newWeights) {
+    private double calculatePerformanceMetric(Pattern input, double[] newWeights) {
         // Performance based on how well the updated weights match the input
         double matchQuality = 0.0;
         double totalPossible = 0.0;
@@ -381,7 +381,7 @@ public final class ARTEWeight implements WeightVector {
     /**
      * Calculate weighted similarity to input using feature importances.
      */
-    public double calculateWeightedSimilarity(Vector input) {
+    public double calculateWeightedSimilarity(Pattern input) {
         Objects.requireNonNull(input, "Input cannot be null");
         if (input.dimension() != dimension()) {
             throw new IllegalArgumentException("Input dimension must match weight dimension");

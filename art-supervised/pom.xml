@@ -71,6 +71,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Xmx512m -Xms256m --add-modules jdk.incubator.vector</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>

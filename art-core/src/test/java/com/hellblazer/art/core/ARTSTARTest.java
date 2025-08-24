@@ -46,7 +46,7 @@ class ARTSTARTest {
     @Test
     @DisplayName("First input creates initial ARTSTAR category with regulation data")
     void testFirstInputCreatesCategory() {
-        var input = Vector.of(0.8, 0.3, 0.6);
+        var input = Pattern.of(0.8, 0.3, 0.6);
         var result = artstar.stepFit(input, defaultParams);
         
         // Should create new category
@@ -75,7 +75,7 @@ class ARTSTARTest {
     @DisplayName("Similar input updates regulation measures and strengthens category")
     void testRegulationMeasureUpdates() {
         // First input - establish category
-        var input1 = Vector.of(0.7, 0.4, 0.2);
+        var input1 = Pattern.of(0.7, 0.4, 0.2);
         artstar.stepFit(input1, defaultParams);
         
         var initialWeight = artstar.getARTSTARCategory(0);
@@ -85,7 +85,7 @@ class ARTSTARTest {
         long initialUsage = initialWeight.getUsageCount();
         
         // Similar input - should update regulation measures
-        var input2 = Vector.of(0.75, 0.35, 0.25);
+        var input2 = Pattern.of(0.75, 0.35, 0.25);
         var result = artstar.stepFit(input2, defaultParams);
         
         assertTrue(result instanceof ActivationResult.Success);
@@ -110,17 +110,17 @@ class ARTSTARTest {
     @DisplayName("Dynamic vigilance adjustment based on regulation state")
     void testDynamicVigilanceAdjustment() {
         // Create category with high stability parameters and perform multiple learning steps
-        var input1 = Vector.of(0.9, 0.1, 0.0);
+        var input1 = Pattern.of(0.9, 0.1, 0.0);
         artstar.stepFit(input1, highStabilityParams);
         
         // Perform several learning steps to build up regulation state
         for (int i = 0; i < 5; i++) {
-            var similarInput = Vector.of(0.9 + i * 0.01, 0.1 + i * 0.01, 0.0 + i * 0.01);
+            var similarInput = Pattern.of(0.9 + i * 0.01, 0.1 + i * 0.01, 0.0 + i * 0.01);
             artstar.stepFit(similarInput, highStabilityParams);
         }
         
         // Test with moderately similar input
-        var input2 = Vector.of(0.8, 0.2, 0.1);
+        var input2 = Pattern.of(0.8, 0.2, 0.1);
         var result = artstar.stepFit(input2, highStabilityParams);
         
         // With high stability, the category should be more accepting of similar patterns
@@ -139,11 +139,11 @@ class ARTSTARTest {
     @DisplayName("Different input creates new category with different regulation profile")
     void testDifferentInputCreatesNewCategory() {
         // First input
-        var input1 = Vector.of(0.9, 0.1, 0.1);
+        var input1 = Pattern.of(0.9, 0.1, 0.1);
         artstar.stepFit(input1, defaultParams);
         
         // Very different input - should create new category
-        var input2 = Vector.of(0.1, 0.9, 0.8);
+        var input2 = Pattern.of(0.1, 0.9, 0.8);
         var result = artstar.stepFit(input2, defaultParams);
         
         assertTrue(result instanceof ActivationResult.Success);
@@ -169,13 +169,13 @@ class ARTSTARTest {
     @DisplayName("Network regulation analysis provides meaningful insights")
     void testNetworkRegulationAnalysis() {
         // Create multiple categories with different patterns
-        artstar.stepFit(Vector.of(0.8, 0.2, 0.1), defaultParams);
-        artstar.stepFit(Vector.of(0.2, 0.8, 0.1), defaultParams);
-        artstar.stepFit(Vector.of(0.1, 0.2, 0.8), defaultParams);
+        artstar.stepFit(Pattern.of(0.8, 0.2, 0.1), defaultParams);
+        artstar.stepFit(Pattern.of(0.2, 0.8, 0.1), defaultParams);
+        artstar.stepFit(Pattern.of(0.1, 0.2, 0.8), defaultParams);
         
         // Perform some learning to generate regulation data
-        artstar.stepFit(Vector.of(0.85, 0.15, 0.05), defaultParams);
-        artstar.stepFit(Vector.of(0.25, 0.75, 0.05), defaultParams);
+        artstar.stepFit(Pattern.of(0.85, 0.15, 0.05), defaultParams);
+        artstar.stepFit(Pattern.of(0.25, 0.75, 0.05), defaultParams);
         
         var analysis = artstar.analyzeRegulationState();
         
@@ -199,7 +199,7 @@ class ARTSTARTest {
     @DisplayName("Category strength tracking and time-based decay")
     void testCategoryStrengthAndDecay() {
         // Create a category
-        var input = Vector.of(0.5, 0.5, 0.5);
+        var input = Pattern.of(0.5, 0.5, 0.5);
         artstar.stepFit(input, defaultParams);
         
         var initialWeight = artstar.getARTSTARCategory(0);
@@ -224,10 +224,10 @@ class ARTSTARTest {
     @DisplayName("Category limit enforcement with strength-based pruning")
     void testCategoryLimitEnforcement() {
         // Create more categories than the limit allows with very different patterns
-        artstar.stepFit(Vector.of(1.0, 0.0, 0.0), limitedCategoryParams);
-        artstar.stepFit(Vector.of(0.0, 1.0, 0.0), limitedCategoryParams);
-        artstar.stepFit(Vector.of(0.0, 0.0, 1.0), limitedCategoryParams);
-        artstar.stepFit(Vector.of(0.33, 0.33, 0.33), limitedCategoryParams);
+        artstar.stepFit(Pattern.of(1.0, 0.0, 0.0), limitedCategoryParams);
+        artstar.stepFit(Pattern.of(0.0, 1.0, 0.0), limitedCategoryParams);
+        artstar.stepFit(Pattern.of(0.0, 0.0, 1.0), limitedCategoryParams);
+        artstar.stepFit(Pattern.of(0.33, 0.33, 0.33), limitedCategoryParams);
         
         // Should have 4 categories before regulation (verify they're all different enough)
         int categoriesBeforeRegulation = artstar.getCategoryCount();
@@ -244,12 +244,12 @@ class ARTSTARTest {
     @DisplayName("Stability-aware learning reduces learning rate for stable categories")
     void testStabilityAwareLearning() {
         // Create a category and make it stable through repeated similar inputs
-        var baseInput = Vector.of(0.6, 0.4, 0.2);
+        var baseInput = Pattern.of(0.6, 0.4, 0.2);
         artstar.stepFit(baseInput, defaultParams);
         
         // Train with similar inputs to increase stability
         for (int i = 0; i < 5; i++) {
-            var similarInput = Vector.of(0.6 + (i * 0.01), 0.4 - (i * 0.005), 0.2 + (i * 0.005));
+            var similarInput = Pattern.of(0.6 + (i * 0.01), 0.4 - (i * 0.005), 0.2 + (i * 0.005));
             artstar.stepFit(similarInput, defaultParams);
         }
         
@@ -369,7 +369,7 @@ class ARTSTARTest {
         assertTrue(weight.isWeak(0.95));
         
         // Test factory methods
-        var vectorWeight = ARTSTARWeight.fromVector(Vector.of(categoryWeights), 0.8);
+        var vectorWeight = ARTSTARWeight.fromVector(Pattern.of(categoryWeights), 0.8);
         assertEquals(0.8, vectorWeight.getStrength());
         assertArrayEquals(categoryWeights, vectorWeight.getCategoryWeights());
         
@@ -425,8 +425,8 @@ class ARTSTARTest {
         var categoryWeights = new double[]{0.8, 0.2, 0.5};
         var weight = new ARTSTARWeight(categoryWeights, 0.7, 0.3, 1, System.currentTimeMillis(), 1.0);
         
-        var input1 = Vector.of(0.9, 0.1, 0.4); // Very similar
-        var input2 = Vector.of(0.2, 0.8, 0.9); // Very different
+        var input1 = Pattern.of(0.9, 0.1, 0.4); // Very similar
+        var input2 = Pattern.of(0.2, 0.8, 0.9); // Very different
         
         double similarity1 = weight.calculateSimilarity(input1);
         double similarity2 = weight.calculateSimilarity(input2);
@@ -444,7 +444,7 @@ class ARTSTARTest {
         
         // Test dimension mismatch
         assertThrows(IllegalArgumentException.class,
-            () -> weight.calculateSimilarity(Vector.of(0.5, 0.5)));
+            () -> weight.calculateSimilarity(Pattern.of(0.5, 0.5)));
     }
     
     @Test
@@ -481,9 +481,9 @@ class ARTSTARTest {
     @DisplayName("Integration with BaseART template method pattern")
     void testBaseARTIntegration() {
         // Test that ARTSTAR properly integrates with BaseART template methods
-        var input1 = Vector.of(0.8, 0.2, 0.1);
-        var input2 = Vector.of(0.2, 0.8, 0.1);
-        var input3 = Vector.of(0.85, 0.15, 0.05); // Similar to input1
+        var input1 = Pattern.of(0.8, 0.2, 0.1);
+        var input2 = Pattern.of(0.2, 0.8, 0.1);
+        var input3 = Pattern.of(0.85, 0.15, 0.05); // Similar to input1
         
         // First input creates first category
         var result1 = artstar.stepFit(input1, defaultParams);

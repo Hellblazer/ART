@@ -41,7 +41,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Vector input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null"); 
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -85,7 +85,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Vector input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -136,7 +136,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Vector input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -168,7 +168,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Vector input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -194,7 +194,7 @@ public final class ARTA extends BaseART {
      * Update attention weights based on discriminative power of features.
      * Features that help distinguish this category from others get higher attention.
      */
-    private double[] updateAttentionWeights(Vector input, ARTAWeight currentWeight, 
+    private double[] updateAttentionWeights(Pattern input, ARTAWeight currentWeight, 
                                            ARTAParameters parameters, double[] newCategoryWeights) {
         
         var currentAttentionWeights = currentWeight.getAttentionWeights();
@@ -240,7 +240,7 @@ public final class ARTA extends BaseART {
      * @param categoryIndex the category index to compare against
      * @return attention-weighted similarity (0 to 1)
      */
-    public double getAttentionWeightedSimilarity(Vector input, int categoryIndex) {
+    public double getAttentionWeightedSimilarity(Pattern input, int categoryIndex) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         
         if (categoryIndex < 0 || categoryIndex >= getCategoryCount()) {
