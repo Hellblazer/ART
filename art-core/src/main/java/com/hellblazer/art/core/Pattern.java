@@ -191,12 +191,12 @@ record DenseVector(double[] data) implements Pattern {
     @Override
     public Pattern min(Pattern other) {
         Objects.requireNonNull(other, "Other pattern cannot be null");
-        if (!(other instanceof DenseVector denseOther)) {
+        if (!(other instanceof DenseVector(double[] data1))) {
             throw new IllegalArgumentException("Can only compute min with another DenseVector");
         }
-        if (data.length != denseOther.data.length) {
+        if (data.length != data1.length) {
             throw new IllegalArgumentException("Pattern dimensions must match: " + 
-                data.length + " vs " + denseOther.data.length);
+                data.length + " vs " + data1.length);
         }
         
         var result = new double[data.length];
@@ -205,14 +205,14 @@ record DenseVector(double[] data) implements Pattern {
         // Vectorized computation
         for (; i < SPECIES.loopBound(data.length); i += SPECIES.length()) {
             var vecA = DoubleVector.fromArray(SPECIES, data, i);
-            var vecB = DoubleVector.fromArray(SPECIES, denseOther.data, i);
+            var vecB = DoubleVector.fromArray(SPECIES, data1, i);
             var minVec = vecA.min(vecB);
             minVec.intoArray(result, i);
         }
         
         // Handle remaining elements
         for (; i < data.length; i++) {
-            result[i] = Math.min(data[i], denseOther.data[i]);
+            result[i] = Math.min(data[i], data1[i]);
         }
         
         return new DenseVector(result);
@@ -221,12 +221,12 @@ record DenseVector(double[] data) implements Pattern {
     @Override
     public Pattern max(Pattern other) {
         Objects.requireNonNull(other, "Other pattern cannot be null");
-        if (!(other instanceof DenseVector denseOther)) {
+        if (!(other instanceof DenseVector(double[] data1))) {
             throw new IllegalArgumentException("Can only compute max with another DenseVector");
         }
-        if (data.length != denseOther.data.length) {
+        if (data.length != data1.length) {
             throw new IllegalArgumentException("Pattern dimensions must match: " + 
-                data.length + " vs " + denseOther.data.length);
+                data.length + " vs " + data1.length);
         }
         
         var result = new double[data.length];
@@ -235,14 +235,14 @@ record DenseVector(double[] data) implements Pattern {
         // Vectorized computation
         for (; i < SPECIES.loopBound(data.length); i += SPECIES.length()) {
             var vecA = DoubleVector.fromArray(SPECIES, data, i);
-            var vecB = DoubleVector.fromArray(SPECIES, denseOther.data, i);
+            var vecB = DoubleVector.fromArray(SPECIES, data1, i);
             var maxVec = vecA.max(vecB);
             maxVec.intoArray(result, i);
         }
         
         // Handle remaining elements
         for (; i < data.length; i++) {
-            result[i] = Math.max(data[i], denseOther.data[i]);
+            result[i] = Math.max(data[i], data1[i]);
         }
         
         return new DenseVector(result);
@@ -271,13 +271,29 @@ record DenseVector(double[] data) implements Pattern {
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof DenseVector other)) return false;
-        return Arrays.equals(data, other.data);
+        if (!(obj instanceof DenseVector(double[] data1))) return false;
+        return Arrays.equals(data, data1);
     }
     
     @Override
     public int hashCode() {
         return Arrays.hashCode(data);
+    }
+    
+    /**
+     * Get the underlying array values.
+     * @return a copy of the data array
+     */
+    public double[] values() {
+        return Arrays.copyOf(data, data.length);
+    }
+    
+    /**
+     * Get dimension for compatibility with WeightVector interface.
+     * @return the dimension of this vector
+     */
+    public int getDimension() {
+        return data.length;
     }
     
     @Override
