@@ -30,6 +30,13 @@
             <version>${project.version}</version>
         </dependency>
         
+        <!-- ART Supervised Learning dependency -->
+        <dependency>
+            <groupId>com.hellblazer.art</groupId>
+            <artifactId>art-supervised</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
         <!-- JMH for benchmarking -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>

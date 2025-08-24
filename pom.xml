@@ -180,7 +180,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.0.0-M9</version>
                     <configuration>
-                        <argLine>-Xmx512m -Xms256m</argLine>
+                        <argLine>-Xmx512m -Xms256m --add-modules jdk.incubator.vector</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
