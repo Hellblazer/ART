@@ -73,6 +73,14 @@ public class Matrix {
         return result;
     }
     
+    public static Matrix eye(int size) {
+        var identity = new Matrix(size, size);
+        for (int i = 0; i < size; i++) {
+            identity.set(i, i, 1.0);
+        }
+        return identity;
+    }
+    
     public Matrix add(Matrix other) {
         if (other.rows != rows || other.cols != cols) {
             throw new IllegalArgumentException("Matrix dimensions must match for addition");
