@@ -16,8 +16,8 @@ public record HypersphereParameters(double vigilance, double defaultRadius, bool
         if (vigilance < 0.0 || vigilance > 1.0) {
             throw new IllegalArgumentException("Vigilance must be in range [0, 1], got: " + vigilance);
         }
-        if (defaultRadius <= 0.0) {
-            throw new IllegalArgumentException("Default radius must be positive, got: " + defaultRadius);
+        if (defaultRadius < 0.0) {
+            throw new IllegalArgumentException("Default radius must be non-negative, got: " + defaultRadius);
         }
     }
     

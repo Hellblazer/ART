@@ -128,7 +128,7 @@ class ParametersTest {
     void testHypersphereParametersRadiusValidation() {
         assertThrows(IllegalArgumentException.class, 
             () -> HypersphereParameters.of(0.5, -1.0, false));
-        assertThrows(IllegalArgumentException.class, 
+        assertDoesNotThrow(
             () -> HypersphereParameters.of(0.5, 0.0, false));
     }
     
