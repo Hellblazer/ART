@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.hellblazer.art.core.WeightVectorTest
--------------------------------------------------------------------------------
-Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.049 s - in com.hellblazer.art.core.WeightVectorTest
