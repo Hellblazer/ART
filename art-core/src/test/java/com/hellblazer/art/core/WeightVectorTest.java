@@ -209,6 +209,7 @@ class WeightVectorTest {
             case ARTAWeight aw -> "arta:" + aw.dimension();
             case ARTSTARWeight asw -> "artstar:" + asw.dimension();
             case ARTEWeight aew -> "arte:" + aew.dimension();
+            default -> "unknown:" + weight.getClass().getSimpleName();
         };
         
         assertEquals("fuzzy:2", result);

@@ -37,12 +37,9 @@
     </licenses>
     <modules>
         <module>art-core</module>
-        <!-- TODO: Create other modules incrementally
         <module>art-algorithms</module>
         <module>art-supervised</module>
         <module>art-performance</module>
-        <module>art-visualization</module>
-        -->
     </modules>
 
     <dependencyManagement>

@@ -1,12 +1,11 @@
 package com.hellblazer.art.core;
 
 /**
- * Sealed interface for weight vectors in ART algorithms.
+ * Interface for weight vectors in ART algorithms.
  * Different ART variants use different weight vector types with specific update rules.
  * All implementations are immutable and updates return new instances.
  */
-public sealed interface WeightVector 
-    permits FuzzyWeight, GaussianWeight, HypersphereWeight, ARTAWeight, ARTSTARWeight, ARTEWeight {
+public interface WeightVector {
     
     /**
      * Get the value at the specified index.
