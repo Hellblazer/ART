@@ -1,0 +1,12 @@
+com/hellblazer/art/core/GaussianParameters.class
+com/hellblazer/art/core/Vector.class
+com/hellblazer/art/core/WeightVector.class
+com/hellblazer/art/core/SimpleVector.class
+com/hellblazer/art/core/GaussianWeight.class
+com/hellblazer/art/core/HypersphereParameters.class
+com/hellblazer/art/core/FuzzyParameters$FuzzyParametersBuilder.class
+com/hellblazer/art/core/DenseVector.class
+com/hellblazer/art/core/FuzzyParameters.class
+com/hellblazer/art/core/FuzzyWeight.class
+com/hellblazer/art/core/DataBounds.class
+com/hellblazer/art/core/HypersphereWeight.class
