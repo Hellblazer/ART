@@ -93,7 +93,6 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     
     @Override
     protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
-        System.out.printf("DEBUG checkVigilance: ENTRY - input=%s, categoryCount=%d%n", input, getCategoryCount());
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("BayesianART requires DenseVector input");
         }
@@ -106,8 +105,6 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         
         // When at max categories limit, always accept to prevent creating new categories
         if (getCategoryCount() >= this.parameters.maxCategories()) {
-            System.out.printf("DEBUG checkVigilance: FORCE ACCEPT - at max categories limit (%d >= %d)%n", 
-                             getCategoryCount(), this.parameters.maxCategories());
             return new MatchResult.Accepted(1.0, bayesianParams.vigilance());
         }
         
@@ -120,15 +117,11 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         // For patterns like [0.2,0.3] and [0.25,0.35], likelihood ~1.5 should pass vigilance ~0.7
         double matchValue = Math.min(1.0, likelihood / 2.0); // More permissive scaling
         
-        System.out.printf("DEBUG checkVigilance: likelihood=%.6f, uncertainty=%.6f, matchValue=%.6f, vigilance=%.6f%n", 
-                         likelihood, uncertainty, matchValue, bayesianParams.vigilance());
         
         // Test against vigilance threshold
         if (matchValue >= bayesianParams.vigilance()) {
-            System.out.printf("DEBUG checkVigilance: ACCEPTED (%.6f >= %.6f)%n", matchValue, bayesianParams.vigilance());
             return new MatchResult.Accepted(matchValue, bayesianParams.vigilance());
         } else {
-            System.out.printf("DEBUG checkVigilance: REJECTED (%.6f < %.6f)%n", matchValue, bayesianParams.vigilance());
             return new MatchResult.Rejected(matchValue, bayesianParams.vigilance());
         }
     }
@@ -184,7 +177,6 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         // Initial precision
         var initialPrecision = bayesianParams.priorPrecision();
         
-        System.out.printf("DEBUG createInitialWeight: creating BayesianWeight with sampleCount=%d%n", initialSampleCount);
         return new BayesianWeight(initialMean, initialCovariance, initialSampleCount, initialPrecision);
     }
     
@@ -203,19 +195,7 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
             diff[i] = input.get(i) - mean.get(i);
         }
         
-        // DEBUG for specific failing test case
-        if (Math.abs(input.get(0) - 0.52) < 0.01 && Math.abs(input.get(1) - 0.28) < 0.01) {
-            System.out.printf("SPECIFIC TEST DEBUG: input=[%.3f, %.3f], mean=[%.3f, %.3f]%n",
-                             input.get(0), input.get(1), mean.get(0), mean.get(1));
-            System.out.printf("SPECIFIC TEST DEBUG: covariance=[[%.6f, %.6f], [%.6f, %.6f]]%n",
-                             covariance.get(0,0), covariance.get(0,1), covariance.get(1,0), covariance.get(1,1));
-        }
         
-        // Check if this is the specific failing test with wrong matrix values
-        if (Math.abs(covariance.get(0,0) - 0.1) < 0.01 && Math.abs(covariance.get(1,1) - 0.15) < 0.01 && Math.abs(covariance.get(0,1) - 0.02) < 0.01) {
-            System.out.printf("FOUND EXPECTED MATRIX: input=[%.3f, %.3f], covariance=[[%.6f, %.6f], [%.6f, %.6f]]%n",
-                             input.get(0), input.get(1), covariance.get(0,0), covariance.get(0,1), covariance.get(1,0), covariance.get(1,1));
-        }
         
         // Full multivariate Gaussian likelihood calculation
         // L = exp(-0.5 * (x-μ)ᵀ Σ⁻¹ (x-μ)) / sqrt((2π)ᵏ |Σ|)
@@ -243,13 +223,6 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         
         var invCovariance = covariance.inverse();
         
-        System.out.printf("DEBUG: directDet=%.12f, get(0,0)=%.6f, get(1,1)=%.6f, get(0,1)=%.6f, get(1,0)=%.6f%n",
-                         directDet, covariance.get(0,0), covariance.get(1,1), covariance.get(0,1), covariance.get(1,0));
-        
-        System.out.printf("DEBUG: det=%.12f, expected_det=%.12f%n", det, 0.1 * 0.15 - 0.02 * 0.02);
-        System.out.printf("DEBUG: invCov=[[%.3f, %.3f], [%.3f, %.3f]]%n",
-                         invCovariance.get(0,0), invCovariance.get(0,1), 
-                         invCovariance.get(1,0), invCovariance.get(1,1));
         
         // Calculate Mahalanobis distance: (x-μ)ᵀ Σ⁻¹ (x-μ)
         double mahalanobis = 0.0;
@@ -259,14 +232,11 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
             }
         }
         
-        System.out.printf("DEBUG: mahalanobis=%.6f%n", mahalanobis);
         
         // Calculate actual likelihood (not log-likelihood)
         var normalization = Math.sqrt(Math.pow(2 * Math.PI, input.dimension()) * det);
         var likelihood = Math.exp(-0.5 * mahalanobis) / normalization;
         
-        System.out.printf("DEBUG: normalization=%.6f, exp_term=%.6f, likelihood=%.6f%n",
-                         normalization, Math.exp(-0.5 * mahalanobis), likelihood);
         
         return likelihood;
     }
@@ -325,7 +295,6 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
             newCovariance.set(i, i, Math.max(currentDiag, params.noiseVariance()));
         }
         
-        System.out.printf("DEBUG updateBayesianParameters: prior.sampleCount=%d, newSampleCount=%d%n", n, newSampleCount);
         return new BayesianWeight(newMean, newCovariance, newSampleCount, newPrecision);
     }
     
@@ -379,7 +348,6 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         if (!(weight instanceof BayesianWeight bayesianWeight)) {
             throw new IllegalStateException("Expected BayesianWeight but got " + weight.getClass());
         }
-        System.out.printf("DEBUG getBayesianWeight(%d): sampleCount=%d%n", categoryIndex, bayesianWeight.sampleCount());
         return bayesianWeight;
     }
     
@@ -1000,15 +968,12 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
             return categories;
         }
         
-        System.out.printf("DEBUG parseCategoriesJson: FULL JSON='%s'%n", categoriesJson);
         
         // Split by objects (simplified parsing)
         var objects = categoriesJson.split("\\},\\{");
-        System.out.printf("DEBUG parseCategoriesJson: objects.length=%d%n", objects.length);
         for (int objIdx = 0; objIdx < objects.length; objIdx++) {
             var objStr = objects[objIdx];
             var cleanObj = objStr.replace("{", "").replace("}", "");
-            System.out.printf("DEBUG parseCategoriesJson: object[%d]='%s'%n", objIdx, cleanObj);
             
             // Parse mean array
             var meanStart = cleanObj.indexOf("\"mean\":[");
@@ -1047,37 +1012,29 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
                 // Parse covariance matrix
                 var covariance = new Matrix(dimensions, dimensions);
                 var covStart = cleanObj.indexOf("\"covariance\":[");
-                System.out.printf("DEBUG parseCategoriesJson: object[%d] covStart=%d%n", objIdx, covStart);
                 if (covStart >= 0) {
                     // Find the end of the covariance array
                     var covEnd = findClosingBracket(cleanObj, covStart + "\"covariance\":[".length());
-                    System.out.printf("DEBUG parseCategoriesJson: object[%d] covEnd=%d%n", objIdx, covEnd);
                     if (covEnd > covStart) {
                         var covArrayStr = cleanObj.substring(covStart + "\"covariance\":[".length(), covEnd);
-                        System.out.printf("DEBUG parseCategoriesJson: object[%d] covArrayStr='%s'%n", objIdx, covArrayStr);
                         
                         // Parse 2D array: [[row1], [row2], ...]
                         var rows = covArrayStr.split("\\],\\[");
-                        System.out.printf("DEBUG parseCategoriesJson: object[%d] rows.length=%d%n", objIdx, rows.length);
                         for (int i = 0; i < Math.min(dimensions, rows.length); i++) {
                             var rowStr = rows[i].replaceAll("[\\[\\]]", ""); // Remove brackets
-                            System.out.printf("DEBUG parseCategoriesJson: object[%d] row[%d]='%s'%n", objIdx, i, rowStr);
                             var values = rowStr.split(",");
                             for (int j = 0; j < Math.min(dimensions, values.length); j++) {
                                 double value = Double.parseDouble(values[j].trim());
-                                System.out.printf("DEBUG parseCategoriesJson: object[%d] covariance[%d][%d]=%f%n", objIdx, i, j, value);
                                 covariance.set(i, j, value);
                             }
                         }
                     } else {
-                        System.out.printf("DEBUG parseCategoriesJson: object[%d] using default covariance (covEnd <= covStart)%n", objIdx);
                         // Default covariance matrix if not present in serialization
                         for (int i = 0; i < dimensions; i++) {
                             covariance.set(i, i, 1.0); // Identity matrix as default
                         }
                     }
                 } else {
-                    System.out.printf("DEBUG parseCategoriesJson: object[%d] using default covariance (covariance not found)%n", objIdx);
                     // Default covariance matrix if not present in serialization
                     for (int i = 0; i < dimensions; i++) {
                         covariance.set(i, i, 1.0); // Identity matrix as default
