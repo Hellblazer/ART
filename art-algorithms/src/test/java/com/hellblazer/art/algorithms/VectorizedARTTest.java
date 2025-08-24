@@ -347,17 +347,24 @@ class VectorizedARTTest {
     void testThreadSafety() throws InterruptedException {
         var threads = new Thread[4];
         var results = new ActivationResult[threads.length];
+        var exceptions = new Exception[threads.length];
         
         // Create concurrent step fit operations
         for (int i = 0; i < threads.length; i++) {
             final int threadIndex = i;
             threads[i] = new Thread(() -> {
-                var input = Pattern.of(
-                    0.1 + threadIndex * 0.2,
-                    0.2 + threadIndex * 0.2,
-                    0.3 + threadIndex * 0.2
-                );
-                results[threadIndex] = art.stepFit(input, params);
+                try {
+                    var input = Pattern.of(
+                        0.1 + threadIndex * 0.2,
+                        0.2 + threadIndex * 0.2,
+                        0.3 + threadIndex * 0.2
+                    );
+                    results[threadIndex] = art.stepFit(input, params);
+                } catch (Exception e) {
+                    exceptions[threadIndex] = e;
+                    System.err.printf("Thread %d failed with exception: %s%n", threadIndex, e.getMessage());
+                    e.printStackTrace();
+                }
             });
         }
         
@@ -371,10 +378,18 @@ class VectorizedARTTest {
             thread.join();
         }
         
+        // Check for exceptions first
+        for (int i = 0; i < exceptions.length; i++) {
+            if (exceptions[i] != null) {
+                fail("Thread " + i + " failed with exception: " + exceptions[i].getMessage(), exceptions[i]);
+            }
+        }
+        
         // Verify all operations completed successfully
-        for (var result : results) {
-            assertNotNull(result);
-            assertTrue(result instanceof ActivationResult.Success);
+        for (int i = 0; i < results.length; i++) {
+            assertNotNull(results[i], "Result from thread " + i + " is null");
+            assertTrue(results[i] instanceof ActivationResult.Success, 
+                      "Result from thread " + i + " is not Success: " + results[i]);
         }
     }
     

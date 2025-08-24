@@ -351,7 +351,8 @@ class VectorizedARTMAPAdvancedTest {
     void testCrossValidationAccuracy() {
         var kFolds = 5;
         var dataset = generateMultiClassData(4, 100);
-        Collections.shuffle(dataset);
+        // Use fixed random seed for reproducible results
+        Collections.shuffle(dataset, new Random(42));
         
         var foldSize = dataset.size() / kFolds;
         var accuracies = new ArrayList<Double>();
