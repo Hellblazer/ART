@@ -207,6 +207,8 @@ class WeightVectorTest {
             case GaussianWeight gw -> "gaussian:" + gw.sampleCount();
             case HypersphereWeight hw -> "hypersphere:" + hw.radius();
             case ARTAWeight aw -> "arta:" + aw.dimension();
+            case ARTSTARWeight asw -> "artstar:" + asw.dimension();
+            case ARTEWeight aew -> "arte:" + aew.dimension();
         };
         
         assertEquals("fuzzy:2", result);

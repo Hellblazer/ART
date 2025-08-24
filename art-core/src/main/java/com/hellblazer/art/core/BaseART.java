@@ -189,6 +189,16 @@ public abstract class BaseART {
     }
     
     /**
+     * Replace all categories with a new list (for subclass use).
+     * @param newCategories the new categories to replace with
+     */
+    protected final void replaceAllCategories(List<WeightVector> newCategories) {
+        Objects.requireNonNull(newCategories, "New categories cannot be null");
+        categories.clear();
+        categories.addAll(newCategories);
+    }
+    
+    /**
      * Get a string representation showing the number of categories.
      * @return string representation
      */
