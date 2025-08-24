@@ -6,7 +6,7 @@ package com.hellblazer.art.core;
  * All implementations are immutable and updates return new instances.
  */
 public sealed interface WeightVector 
-    permits FuzzyWeight, GaussianWeight, HypersphereWeight {
+    permits FuzzyWeight, GaussianWeight, HypersphereWeight, ARTAWeight {
     
     /**
      * Get the value at the specified index.
