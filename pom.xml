@@ -37,8 +37,6 @@
     </licenses>
     <modules>
         <module>art-core</module>
-        <module>art-algorithms</module>
-        <module>art-supervised</module>
         <module>art-performance</module>
     </modules>
 
