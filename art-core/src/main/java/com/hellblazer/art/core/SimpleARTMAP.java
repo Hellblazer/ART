@@ -104,6 +104,38 @@ public final class SimpleARTMAP implements BaseARTMAP {
         
         return this;
     }
+
+    /**
+     * Fit SimpleARTMAP with input patterns and corresponding labels using provided parameters.
+     * For unsupervised learning, labels can be null.
+     * 
+     * @param data the input patterns
+     * @param labels the class labels (can be null for unsupervised learning)
+     * @param parameters the parameters to use for training
+     * @return this SimpleARTMAP instance for method chaining
+     */
+    public SimpleARTMAP fit(Pattern[] data, int[] labels, Object parameters) {
+        if (data == null) {
+            throw new IllegalArgumentException("data cannot be null");
+        }
+        if (labels != null && data.length != labels.length) {
+            throw new IllegalArgumentException("data and labels must have same length");
+        }
+        if (parameters == null) {
+            throw new IllegalArgumentException("parameters cannot be null");
+        }
+        
+        // Train the underlying ART module with the patterns using stepFit
+        for (int i = 0; i < data.length; i++) {
+            artModule.stepFit(data[i], parameters);
+        }
+        
+        // Update state
+        trained = true;
+        categoryCount = artModule.getCategoryCount();
+        
+        return this;
+    }
     
     /**
      * Partially fit SimpleARTMAP with additional data.
@@ -124,6 +156,38 @@ public final class SimpleARTMAP implements BaseARTMAP {
         // Continue training the underlying ART module using stepFit
         for (int i = 0; i < data.length; i++) {
             artModule.stepFit(data[i], createDefaultParameters());
+        }
+        
+        // Update state
+        trained = true;
+        categoryCount = artModule.getCategoryCount();
+        
+        return this;
+    }
+
+    /**
+     * Partially fit SimpleARTMAP with additional data using provided parameters.
+     * For unsupervised learning, labels can be null.
+     * 
+     * @param data the input patterns
+     * @param labels the class labels (can be null for unsupervised learning)
+     * @param parameters the parameters to use for training
+     * @return this SimpleARTMAP instance for method chaining
+     */
+    public SimpleARTMAP partialFit(Pattern[] data, int[] labels, Object parameters) {
+        if (data == null) {
+            throw new IllegalArgumentException("data cannot be null");
+        }
+        if (labels != null && data.length != labels.length) {
+            throw new IllegalArgumentException("data and labels must have same length");
+        }
+        if (parameters == null) {
+            throw new IllegalArgumentException("parameters cannot be null");
+        }
+        
+        // Continue training the underlying ART module using stepFit
+        for (int i = 0; i < data.length; i++) {
+            artModule.stepFit(data[i], parameters);
         }
         
         // Update state
@@ -161,6 +225,39 @@ public final class SimpleARTMAP implements BaseARTMAP {
         
         return predictions;
     }
+
+    /**
+     * Predict class labels for new input patterns using provided parameters.
+     * 
+     * @param data the input patterns for prediction
+     * @param parameters the parameters to use for prediction
+     * @return array of predicted class labels
+     */
+    public int[] predict(Pattern[] data, Object parameters) {
+        if (!trained) {
+            throw new IllegalStateException("SimpleARTMAP must be trained before prediction");
+        }
+        if (data == null) {
+            throw new IllegalArgumentException("data cannot be null");
+        }
+        if (parameters == null) {
+            throw new IllegalArgumentException("parameters cannot be null");
+        }
+        
+        var predictions = new int[data.length];
+        for (int i = 0; i < data.length; i++) {
+            // Use stepFit for prediction (no learning) - this returns the activated category
+            var result = artModule.stepFit(data[i], parameters);
+            if (result instanceof ActivationResult.Success success) {
+                predictions[i] = success.categoryIndex();
+            } else {
+                // If no successful activation, return 0 as default
+                predictions[i] = 0;
+            }
+        }
+        
+        return predictions;
+    }
     
     /**
      * Create default parameters for the underlying ART module.
@@ -171,7 +268,20 @@ public final class SimpleARTMAP implements BaseARTMAP {
      */
     private Object createDefaultParameters() {
         // Check the type of the underlying ART module and return appropriate parameters
-        if (artModule instanceof FuzzyART) {
+        var className = artModule.getClass().getSimpleName();
+        
+        if (className.startsWith("Vectorized")) {
+            // For any vectorized ART module, use VectorizedParameters
+            try {
+                // Use reflection to get VectorizedParameters.createDefault()
+                var vectorizedParamsClass = Class.forName("com.hellblazer.art.algorithms.VectorizedParameters");
+                var createDefaultMethod = vectorizedParamsClass.getMethod("createDefault");
+                return createDefaultMethod.invoke(null);
+            } catch (Exception e) {
+                // Fallback if VectorizedParameters is not available
+                return FuzzyParameters.defaults();
+            }
+        } else if (artModule instanceof FuzzyART) {
             return FuzzyParameters.defaults();
         } else if (artModule instanceof BayesianART) {
             // Create default BayesianParameters - simple 1D case

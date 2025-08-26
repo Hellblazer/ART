@@ -375,7 +375,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         var trainingTasks = IntStream.range(0, vectorizedModules.size())
             .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
                 var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-                simpleARTMAP.fit(data.get(i), labels);
+                simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(vectorizedModules.get(i)));
                 return simpleARTMAP;
             }, channelPool))
             .toList();
@@ -405,7 +405,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
     private DeepARTMAPResult fitSupervisedSequential(List<Pattern[]> data, int[] labels) {
         for (int i = 0; i < vectorizedModules.size(); i++) {
             var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-            simpleARTMAP.fit(data.get(i), labels);
+            simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(vectorizedModules.get(i)));
             layers.add(simpleARTMAP);
         }
         
@@ -446,7 +446,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
             var remainingTasks = IntStream.range(2, data.size())
                 .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
                     var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-                    simpleARTMAP.fit(data.get(i), null);
+                    simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(vectorizedModules.get(i)));
                     return simpleARTMAP;
                 }, channelPool))
                 .toList();
@@ -491,7 +491,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         // Remaining layers: SimpleARTMAP
         for (int i = 2; i < data.size(); i++) {
             var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-            simpleARTMAP.fit(data.get(i), null);
+            simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(vectorizedModules.get(i)));
             layers.add(simpleARTMAP);
         }
         
@@ -680,7 +680,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
             .mapToObj(layerIndex -> CompletableFuture.runAsync(() -> {
                 var layer = layers.get(layerIndex);
                 if (layer instanceof SimpleARTMAP simpleLayer) {
-                    var layerPredictions = simpleLayer.predict(data.get(layerIndex));
+                    var layerPredictions = simpleLayer.predict(data.get(layerIndex), createDefaultVectorizedParameters(simpleLayer.getArtModule()));
                     for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
                         storedDeepLabels[sampleIndex][layerIndex] = layerPredictions[sampleIndex];
                     }
@@ -704,7 +704,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
             var layer = layers.get(layerIndex);
             if (layer instanceof SimpleARTMAP simpleLayer) {
-                var layerPredictions = simpleLayer.predict(data.get(layerIndex));
+                var layerPredictions = simpleLayer.predict(data.get(layerIndex), createDefaultVectorizedParameters(simpleLayer.getArtModule()));
                 for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
                     storedDeepLabels[sampleIndex][layerIndex] = layerPredictions[sampleIndex];
                 }

@@ -77,20 +77,22 @@ public final class VectorizedFuzzyWeight implements WeightVector {
     /**
      * Apply complement coding to input pattern.
      * [x1, x2, ..., xn] -> [x1, x2, ..., xn, 1-x1, 1-x2, ..., 1-xn]
+     * Values are clamped to [0,1] range to ensure non-negative weights.
      */
     public static Pattern getComplementCoded(Pattern input) {
         Objects.requireNonNull(input, "Input cannot be null");
         
         var complementCoded = new double[input.dimension() * 2];
         
-        // Copy original values
+        // Copy original values, clamped to [0,1]
         for (int i = 0; i < input.dimension(); i++) {
-            complementCoded[i] = input.get(i);
+            complementCoded[i] = Math.max(0.0, Math.min(1.0, input.get(i)));
         }
         
-        // Add complement values
+        // Add complement values, also clamped to [0,1]
         for (int i = 0; i < input.dimension(); i++) {
-            complementCoded[input.dimension() + i] = 1.0 - input.get(i);
+            double complement = 1.0 - complementCoded[i];
+            complementCoded[input.dimension() + i] = Math.max(0.0, Math.min(1.0, complement));
         }
         
         return Pattern.of(complementCoded);
