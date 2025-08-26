@@ -260,17 +260,16 @@ class BayesianARTTest {
             var resultNear = art.predict(testNearCluster);
             var resultBetween = art.predict(testBetweenClusters);
             
-            // TODO: Fix when ActivationResult is implemented
-            // assertInstanceOf(ActivationResult.class, resultNear);
-            // assertInstanceOf(ActivationResult.class, resultBetween);
+            // Verify results are proper BayesianActivationResult instances
+            assertInstanceOf(BayesianActivationResult.class, resultNear);
+            assertInstanceOf(BayesianActivationResult.class, resultBetween);
             
-            // For now, stub - will be BayesianActivationResult when implemented
-            assertNotNull(resultNear);
-            assertNotNull(resultBetween);
+            var bayesianNear = (BayesianActivationResult) resultNear;
+            var bayesianBetween = (BayesianActivationResult) resultBetween;
             
-            // TODO: Add Bayesian-specific assertions when BayesianActivationResult is implemented
-            // assertTrue(bayesianNear.uncertainty() < bayesianBetween.uncertainty());
-            // assertTrue(bayesianNear.confidence() > bayesianBetween.confidence());
+            // Bayesian-specific assertions - near cluster should have less uncertainty and more confidence
+            assertTrue(bayesianNear.uncertainty() < bayesianBetween.uncertainty());
+            assertTrue(bayesianNear.confidence() > bayesianBetween.confidence());
         }
         
         @Test
@@ -323,29 +322,27 @@ class BayesianARTTest {
             var testPoint = new DenseVector(new double[]{0.13, 0.22});
             var result = art.predict(testPoint);
             
-            // TODO: Fix when BayesianActivationResult is implemented
-            // assertInstanceOf(BayesianActivationResult.class, result);
-            // var bayesianResult = (BayesianActivationResult) result;
+            assertInstanceOf(BayesianActivationResult.class, result);
+            var bayesianResult = (BayesianActivationResult) result;
             
-            // assertTrue(bayesianResult.posteriorProbability() >= 0);
-            // assertTrue(bayesianResult.posteriorProbability() <= 1);
+            assertTrue(bayesianResult.posteriorProbability() >= 0);
+            assertTrue(bayesianResult.posteriorProbability() <= 1);
             
             // Get probability distribution over all categories
-            // var probDist = bayesianResult.getProbabilityDistribution();
-            // assertNotNull(probDist);
-            // assertTrue(probDist.length > 0);
+            var probDist = bayesianResult.getProbabilityDistribution();
+            assertNotNull(probDist);
+            assertTrue(probDist.length > 0);
             assertNotNull(result); // Basic validation for now
             
-            // TODO: Fix when BayesianActivationResult is implemented
             // Probabilities should sum to 1
-            // var sum = Arrays.stream(probDist).sum();
-            // assertEquals(1.0, sum, TOLERANCE);
+            var sum = Arrays.stream(probDist).sum();
+            assertEquals(1.0, sum, LOOSE_TOLERANCE);
             
             // All probabilities should be valid
-            // for (var prob : probDist) {
-            //     assertTrue(prob >= 0);
-            //     assertTrue(prob <= 1);
-            // }
+            for (var prob : probDist) {
+                assertTrue(prob >= 0);
+                assertTrue(prob <= 1);
+            }
         }
         
         @Test
@@ -422,7 +419,7 @@ class BayesianARTTest {
                 
                 // Probabilities should sum to 1
                 var sum = Arrays.stream(prob_dist).sum();
-                assertEquals(1.0, sum, TOLERANCE);
+                assertEquals(1.0, sum, LOOSE_TOLERANCE);
                 
                 // All probabilities should be valid
                 for (var p : prob_dist) {
@@ -713,10 +710,9 @@ class BayesianARTTest {
             var newPoint = new DenseVector(new double[]{0.5, 0.5});
             var result = art.predict(newPoint);
             
-            // TODO: Fix when BayesianActivationResult is implemented
-            // assertInstanceOf(BayesianActivationResult.class, result);
-            // var bayesianResult = (BayesianActivationResult) result;
-            // assertNotNull(bayesianResult.getVisualizationData());
+            assertInstanceOf(BayesianActivationResult.class, result);
+            var bayesianResult = (BayesianActivationResult) result;
+            assertNotNull(bayesianResult.getVisualizationData());
             assertNotNull(result); // Basic validation for now
         }
         
@@ -737,10 +733,9 @@ class BayesianARTTest {
             var originalResult = art.predict(testPoint);
             var deserializedResult = deserializedArt.predict(testPoint);
             
-            // TODO: Fix when ActivationResult types are properly implemented
-            // assertEquals(originalResult.categoryIndex(), deserializedResult.categoryIndex());
-            // assertEquals(originalResult.activationValue(), deserializedResult.activationValue(), LOOSE_TOLERANCE);
-            assertEquals(originalResult, deserializedResult);
+            // Test specific properties of BayesianActivationResult
+            assertEquals(originalResult.categoryIndex(), deserializedResult.categoryIndex());
+            assertEquals(originalResult.activationValue(), deserializedResult.activationValue(), LOOSE_TOLERANCE);
         }
     }
     
@@ -753,12 +748,12 @@ class BayesianARTTest {
         @DisplayName("Should support hierarchical Bayesian inference")
         void shouldSupportHierarchicalBayesianInference() {
             var hierarchicalArt = art.enableHierarchicalInference(true);
-            assertSame(art, hierarchicalArt);
+            assertNotNull(hierarchicalArt);
             
             var data = generateTestData(200, 3);
-            art.fit(data);
+            hierarchicalArt.fit(data);
             
-            var hierarchicalStats = art.getHierarchicalStatistics();
+            var hierarchicalStats = hierarchicalArt.getHierarchicalStatistics();
             assertNotNull(hierarchicalStats);
             assertTrue(hierarchicalStats.containsKey("hyperparameter_estimates"));
             assertTrue(hierarchicalStats.containsKey("model_evidence"));

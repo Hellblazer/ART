@@ -21,9 +21,8 @@ package com.hellblazer.art.core;
 import java.util.Map;
 
 /**
- * BayesianART implementation - MINIMAL STUB FOR TEST COMPILATION
- * This is a minimal implementation to allow tests to compile.
- * All methods throw UnsupportedOperationException until properly implemented.
+ * BayesianART implementation extending ART with Bayesian inference capabilities.
+ * Provides uncertainty quantification and probabilistic pattern recognition using multivariate Gaussian models.
  * 
  * @author Hal Hildebrand
  */
@@ -32,6 +31,7 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     private final BayesianParameters parameters;
     private boolean fitted = false;
     private int inputDimension = -1; // Track expected input dimension
+    private boolean hierarchicalInference = false; // Track hierarchical inference setting
     
     public BayesianART(BayesianParameters parameters) {
         this.parameters = parameters;
@@ -449,8 +449,111 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     public BayesianART enableHierarchicalInference(boolean enable) {
-        // Simplified implementation - just return this
-        return this;
+        // Create new instance with hierarchical inference flag updated
+        var newParams = new BayesianParameters(
+            parameters.vigilance(),
+            parameters.priorMean(),
+            parameters.priorCovariance(),
+            parameters.noiseVariance(),
+            parameters.priorPrecision(),
+            parameters.maxCategories()
+        );
+        
+        var newART = new BayesianART(newParams);
+        
+        // Copy current state
+        if (fitted) {
+            newART.fitted = true;
+            newART.replaceAllCategories(new java.util.ArrayList<>(getCategories()));
+            newART.inputDimension = this.inputDimension;
+        }
+        
+        // Set hierarchical inference flag (stored as instance variable)
+        newART.hierarchicalInference = enable;
+        
+        return newART;
+    }
+    
+    /**
+     * Calculate the model evidence (marginal likelihood) for Bayesian model comparison.
+     * Uses the Bayesian Information Criterion (BIC) approximation for computational efficiency.
+     */
+    private double calculateModelEvidence() {
+        if (getCategoryCount() == 0) {
+            return Double.NEGATIVE_INFINITY; // No model to evaluate
+        }
+        
+        // Calculate log-likelihood using current categories
+        double logLikelihood = 0.0;
+        long totalSamples = 0;
+        
+        for (int i = 0; i < getCategoryCount(); i++) {
+            var weight = getBayesianWeight(i);
+            totalSamples += weight.sampleCount();
+            
+            // Add log-likelihood contribution from this category
+            // Using the multivariate Gaussian likelihood for each sample
+            double categoryLogLikelihood = calculateCategoryLogLikelihood(weight);
+            logLikelihood += categoryLogLikelihood;
+        }
+        
+        if (totalSamples == 0) {
+            return Double.NEGATIVE_INFINITY;
+        }
+        
+        // Calculate model complexity penalty
+        // Number of parameters: each category has mean (d dims) + covariance (d*(d+1)/2) + precision/sample count
+        int numCategories = getCategoryCount();
+        int dimensionality = inputDimension > 0 ? inputDimension : parameters.dimensions();
+        int paramsPerCategory = dimensionality + (dimensionality * (dimensionality + 1)) / 2 + 2; // mean + cov + precision + samples
+        int totalParams = numCategories * paramsPerCategory;
+        
+        // BIC approximation: log(P(data|model)) ≈ log(likelihood) - (k/2) * log(n)
+        // where k = number of parameters, n = number of data points
+        double bic = logLikelihood - (totalParams / 2.0) * Math.log(totalSamples);
+        
+        // Convert BIC to approximate model evidence (higher is better)
+        return bic;
+    }
+    
+    /**
+     * Calculate the log-likelihood contribution from a single category.
+     */
+    private double calculateCategoryLogLikelihood(BayesianWeight weight) {
+        var mean = weight.mean();
+        var covariance = weight.covariance();
+        long sampleCount = weight.sampleCount();
+        
+        if (sampleCount == 0) {
+            return 0.0;
+        }
+        
+        // Calculate log-likelihood using multivariate Gaussian formula
+        // log P(X|μ,Σ) = -n/2 * log(2π) - n/2 * log|Σ| - 1/2 * trace(Σ^-1 * S)
+        // where S is the sample covariance and n is sample count
+        
+        try {
+            double det = covariance.determinant();
+            if (det <= 0) {
+                return Double.NEGATIVE_INFINITY; // Singular covariance
+            }
+            
+            double dimensionality = mean.dimension();
+            
+            // Log-likelihood components
+            double logNormalization = -0.5 * sampleCount * dimensionality * Math.log(2 * Math.PI);
+            double logDetTerm = -0.5 * sampleCount * Math.log(det);
+            
+            // For the trace term, we use a simplified approach since we don't store
+            // the raw data points. We approximate using the current covariance structure.
+            double traceTerm = -0.5 * sampleCount * dimensionality; // Simplified approximation
+            
+            return logNormalization + logDetTerm + traceTerm;
+            
+        } catch (Exception e) {
+            // Handle numerical issues gracefully
+            return Double.NEGATIVE_INFINITY;
+        }
     }
     
     public Map<String, Object> getHierarchicalStatistics() {
@@ -465,8 +568,8 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         hyperparameterEstimates.put("nu", 2.0);    // Degrees of freedom for Wishart prior
         stats.put("hyperparameter_estimates", hyperparameterEstimates);
         
-        // Model evidence (marginal likelihood) - simplified calculation
-        double modelEvidence = 0.5; // Placeholder - would calculate actual log marginal likelihood
+        // Model evidence (marginal likelihood) - calculate using Bayesian model comparison
+        double modelEvidence = calculateModelEvidence();
         stats.put("model_evidence", modelEvidence);
         
         return stats;
@@ -476,9 +579,60 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         if (candidates == null || candidates.isEmpty()) {
             throw new IllegalArgumentException("Candidates list cannot be null or empty");
         }
-        // Simplified implementation: return first candidate
-        // In a full implementation, this would use model selection criteria like BIC/AIC
-        return candidates.get(0);
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException("Data cannot be null or empty");
+        }
+        
+        BayesianParameters bestParams = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        
+        for (var candidate : candidates) {
+            try {
+                // Create temporary BayesianART instance with candidate parameters
+                var tempART = new BayesianART(candidate);
+                
+                // Convert data to Pattern objects
+                var patterns = java.util.Arrays.stream(data)
+                    .map(Pattern::of)
+                    .toArray(Pattern[]::new);
+                
+                // Fit the model
+                tempART.fit(patterns);
+                
+                // Calculate model score using BIC approximation
+                double logLikelihood = calculateDataLogLikelihood(tempART, patterns);
+                int numParams = tempART.getCategoryCount() * (candidate.dimensions() + 2); // mean + var + weights
+                double bic = logLikelihood - (numParams / 2.0) * Math.log(data.length);
+                
+                if (bic > bestScore) {
+                    bestScore = bic;
+                    bestParams = candidate;
+                }
+            } catch (Exception e) {
+                // Skip candidates that cause errors during fitting
+                continue;
+            }
+        }
+        
+        // Return best candidate, or first one if all failed
+        return bestParams != null ? bestParams : candidates.get(0);
+    }
+    
+    /**
+     * Calculate data log-likelihood for a fitted BayesianART model
+     */
+    private static double calculateDataLogLikelihood(BayesianART art, Pattern[] data) {
+        double totalLogLikelihood = 0.0;
+        
+        for (var pattern : data) {
+            var result = art.predict(pattern);
+            if (result instanceof BayesianActivationResult bayesianResult) {
+                // Use activation value as proxy for log-likelihood
+                totalLogLikelihood += Math.log(Math.max(bayesianResult.activationValue(), 1e-10));
+            }
+        }
+        
+        return totalLogLikelihood;
     }
     
     public double[] calculateUncertaintyScores(double[][] data) {
@@ -570,7 +724,7 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     // Single pattern prediction (for BaseART compatibility - not part of ScikitClusterer)
-    public ActivationResult predict(Pattern pattern) {
+    public BayesianActivationResult predict(Pattern pattern) {
         if (!fitted) {
             throw new IllegalStateException("Model is not fitted");
         }
@@ -585,7 +739,16 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         }
         
         validatePattern(pattern);
-        return stepFit(pattern, parameters);
+        var result = stepFit(pattern, parameters);
+        
+        // Convert ActivationResult.Success to BayesianActivationResult
+        if (result instanceof ActivationResult.Success success) {
+            return new BayesianActivationResult(success.categoryIndex(), success.activationValue(), success.updatedWeight());
+        } else {
+            // Handle failure cases - for now, return a default BayesianActivationResult
+            // In a real implementation, you might want to throw an exception or handle differently
+            return new BayesianActivationResult(-1, 0.0, null);
+        }
     }
     
     // Multiple patterns prediction (for BaseART compatibility - not part of ScikitClusterer)  
@@ -713,9 +876,96 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     @Override
     public Map<String, Double> clustering_metrics(Pattern[] X_data, Integer[] labels) {
         var metrics = new java.util.HashMap<String, Double>();
-        // Simplified implementation - in practice would calculate silhouette score, etc.
-        metrics.put("inertia", 0.0);
-        metrics.put("silhouette_score", 0.8); // Placeholder
+        
+        if (X_data == null || X_data.length == 0) {
+            metrics.put("n_clusters", 0.0);
+            return metrics;
+        }
+        
+        var predictions = predict(X_data);
+        
+        // Calculate number of clusters
+        var uniqueClusters = java.util.Arrays.stream(predictions).collect(java.util.stream.Collectors.toSet());
+        metrics.put("n_clusters", (double) uniqueClusters.size());
+        
+        // Calculate accuracy if labels provided
+        if (labels != null && labels.length == predictions.length) {
+            int correct = 0;
+            for (int i = 0; i < predictions.length; i++) {
+                if (labels[i] != null && labels[i].equals(predictions[i])) {
+                    correct++;
+                }
+            }
+            metrics.put("accuracy", (double) correct / predictions.length);
+        }
+        
+        // Calculate inertia (within-cluster sum of squares)
+        double inertia = 0.0;
+        var categoryCount = getCategoryCount();
+        
+        for (int clusterIdx = 0; clusterIdx < categoryCount; clusterIdx++) {
+            var clusterCenter = getCategory(clusterIdx);
+            if (clusterCenter instanceof BayesianWeight bayesianWeight) {
+                var centerMean = bayesianWeight.mean();
+                for (int i = 0; i < X_data.length; i++) {
+                    if (predictions[i] == clusterIdx) {
+                        // Calculate Mahalanobis distance squared
+                        var pattern = X_data[i];
+                        double distance = calculateMahalanobisDistance(pattern, bayesianWeight);
+                        inertia += distance * distance;
+                    }
+                }
+            }
+        }
+        metrics.put("inertia", inertia);
+        
+        // Calculate Davies-Bouldin Score (lower is better)
+        if (categoryCount > 1) {
+            double dbScore = 0.0;
+            for (int i = 0; i < categoryCount; i++) {
+                double maxRatio = 0.0;
+                var centerI = getCategory(i);
+                
+                for (int j = 0; j < categoryCount; j++) {
+                    if (i != j) {
+                        var centerJ = getCategory(j);
+                        
+                        // Calculate average intra-cluster distances
+                        double avgDistI = calculateBayesianIntraClusterDistance(X_data, predictions, i);
+                        double avgDistJ = calculateBayesianIntraClusterDistance(X_data, predictions, j);
+                        
+                        // Calculate inter-cluster distance
+                        double interDist = calculateBayesianInterClusterDistance(centerI, centerJ);
+                        
+                        if (interDist > 0) {
+                            double ratio = (avgDistI + avgDistJ) / interDist;
+                            maxRatio = Math.max(maxRatio, ratio);
+                        }
+                    }
+                }
+                dbScore += maxRatio;
+            }
+            metrics.put("davies_bouldin_score", dbScore / categoryCount);
+        } else {
+            metrics.put("davies_bouldin_score", 0.0);
+        }
+        
+        // Calculate silhouette score
+        if (uniqueClusters.size() > 1) {
+            double silhouetteSum = 0.0;
+            for (int i = 0; i < X_data.length; i++) {
+                double a = calculateBayesianIntraClusterDistance(X_data, predictions, predictions[i], i);
+                double b = calculateBayesianNearestClusterDistance(X_data, predictions, predictions[i], i);
+                
+                if (Math.max(a, b) > 0) {
+                    silhouetteSum += (b - a) / Math.max(a, b);
+                }
+            }
+            metrics.put("silhouette_score", silhouetteSum / X_data.length);
+        } else {
+            metrics.put("silhouette_score", 0.0);
+        }
+        
         return metrics;
     }
     
@@ -723,12 +973,144 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     public Map<String, Double> clustering_metrics(double[][] X_data, Integer[] labels) {
         var metrics = new java.util.HashMap<String, Double>();
         
-        // Standard clustering metrics
-        metrics.put("silhouette_score", 0.8); // Placeholder - would calculate actual silhouette score
-        metrics.put("calinski_harabasz_score", 150.0); // Placeholder - would calculate actual CH score
-        metrics.put("davies_bouldin_score", 0.5); // Placeholder - would calculate actual DB score
-        metrics.put("inertia", 0.0);
-        metrics.put("n_clusters", (double) getCategoryCount());
+        if (X_data == null || X_data.length == 0) {
+            metrics.put("n_clusters", 0.0);
+            return metrics;
+        }
+        
+        // Convert to Pattern array for consistency
+        var patterns = new Pattern[X_data.length];
+        for (int i = 0; i < X_data.length; i++) {
+            patterns[i] = new DenseVector(X_data[i]);
+        }
+        
+        var predictions = predict(patterns);
+        
+        // Calculate number of clusters
+        var uniqueClusters = java.util.Arrays.stream(predictions).collect(java.util.stream.Collectors.toSet());
+        metrics.put("n_clusters", (double) uniqueClusters.size());
+        
+        // Calculate accuracy if labels provided
+        if (labels != null && labels.length == predictions.length) {
+            int correct = 0;
+            for (int i = 0; i < predictions.length; i++) {
+                if (labels[i] != null && labels[i].equals(predictions[i])) {
+                    correct++;
+                }
+            }
+            metrics.put("accuracy", (double) correct / predictions.length);
+        }
+        
+        // Calculate inertia (within-cluster sum of squares using Mahalanobis distance)
+        double inertia = 0.0;
+        var categoryCount = getCategoryCount();
+        
+        for (int clusterIdx = 0; clusterIdx < categoryCount; clusterIdx++) {
+            var clusterCenter = getCategory(clusterIdx);
+            if (clusterCenter instanceof BayesianWeight bayesianWeight) {
+                for (int i = 0; i < patterns.length; i++) {
+                    if (predictions[i] == clusterIdx) {
+                        // Calculate Mahalanobis distance squared
+                        double distance = calculateMahalanobisDistance(patterns[i], bayesianWeight);
+                        inertia += distance * distance;
+                    }
+                }
+            }
+        }
+        metrics.put("inertia", inertia);
+        
+        // Calculate Davies-Bouldin Score (lower is better)
+        if (categoryCount > 1) {
+            double dbScore = 0.0;
+            for (int i = 0; i < categoryCount; i++) {
+                double maxRatio = 0.0;
+                var centerI = getCategory(i);
+                
+                for (int j = 0; j < categoryCount; j++) {
+                    if (i != j) {
+                        var centerJ = getCategory(j);
+                        
+                        // Calculate average intra-cluster distances
+                        double avgDistI = calculateBayesianIntraClusterDistance(patterns, predictions, i);
+                        double avgDistJ = calculateBayesianIntraClusterDistance(patterns, predictions, j);
+                        
+                        // Calculate inter-cluster distance
+                        double interDist = calculateBayesianInterClusterDistance(centerI, centerJ);
+                        
+                        if (interDist > 0) {
+                            double ratio = (avgDistI + avgDistJ) / interDist;
+                            maxRatio = Math.max(maxRatio, ratio);
+                        }
+                    }
+                }
+                dbScore += maxRatio;
+            }
+            metrics.put("davies_bouldin_score", dbScore / categoryCount);
+        } else {
+            metrics.put("davies_bouldin_score", 0.0);
+        }
+        
+        // Calculate silhouette score
+        if (uniqueClusters.size() > 1) {
+            double silhouetteSum = 0.0;
+            for (int i = 0; i < patterns.length; i++) {
+                double a = calculateBayesianIntraClusterDistance(patterns, predictions, predictions[i], i);
+                double b = calculateBayesianNearestClusterDistance(patterns, predictions, predictions[i], i);
+                
+                if (Math.max(a, b) > 0) {
+                    silhouetteSum += (b - a) / Math.max(a, b);
+                }
+            }
+            metrics.put("silhouette_score", silhouetteSum / patterns.length);
+        } else {
+            metrics.put("silhouette_score", 0.0);
+        }
+        
+        // Calculate Calinski-Harabasz Score (higher is better)
+        if (categoryCount > 1 && patterns.length > categoryCount) {
+            double betweenSS = 0.0;
+            double withinSS = inertia; // We already calculated this above
+            
+            // Calculate overall centroid
+            var overallCentroid = new double[patterns[0].dimension()];
+            for (var pattern : patterns) {
+                for (int dim = 0; dim < overallCentroid.length; dim++) {
+                    overallCentroid[dim] += pattern.get(dim);
+                }
+            }
+            for (int dim = 0; dim < overallCentroid.length; dim++) {
+                overallCentroid[dim] /= patterns.length;
+            }
+            
+            // Calculate between-cluster sum of squares
+            for (int clusterIdx = 0; clusterIdx < categoryCount; clusterIdx++) {
+                var clusterCenter = getCategory(clusterIdx);
+                if (clusterCenter instanceof BayesianWeight bayesianWeight) {
+                    int clusterSize = 0;
+                    for (int pred : predictions) {
+                        if (pred == clusterIdx) clusterSize++;
+                    }
+                    
+                    if (clusterSize > 0) {
+                        double distance = 0.0;
+                        for (int dim = 0; dim < Math.min(overallCentroid.length, bayesianWeight.mean().dimension()); dim++) {
+                            double diff = bayesianWeight.mean().get(dim) - overallCentroid[dim];
+                            distance += diff * diff;
+                        }
+                        betweenSS += clusterSize * distance;
+                    }
+                }
+            }
+            
+            if (withinSS > 0) {
+                double chScore = (betweenSS / (categoryCount - 1)) / (withinSS / (patterns.length - categoryCount));
+                metrics.put("calinski_harabasz_score", chScore);
+            } else {
+                metrics.put("calinski_harabasz_score", 0.0);
+            }
+        } else {
+            metrics.put("calinski_harabasz_score", 0.0);
+        }
         
         // Bayesian-specific metrics
         var uncertaintyScores = calculateUncertaintyScores(X_data);
@@ -888,6 +1270,81 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
         }
         
         return bestCategory;
+    }
+    
+    // Helper methods for clustering metrics
+    private double calculateMahalanobisDistance(Pattern pattern, BayesianWeight weight) {
+        if (!(pattern instanceof DenseVector denseVector)) {
+            throw new IllegalArgumentException("Pattern must be DenseVector");
+        }
+        return calculateUncertainty(denseVector, weight);
+    }
+    
+    private double calculateBayesianIntraClusterDistance(Pattern[] data, Integer[] predictions, int clusterIdx) {
+        double totalDistance = 0.0;
+        int count = 0;
+        
+        var center = getCategory(clusterIdx);
+        if (!(center instanceof BayesianWeight bayesianWeight)) {
+            return 0.0;
+        }
+        
+        for (int i = 0; i < data.length; i++) {
+            if (predictions[i] == clusterIdx) {
+                double distance = calculateMahalanobisDistance(data[i], bayesianWeight);
+                totalDistance += distance;
+                count++;
+            }
+        }
+        
+        return count > 0 ? totalDistance / count : 0.0;
+    }
+    
+    private double calculateBayesianIntraClusterDistance(Pattern[] data, Integer[] predictions, int clusterIdx, int pointIdx) {
+        if (predictions[pointIdx] != clusterIdx) {
+            return 0.0;
+        }
+        
+        var center = getCategory(clusterIdx);
+        if (!(center instanceof BayesianWeight bayesianWeight)) {
+            return 0.0;
+        }
+        
+        return calculateMahalanobisDistance(data[pointIdx], bayesianWeight);
+    }
+    
+    private double calculateBayesianNearestClusterDistance(Pattern[] data, Integer[] predictions, int currentCluster, int pointIdx) {
+        double minDistance = Double.MAX_VALUE;
+        var point = data[pointIdx];
+        
+        for (int clusterIdx = 0; clusterIdx < getCategoryCount(); clusterIdx++) {
+            if (clusterIdx != currentCluster) {
+                var center = getCategory(clusterIdx);
+                if (center instanceof BayesianWeight bayesianWeight) {
+                    double distance = calculateMahalanobisDistance(point, bayesianWeight);
+                    minDistance = Math.min(minDistance, distance);
+                }
+            }
+        }
+        
+        return minDistance == Double.MAX_VALUE ? 0.0 : minDistance;
+    }
+    
+    private double calculateBayesianInterClusterDistance(WeightVector centerI, WeightVector centerJ) {
+        if (!(centerI instanceof BayesianWeight bayesianI) || !(centerJ instanceof BayesianWeight bayesianJ)) {
+            return 0.0;
+        }
+        
+        var meanI = bayesianI.mean();
+        var meanJ = bayesianJ.mean();
+        
+        double distance = 0.0;
+        for (int dim = 0; dim < Math.min(meanI.dimension(), meanJ.dimension()); dim++) {
+            double diff = meanI.get(dim) - meanJ.get(dim);
+            distance += diff * diff;
+        }
+        
+        return Math.sqrt(distance);
     }
     
     // Helper methods for serialization

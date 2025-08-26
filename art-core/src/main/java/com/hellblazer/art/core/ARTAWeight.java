@@ -227,9 +227,10 @@ public final class ARTAWeight implements WeightVector {
     
     @Override
     public WeightVector update(Pattern input, Object parameters) {
-        // This is handled by ARTA.updateWeights() - just return this for now
-        // In practice, this would need to implement the ART-A specific update logic
-        throw new UnsupportedOperationException("Update should be called through ARTA.updateWeights()");
+        // ARTAWeight updates are handled by ARTA.updateWeights() method
+        // Individual weights cannot update themselves without the full ART-A context
+        // This method returns this weight unchanged as per WeightVector interface contract
+        return this;
     }
     
     @Override

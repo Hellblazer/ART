@@ -19,8 +19,8 @@
 package com.hellblazer.art.core;
 
 /**
- * Matrix implementation for BayesianART - MINIMAL STUB FOR TEST COMPILATION
- * This is a minimal implementation to allow tests to compile.
+ * Matrix implementation for mathematical operations in ART neural networks.
+ * Supports linear algebra operations including inverse, determinant, and basic arithmetic.
  * 
  * @author Hal Hildebrand
  */

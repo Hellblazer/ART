@@ -18,6 +18,7 @@
  */
 package com.hellblazer.art.core;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,9 +34,6 @@ import java.util.Map;
  * - Distance-based vigilance criterion: ||I' - w_j||² ≤ (1-ρ)²
  * - Convex combination learning: w_j^(new) = (1-β)w_j^(old) + β*I'
  * - Normalized weight vectors (unit length)
- * 
- * MINIMAL IMPLEMENTATION TO MAKE TESTS COMPILE
- * All methods throw UnsupportedOperationException until properly implemented
  * 
  * @see BaseART for the template method framework
  * @see ART2Weight for normalized weight vectors
@@ -62,7 +60,7 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
         this.parameters = parameters;
     }
     
-    // BaseART abstract method implementations - MINIMAL TO MAKE TESTS COMPILE
+    // BaseART abstract method implementations for ART-2 neural network
     
     @Override
     protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
@@ -365,17 +363,193 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
     
     @Override
     public ScikitClusterer<Pattern> set_params(Map<String, Object> params) {
-        throw new UnsupportedOperationException("Parameter modification not supported in ART-2");
+        if (params == null || params.isEmpty()) {
+            return this;
+        }
+        
+        // Extract current parameters
+        var newRho = parameters.vigilance();
+        var newBeta = parameters.learningRate();
+        var newMaxCategories = parameters.maxCategories();
+        
+        // Update parameters that can be changed
+        if (params.containsKey("vigilance") || params.containsKey("rho")) {
+            var vigilanceValue = params.getOrDefault("vigilance", params.get("rho"));
+            if (vigilanceValue instanceof Number number) {
+                newRho = number.doubleValue();
+                if (newRho < 0.0 || newRho > 1.0) {
+                    throw new IllegalArgumentException("Vigilance parameter must be between 0 and 1");
+                }
+            }
+        }
+        
+        if (params.containsKey("beta")) {
+            var betaValue = params.get("beta");
+            if (betaValue instanceof Number number) {
+                newBeta = number.doubleValue();
+                if (newBeta < 0.0 || newBeta > 1.0) {
+                    throw new IllegalArgumentException("Learning rate beta must be between 0 and 1");
+                }
+            }
+        }
+        
+        if (params.containsKey("max_categories")) {
+            var maxCatValue = params.get("max_categories");
+            if (maxCatValue instanceof Number number) {
+                newMaxCategories = number.intValue();
+                if (newMaxCategories <= 0) {
+                    throw new IllegalArgumentException("Maximum categories must be positive");
+                }
+            }
+        }
+        
+        // Create new ART2 instance with updated parameters
+        var newParams = new ART2Parameters(newRho, newBeta, newMaxCategories);
+        return new ART2(newParams);
     }
     
     @Override
     public Map<String, Double> clustering_metrics(Pattern[] X_data, Integer[] labels) {
         var metrics = new HashMap<String, Double>();
-        metrics.put("silhouette_score", 0.5); // Placeholder
-        metrics.put("calinski_harabasz_score", 100.0); // Placeholder
-        metrics.put("davies_bouldin_score", 0.5); // Placeholder
-        metrics.put("inertia", 1.0); // Placeholder
-        metrics.put("n_clusters", (double) getCategoryCount()); // Convert to double for map type consistency
+        
+        if (X_data == null || X_data.length == 0) {
+            metrics.put("n_clusters", 0.0);
+            return metrics;
+        }
+        
+        var predictions = predict(X_data);
+        
+        // Calculate number of clusters
+        var uniqueClusters = Arrays.stream(predictions).collect(java.util.stream.Collectors.toSet());
+        metrics.put("n_clusters", (double) uniqueClusters.size());
+        
+        // Calculate accuracy if labels provided
+        if (labels != null && labels.length == predictions.length) {
+            int correct = 0;
+            for (int i = 0; i < predictions.length; i++) {
+                if (labels[i] != null && labels[i].equals(predictions[i])) {
+                    correct++;
+                }
+            }
+            metrics.put("accuracy", (double) correct / predictions.length);
+        }
+        
+        // Calculate inertia (within-cluster sum of squares)
+        double inertia = 0.0;
+        var categoryCount = getCategoryCount();
+        
+        for (int clusterIdx = 0; clusterIdx < categoryCount; clusterIdx++) {
+            var clusterCenter = getCategory(clusterIdx);
+            if (clusterCenter instanceof ART2Weight art2Weight) {
+                for (int i = 0; i < X_data.length; i++) {
+                    if (predictions[i] == clusterIdx) {
+                        // Calculate squared distance to cluster center
+                        var pattern = X_data[i];
+                        double distance = 0.0;
+                        for (int dim = 0; dim < Math.min(pattern.dimension(), art2Weight.vector().dimension()); dim++) {
+                            double diff = pattern.get(dim) - art2Weight.vector().get(dim);
+                            distance += diff * diff;
+                        }
+                        inertia += distance;
+                    }
+                }
+            }
+        }
+        metrics.put("inertia", inertia);
+        
+        // Calculate Davies-Bouldin Score (lower is better)
+        if (categoryCount > 1) {
+            double dbScore = 0.0;
+            for (int i = 0; i < categoryCount; i++) {
+                double maxRatio = 0.0;
+                var centerI = getCategory(i);
+                
+                for (int j = 0; j < categoryCount; j++) {
+                    if (i != j) {
+                        var centerJ = getCategory(j);
+                        
+                        // Calculate average intra-cluster distances
+                        double avgDistI = calculateIntraClusterDistance(X_data, predictions, i);
+                        double avgDistJ = calculateIntraClusterDistance(X_data, predictions, j);
+                        
+                        // Calculate inter-cluster distance
+                        double interDist = calculateInterClusterDistance(centerI, centerJ);
+                        
+                        if (interDist > 0) {
+                            double ratio = (avgDistI + avgDistJ) / interDist;
+                            maxRatio = Math.max(maxRatio, ratio);
+                        }
+                    }
+                }
+                dbScore += maxRatio;
+            }
+            metrics.put("davies_bouldin_score", dbScore / categoryCount);
+        } else {
+            metrics.put("davies_bouldin_score", 0.0);
+        }
+        
+        // Simplified silhouette score
+        if (uniqueClusters.size() > 1) {
+            double silhouetteSum = 0.0;
+            for (int i = 0; i < X_data.length; i++) {
+                double a = calculateIntraClusterDistance(X_data, predictions, predictions[i], i);
+                double b = calculateNearestClusterDistance(X_data, predictions, predictions[i], i);
+                
+                if (Math.max(a, b) > 0) {
+                    silhouetteSum += (b - a) / Math.max(a, b);
+                }
+            }
+            metrics.put("silhouette_score", silhouetteSum / X_data.length);
+        } else {
+            metrics.put("silhouette_score", 0.0);
+        }
+        
+        // Calculate Calinski-Harabasz Score (higher is better)
+        if (categoryCount > 1 && X_data.length > categoryCount) {
+            double betweenSS = 0.0;
+            double withinSS = inertia; // We already calculated this above
+            
+            // Calculate overall centroid
+            var overallCentroid = new double[X_data[0].dimension()];
+            for (var pattern : X_data) {
+                for (int dim = 0; dim < overallCentroid.length; dim++) {
+                    overallCentroid[dim] += pattern.get(dim);
+                }
+            }
+            for (int dim = 0; dim < overallCentroid.length; dim++) {
+                overallCentroid[dim] /= X_data.length;
+            }
+            
+            // Calculate between-cluster sum of squares
+            for (int clusterIdx = 0; clusterIdx < categoryCount; clusterIdx++) {
+                var clusterCenter = getCategory(clusterIdx);
+                if (clusterCenter instanceof ART2Weight art2Weight) {
+                    int clusterSize = 0;
+                    for (int pred : predictions) {
+                        if (pred == clusterIdx) clusterSize++;
+                    }
+                    
+                    if (clusterSize > 0) {
+                        double distance = 0.0;
+                        for (int dim = 0; dim < Math.min(overallCentroid.length, art2Weight.vector().dimension()); dim++) {
+                            double diff = art2Weight.vector().get(dim) - overallCentroid[dim];
+                            distance += diff * diff;
+                        }
+                        betweenSS += clusterSize * distance;
+                    }
+                }
+            }
+            
+            if (withinSS > 0) {
+                double chScore = (betweenSS / (categoryCount - 1)) / (withinSS / (X_data.length - categoryCount));
+                metrics.put("calinski_harabasz_score", chScore);
+            } else {
+                metrics.put("calinski_harabasz_score", 0.0);
+            }
+        } else {
+            metrics.put("calinski_harabasz_score", 0.0);
+        }
+        
         return metrics;
     }
     
@@ -429,5 +603,95 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
         
         var firstCategory = getCategories().get(0);
         return firstCategory.dimension();
+    }
+    
+    // Helper methods for clustering metrics
+    private double calculateIntraClusterDistance(Pattern[] data, Integer[] predictions, int clusterIdx) {
+        double totalDistance = 0.0;
+        int count = 0;
+        
+        var center = getCategory(clusterIdx);
+        if (!(center instanceof ART2Weight art2Weight)) {
+            return 0.0;
+        }
+        
+        var centerMemory = art2Weight.vector();
+        
+        for (int i = 0; i < data.length; i++) {
+            if (predictions[i] == clusterIdx) {
+                double distance = 0.0;
+                for (int dim = 0; dim < Math.min(data[i].dimension(), centerMemory.dimension()); dim++) {
+                    double diff = data[i].get(dim) - centerMemory.get(dim);
+                    distance += diff * diff;
+                }
+                totalDistance += Math.sqrt(distance);
+                count++;
+            }
+        }
+        
+        return count > 0 ? totalDistance / count : 0.0;
+    }
+    
+    private double calculateIntraClusterDistance(Pattern[] data, Integer[] predictions, int clusterIdx, int pointIdx) {
+        if (predictions[pointIdx] != clusterIdx) {
+            return 0.0;
+        }
+        
+        var center = getCategory(clusterIdx);
+        if (!(center instanceof ART2Weight art2Weight)) {
+            return 0.0;
+        }
+        
+        var centerMemory = art2Weight.vector();
+        var point = data[pointIdx];
+        
+        double distance = 0.0;
+        for (int dim = 0; dim < Math.min(point.dimension(), centerMemory.dimension()); dim++) {
+            double diff = point.get(dim) - centerMemory.get(dim);
+            distance += diff * diff;
+        }
+        
+        return Math.sqrt(distance);
+    }
+    
+    private double calculateNearestClusterDistance(Pattern[] data, Integer[] predictions, int currentCluster, int pointIdx) {
+        double minDistance = Double.MAX_VALUE;
+        var point = data[pointIdx];
+        
+        for (int clusterIdx = 0; clusterIdx < getCategoryCount(); clusterIdx++) {
+            if (clusterIdx != currentCluster) {
+                var center = getCategory(clusterIdx);
+                if (center instanceof ART2Weight art2Weight) {
+                    var centerMemory = art2Weight.vector();
+                    
+                    double distance = 0.0;
+                    for (int dim = 0; dim < Math.min(point.dimension(), centerMemory.dimension()); dim++) {
+                        double diff = point.get(dim) - centerMemory.get(dim);
+                        distance += diff * diff;
+                    }
+                    distance = Math.sqrt(distance);
+                    minDistance = Math.min(minDistance, distance);
+                }
+            }
+        }
+        
+        return minDistance == Double.MAX_VALUE ? 0.0 : minDistance;
+    }
+    
+    private double calculateInterClusterDistance(WeightVector centerI, WeightVector centerJ) {
+        if (!(centerI instanceof ART2Weight art2I) || !(centerJ instanceof ART2Weight art2J)) {
+            return 0.0;
+        }
+        
+        var memoryI = art2I.vector();
+        var memoryJ = art2J.vector();
+        
+        double distance = 0.0;
+        for (int dim = 0; dim < Math.min(memoryI.dimension(), memoryJ.dimension()); dim++) {
+            double diff = memoryI.get(dim) - memoryJ.get(dim);
+            distance += diff * diff;
+        }
+        
+        return Math.sqrt(distance);
     }
 }

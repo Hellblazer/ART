@@ -159,7 +159,7 @@ class EllipsoidARTSimpleTest {
         assertNotNull(params);
         
         // cluster_centers() should still throw until the network is trained
-        assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
             art.cluster_centers();
         });
     }

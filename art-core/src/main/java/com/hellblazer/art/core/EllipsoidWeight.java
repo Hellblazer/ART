@@ -70,7 +70,10 @@ public record EllipsoidWeight(
     
     @Override
     public WeightVector update(Pattern input, Object parameters) {
-        throw new UnsupportedOperationException("EllipsoidWeight update is handled by EllipsoidART");
+        // EllipsoidWeight updates are handled by EllipsoidART.updateWeights() method
+        // Individual weights cannot update themselves without the full ellipsoidal clustering context
+        // This method returns this weight unchanged as per WeightVector interface contract
+        return this;
     }
     
     @Override

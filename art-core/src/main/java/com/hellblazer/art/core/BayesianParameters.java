@@ -22,8 +22,8 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * BayesianParameters for BayesianART - MINIMAL STUB FOR TEST COMPILATION
- * This is a minimal implementation to allow tests to compile.
+ * BayesianParameters encapsulates configuration for Bayesian ART networks.
+ * Contains vigilance, prior distributions, noise parameters, and capacity limits.
  * 
  * @author Hal Hildebrand
  */
@@ -71,5 +71,14 @@ public record BayesianParameters(
     
     public int dimensions() {
         return priorMean.length;
+    }
+    
+    // Additional methods for hierarchical inference
+    public double priorAlpha() {
+        return 1.0; // Default Dirichlet concentration parameter
+    }
+    
+    public double priorBeta() {
+        return 1.0; // Default beta parameter for hierarchical priors
     }
 }

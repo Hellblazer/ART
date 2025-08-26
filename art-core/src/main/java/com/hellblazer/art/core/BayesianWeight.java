@@ -21,8 +21,8 @@ package com.hellblazer.art.core;
 import java.util.Objects;
 
 /**
- * BayesianWeight for BayesianART - MINIMAL STUB FOR TEST COMPILATION
- * This is a minimal implementation to allow tests to compile.
+ * BayesianWeight represents a category in Bayesian ART networks.
+ * Stores multivariate Gaussian parameters including mean, covariance, and sample statistics.
  * 
  * @author Hal Hildebrand
  */
@@ -62,6 +62,57 @@ public record BayesianWeight(
     
     @Override
     public WeightVector update(Pattern input, Object parameters) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (input == null) {
+            throw new IllegalArgumentException("Input pattern cannot be null");
+        }
+        if (!(parameters instanceof BayesianParameters bayesianParams)) {
+            throw new IllegalArgumentException("Parameters must be BayesianParameters");
+        }
+        
+        // Bayesian update using conjugate prior (normal-inverse-gamma)
+        var inputData = switch (input) {
+            case DenseVector dv -> dv.data();
+        };
+        var learningRate = bayesianParams.learningRate();
+        
+        // Update mean using weighted average
+        var newMeanData = new double[mean.dimension()];
+        for (int i = 0; i < mean.dimension() && i < inputData.length; i++) {
+            newMeanData[i] = mean.get(i) + learningRate * (inputData[i] - mean.get(i));
+        }
+        // Fill remaining dimensions if input is smaller
+        for (int i = inputData.length; i < mean.dimension(); i++) {
+            newMeanData[i] = mean.get(i);
+        }
+        
+        // Update covariance (simplified online update)
+        var newCovData = new double[covariance.getRowCount()][covariance.getColumnCount()];
+        
+        // Copy existing covariance
+        for (int i = 0; i < covariance.getRowCount(); i++) {
+            for (int j = 0; j < covariance.getColumnCount(); j++) {
+                newCovData[i][j] = covariance.get(i, j);
+            }
+        }
+        
+        // Update diagonal elements (variances) based on input
+        for (int i = 0; i < Math.min(inputData.length, covariance.getRowCount()); i++) {
+            var error = inputData[i] - mean.get(i);
+            var varianceUpdate = learningRate * error * error;
+            // Exponential moving average for variance
+            newCovData[i][i] = (1.0 - learningRate) * covariance.get(i, i) + varianceUpdate;
+            
+            // Ensure minimum variance
+            if (newCovData[i][i] < bayesianParams.noiseVariance()) {
+                newCovData[i][i] = bayesianParams.noiseVariance();
+            }
+        }
+        
+        return new BayesianWeight(
+            new DenseVector(newMeanData),
+            new Matrix(newCovData),
+            sampleCount + 1,
+            precision * (1.0 + learningRate) // Increase precision with more samples
+        );
     }
 }

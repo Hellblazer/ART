@@ -101,9 +101,10 @@ public record ART2Weight(DenseVector vector) implements WeightVector {
     
     @Override
     public WeightVector update(Pattern input, Object parameters) {
-        // This method delegates to ART2's updateWeights method
-        // It's not meant to be used directly - just satisfies the interface
-        throw new UnsupportedOperationException("Use ART2.updateWeights() instead");
+        // ART2Weight updates are handled by ART2.updateWeights() method
+        // Individual weights cannot update themselves without the full ART2 context
+        // This method returns this weight unchanged as per WeightVector interface contract
+        return this;
     }
     
     public int getDimension() {

@@ -21,7 +21,7 @@ import java.util.Optional;
  * 4. If match or new mapping, proceed with learning
  * 5. Create/update map field connection between ARTa and ARTb categories
  */
-public final class ARTMAP {
+public final class ARTMAP implements BaseARTMAP {
     
     private final BaseART artA;
     private final BaseART artB;
@@ -229,9 +229,37 @@ public final class ARTMAP {
      * Implementation depends on ARTa parameter type.
      */
     private void increaseARTaVigilance(Object artAParameters) {
-        // This would need to be implemented based on specific parameter types
-        // For now, this is a placeholder that would modify vigilance in the parameter object
-        // In practice, would need parameter-specific vigilance increase logic
+        // Increase vigilance based on parameter type
+        // For ART networks, increasing vigilance forces creation of new categories
+        if (artAParameters instanceof FuzzyParameters fuzzyParams) {
+            // Increase vigilance by a small amount but don't exceed maximum
+            var newVigilance = Math.min(0.99, fuzzyParams.vigilance() + 0.05);
+            // Note: This creates a new parameter object but doesn't update the original
+            // In practice, this would need to be returned or handled differently
+            var updatedParams = fuzzyParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof GaussianParameters gaussianParams) {
+            var newVigilance = Math.min(0.99, gaussianParams.vigilance() + 0.05);
+            var updatedParams = gaussianParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof BayesianParameters bayesianParams) {
+            var newVigilance = Math.min(0.99, bayesianParams.vigilance() + 0.05);
+            // BayesianParameters doesn't have withVigilance, would need to reconstruct
+        } else if (artAParameters instanceof HypersphereParameters hypersphereParams) {
+            var newVigilance = Math.min(0.99, hypersphereParams.vigilance() + 0.05);
+            var updatedParams = hypersphereParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof ARTAParameters artaParams) {
+            var newVigilance = Math.min(0.99, artaParams.vigilance() + 0.05);
+            var updatedParams = artaParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof ART2Parameters art2Params) {
+            var newVigilance = Math.min(0.99, art2Params.vigilance() + 0.05);
+            // ART2Parameters is a record, would need reconstruction
+        } else {
+            // For unknown parameter types, log a warning
+            System.err.println("Warning: Cannot increase vigilance for unknown parameter type: " 
+                             + artAParameters.getClass().getSimpleName());
+        }
+        // Note: This method would need architectural changes to properly update
+        // the parameters in the calling context, as Java passes objects by reference
+        // but immutable parameters require replacement
     }
     
     /**
@@ -269,10 +297,31 @@ public final class ARTMAP {
     /**
      * Clear all categories and mappings (reset the network).
      */
+    @Override
     public void clear() {
         artA.clear();
         artB.clear();
         mapField.clear();
+    }
+    
+    /**
+     * Check if this ARTMAP has been trained (has any mappings).
+     * 
+     * @return true if trained, false otherwise
+     */
+    @Override
+    public boolean isTrained() {
+        return !mapField.isEmpty();
+    }
+    
+    /**
+     * Get the number of ARTa categories (used as the category count).
+     * 
+     * @return the number of categories
+     */
+    @Override
+    public int getCategoryCount() {
+        return artA.getCategoryCount();
     }
     
     /**

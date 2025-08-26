@@ -292,10 +292,11 @@ public final class ARTE extends BaseART {
     
     /**
      * Adjust network topology based on performance and convergence patterns.
+     * Implements feature weight adaptation to optimize category discrimination.
      */
     private void adjustNetworkTopology(ARTEParameters params) {
-        // This is a placeholder for advanced topology adjustments
-        // For now, we implement a simple feature weight adaptation
+        // Adjust global feature weights based on category feature importances
+        // This helps the network focus on the most discriminative features
         adaptGlobalFeatureWeights(params);
     }
     

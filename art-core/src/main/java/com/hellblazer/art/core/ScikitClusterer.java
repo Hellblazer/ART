@@ -21,8 +21,8 @@ package com.hellblazer.art.core;
 import java.util.Map;
 
 /**
- * ScikitClusterer interface for scikit-learn compatibility - MINIMAL STUB FOR TEST COMPILATION
- * This is a minimal implementation to allow tests to compile.
+ * ScikitClusterer interface for scikit-learn compatibility in ART networks.
+ * Provides standard ML interface for clustering operations including fit, predict, and evaluation.
  * 
  * @author Hal Hildebrand
  */
