@@ -232,8 +232,8 @@ public class VectorizedFuzzyARTBenchmark {
         System.out.println("\nPerformance Statistics:");
         System.out.printf("SIMD Vector Operations: %d%n", simdStats.totalVectorOperations());
         System.out.printf("Standard Vector Operations: %d%n", standardStats.totalVectorOperations());
-        System.out.printf("SIMD Categories: %d%n", simdStats.totalCategories());
-        System.out.printf("Standard Categories: %d%n", standardStats.totalCategories());
+        System.out.printf("SIMD Categories: %d%n", simdStats.categoryCount());
+        System.out.printf("Standard Categories: %d%n", standardStats.categoryCount());
         
         benchmark.tearDownIteration();
         
