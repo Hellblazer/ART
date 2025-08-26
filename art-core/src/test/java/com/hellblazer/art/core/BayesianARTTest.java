@@ -18,6 +18,11 @@
  */
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.algorithms.BayesianART;
+import com.hellblazer.art.core.parameters.BayesianParameters;
+import com.hellblazer.art.core.results.BayesianActivationResult;
+import com.hellblazer.art.core.utils.Matrix;
+import com.hellblazer.art.core.weights.BayesianWeight;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -50,7 +55,7 @@ class BayesianARTTest {
     private static final int DEFAULT_MAX_CATEGORIES = 1000;
     private static final Random RANDOM = new Random(42); // Fixed seed for reproducibility
     
-    private BayesianART art;
+    private BayesianART        art;
     private BayesianParameters defaultParams;
     
     @BeforeEach

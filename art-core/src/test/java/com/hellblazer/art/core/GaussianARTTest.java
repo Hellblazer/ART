@@ -1,5 +1,9 @@
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.algorithms.GaussianART;
+import com.hellblazer.art.core.parameters.GaussianParameters;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.weights.GaussianWeight;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.BeforeEach;

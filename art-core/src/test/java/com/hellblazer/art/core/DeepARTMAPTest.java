@@ -34,15 +34,18 @@ import static org.assertj.core.api.Assertions.*;
 // ART Core classes  
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.BaseART;
-import com.hellblazer.art.core.FuzzyART;
-import com.hellblazer.art.core.BayesianART;
-import com.hellblazer.art.core.ART2;
-import com.hellblazer.art.core.ARTMAP;
-import com.hellblazer.art.core.SimpleARTMAP;
+import com.hellblazer.art.core.algorithms.FuzzyART;
+import com.hellblazer.art.core.algorithms.BayesianART;
+import com.hellblazer.art.core.algorithms.ART2;
+import com.hellblazer.art.core.artmap.ARTMAP;
+import com.hellblazer.art.core.artmap.SimpleARTMAP;
 import com.hellblazer.art.core.BaseARTMAP;
-import com.hellblazer.art.core.DeepARTMAP;
-import com.hellblazer.art.core.DeepARTMAPParameters;
-import com.hellblazer.art.core.DeepARTMAPResult;
+import com.hellblazer.art.core.artmap.DeepARTMAP;
+import com.hellblazer.art.core.artmap.DeepARTMAPParameters;
+import com.hellblazer.art.core.artmap.DeepARTMAPResult;
+import com.hellblazer.art.core.parameters.BayesianParameters;
+import com.hellblazer.art.core.parameters.ART2Parameters;
+import com.hellblazer.art.core.utils.Matrix;
 
 /**
  * Comprehensive test suite for DeepARTMAP implementation.

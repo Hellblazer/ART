@@ -4,6 +4,10 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.artmap.DeepARTMAPParameters;
+import com.hellblazer.art.core.artmap.DeepARTMAPResult;
+import com.hellblazer.art.core.artmap.DeepARTMAP;
+import com.hellblazer.art.core.algorithms.FuzzyART;
 import java.util.List;
 
 /**

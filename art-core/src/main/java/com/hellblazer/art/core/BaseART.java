@@ -1,5 +1,8 @@
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.results.CategoryResult;
+import com.hellblazer.art.core.results.MatchResult;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

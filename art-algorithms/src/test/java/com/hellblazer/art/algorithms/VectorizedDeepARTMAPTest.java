@@ -4,6 +4,8 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.artmap.DeepARTMAPParameters;
+import com.hellblazer.art.core.artmap.DeepARTMAPResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;

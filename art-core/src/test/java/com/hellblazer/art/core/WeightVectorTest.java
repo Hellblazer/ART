@@ -1,5 +1,13 @@
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.parameters.GaussianParameters;
+import com.hellblazer.art.core.weights.FuzzyWeight;
+import com.hellblazer.art.core.weights.GaussianWeight;
+import com.hellblazer.art.core.weights.HypersphereWeight;
+import com.hellblazer.art.core.weights.ARTAWeight;
+import com.hellblazer.art.core.weights.ARTSTARWeight;
+import com.hellblazer.art.core.weights.ARTEWeight;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;

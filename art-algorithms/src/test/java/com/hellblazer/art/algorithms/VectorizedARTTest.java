@@ -1,6 +1,8 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.weights.FuzzyWeight;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;

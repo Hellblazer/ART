@@ -7,6 +7,10 @@
 
 package com.hellblazer.art.algorithms;
 
+import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.parameters.HypersphereParameters;
+import com.hellblazer.art.core.algorithms.HypersphereART;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 

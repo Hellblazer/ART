@@ -2,8 +2,10 @@ package com.hellblazer.art.supervised;
 
 import com.hellblazer.art.algorithms.VectorizedART;
 import com.hellblazer.art.algorithms.VectorizedParameters;
-import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.BaseART;
+import com.hellblazer.art.core.artmap.ARTMAP;
+import com.hellblazer.art.core.results.ActivationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

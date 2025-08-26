@@ -1,6 +1,8 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.results.MatchResult;
+import com.hellblazer.art.core.results.ActivationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;

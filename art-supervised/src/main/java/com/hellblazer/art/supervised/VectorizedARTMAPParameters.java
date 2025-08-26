@@ -1,7 +1,7 @@
 package com.hellblazer.art.supervised;
 
 import com.hellblazer.art.algorithms.VectorizedParameters;
-import com.hellblazer.art.core.ARTMAPParameters;
+import com.hellblazer.art.core.artmap.ARTMAPParameters;
 
 import java.util.Objects;
 

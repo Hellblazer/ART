@@ -20,6 +20,9 @@ package com.hellblazer.art.performance;
 
 import com.hellblazer.art.algorithms.*;
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.artmap.DeepARTMAP;
+import com.hellblazer.art.core.artmap.DeepARTMAPParameters;
+import com.hellblazer.art.core.algorithms.FuzzyART;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;

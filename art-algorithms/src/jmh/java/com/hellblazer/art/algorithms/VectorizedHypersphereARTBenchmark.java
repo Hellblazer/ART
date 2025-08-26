@@ -18,9 +18,9 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import com.hellblazer.art.core.Pattern;
-import com.hellblazer.art.core.Pattern.DenseVector;
-import com.hellblazer.art.core.HypersphereART;
-import com.hellblazer.art.core.HypersphereParameters;
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.algorithms.HypersphereART;
+import com.hellblazer.art.core.parameters.HypersphereParameters;
 
 /**
  * JMH benchmarks comparing SIMD-optimized VectorizedHypersphereART 

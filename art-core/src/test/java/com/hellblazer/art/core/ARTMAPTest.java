@@ -1,5 +1,10 @@
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.algorithms.FuzzyART;
+import com.hellblazer.art.core.artmap.ARTMAP;
+import com.hellblazer.art.core.artmap.ARTMAPParameters;
+import com.hellblazer.art.core.artmap.ARTMAPResult;
+import com.hellblazer.art.core.parameters.FuzzyParameters;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;

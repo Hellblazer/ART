@@ -1,6 +1,6 @@
 package com.hellblazer.art.supervised;
 
-import com.hellblazer.art.core.ARTMAPResult;
+import com.hellblazer.art.core.artmap.ARTMAPResult;
 
 import java.util.List;
 

@@ -1,5 +1,9 @@
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.algorithms.ARTA;
+import com.hellblazer.art.core.parameters.ARTAParameters;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.weights.ARTAWeight;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;

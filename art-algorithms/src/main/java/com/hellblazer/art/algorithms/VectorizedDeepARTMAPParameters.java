@@ -18,7 +18,7 @@
  */
 package com.hellblazer.art.algorithms;
 
-import com.hellblazer.art.core.DeepARTMAPParameters;
+import com.hellblazer.art.core.artmap.DeepARTMAPParameters;
 
 /**
  * Parameters for VectorizedDeepARTMAP with SIMD optimization settings.

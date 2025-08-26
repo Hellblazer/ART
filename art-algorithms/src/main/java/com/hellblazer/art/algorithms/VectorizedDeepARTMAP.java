@@ -19,6 +19,14 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.results.MatchResult;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.artmap.DeepARTMAPResult;
+import com.hellblazer.art.core.artmap.SimpleARTMAP;
+import com.hellblazer.art.core.artmap.ARTMAP;
+import com.hellblazer.art.core.artmap.ARTMAPParameters;
+import com.hellblazer.art.core.algorithms.FuzzyART;
+import com.hellblazer.art.core.parameters.FuzzyParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;

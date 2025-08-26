@@ -3,6 +3,8 @@ package com.hellblazer.art.performance;
 import com.hellblazer.art.algorithms.VectorizedFuzzyART;
 import com.hellblazer.art.algorithms.VectorizedParameters;
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.algorithms.FuzzyART;
+import com.hellblazer.art.core.parameters.FuzzyParameters;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;

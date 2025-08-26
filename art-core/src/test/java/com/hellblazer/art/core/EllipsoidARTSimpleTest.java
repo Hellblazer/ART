@@ -18,6 +18,10 @@
  */
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.algorithms.EllipsoidART;
+import com.hellblazer.art.core.parameters.EllipsoidParameters;
+import com.hellblazer.art.core.utils.Matrix;
+import com.hellblazer.art.core.weights.EllipsoidWeight;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

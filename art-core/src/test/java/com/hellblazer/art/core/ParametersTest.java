@@ -1,5 +1,8 @@
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.parameters.GaussianParameters;
+import com.hellblazer.art.core.parameters.HypersphereParameters;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;

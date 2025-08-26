@@ -18,7 +18,7 @@
  */
 package com.hellblazer.art.algorithms;
 
-import com.hellblazer.art.core.HypersphereParameters;
+import com.hellblazer.art.core.parameters.HypersphereParameters;
 
 /**
  * Extended parameters for VectorizedHypersphereART with SIMD optimization settings.

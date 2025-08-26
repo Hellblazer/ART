@@ -19,6 +19,7 @@
 package com.hellblazer.art.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.weights.HypersphereWeight;
 import java.util.Arrays;
 import java.util.Objects;
 

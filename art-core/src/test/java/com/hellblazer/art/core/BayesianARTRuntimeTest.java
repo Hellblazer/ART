@@ -18,6 +18,9 @@
  */
 package com.hellblazer.art.core;
 
+import com.hellblazer.art.core.algorithms.BayesianART;
+import com.hellblazer.art.core.parameters.BayesianParameters;
+import com.hellblazer.art.core.utils.Matrix;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
