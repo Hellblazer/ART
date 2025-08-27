@@ -461,6 +461,7 @@ For commercial licensing options that don't require AGPL compliance, please cont
 ## Acknowledgments
 
 - Stephen Grossberg and Gail Carpenter for the original ART theory
+- [AdaptiveResonanceLib](https://github.com/NiklasMelton/AdaptiveResonanceLib) by Niklas Melton - the Python ART library that inspired this Java implementation
 - OpenJDK Project for Java 24 and the Vector API
 - JMH Team for the excellent benchmarking framework
 - Contributors who have helped improve this implementation
