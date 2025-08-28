@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 
  * Based on LWJGL's headless testing patterns adapted for JUnit 5.
  */
-class HeadlessPlatformValidationTest {
+class HeadlessPlatformValidationTest extends CICompatibleGPUTest {
     
     @Test
     void validateHeadlessPlatformCapability() {
@@ -121,11 +121,16 @@ class HeadlessPlatformValidationTest {
             }
         }
         
-        // Test OpenCL as representative headless library
-        validateOpenCLHeadless();
+        // Test OpenCL as representative headless library (if available)
+        if (!isOpenCLNotSupported()) {
+            validateOpenCLHeadless();
+        } else {
+            System.out.println("\n--- OpenCL Test Skipped ---");
+            System.out.println("  ⚠️  OpenCL not available - this is normal in CI environments");
+            System.out.println("  ✅ Framework correctly detects OpenCL unavailability");
+        }
     }
     
-    @DisabledIf("isOpenCLNotSupported")
     private void validateOpenCLHeadless() {
         System.out.println("\n--- OpenCL Headless Test ---");
         

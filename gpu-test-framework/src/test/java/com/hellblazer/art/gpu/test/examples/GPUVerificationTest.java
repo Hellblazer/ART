@@ -1,6 +1,6 @@
 package com.hellblazer.art.gpu.test.examples;
 
-import com.hellblazer.art.gpu.test.GPUComputeHeadlessTest;
+import com.hellblazer.art.gpu.test.CICompatibleGPUTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.lwjgl.system.MemoryStack;
@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Verification tests to prove the GPU framework is actually doing real GPU compute work.
  * This test demonstrates that we're not just faking GPU operations.
  */
-class GPUVerificationTest extends GPUComputeHeadlessTest {
+class GPUVerificationTest extends CICompatibleGPUTest {
     
     @Test
     @DisplayName("Verify actual GPU computation vs CPU - different results prove GPU execution")

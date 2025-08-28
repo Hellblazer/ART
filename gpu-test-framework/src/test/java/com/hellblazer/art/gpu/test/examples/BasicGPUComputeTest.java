@@ -1,6 +1,6 @@
 package com.hellblazer.art.gpu.test.examples;
 
-import com.hellblazer.art.gpu.test.GPUComputeHeadlessTest;
+import com.hellblazer.art.gpu.test.CICompatibleGPUTest;
 import com.hellblazer.art.gpu.test.PlatformTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Example test class demonstrating the GPU testing framework.
  * Shows how to use the framework for practical GPU compute testing.
  */
-class BasicGPUComputeTest extends GPUComputeHeadlessTest {
+class BasicGPUComputeTest extends CICompatibleGPUTest {
     
     private static final Logger log = LoggerFactory.getLogger(BasicGPUComputeTest.class);
     
@@ -130,7 +130,13 @@ class BasicGPUComputeTest extends GPUComputeHeadlessTest {
         try {
             var testInstance = new BasicGPUComputeTest();
             testInstance.configureTestEnvironment();
-            testInstance.loadRequiredNativeLibraries();
+            
+            try {
+                testInstance.loadRequiredNativeLibraries();
+            } catch (com.hellblazer.art.gpu.test.OpenCLHeadlessTest.OpenCLUnavailableException e) {
+                // OpenCL not available - this is normal in CI environments
+                return false;
+            }
             
             try {
                 var platforms = testInstance.discoverPlatforms();
@@ -145,6 +151,7 @@ class BasicGPUComputeTest extends GPUComputeHeadlessTest {
                 testInstance.cleanupTestEnvironment();
             }
         } catch (Exception e) {
+            // Any other exception means no GPU available
             return false;
         }
     }
