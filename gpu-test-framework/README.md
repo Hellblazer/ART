@@ -5,11 +5,13 @@ A comprehensive, reusable headless GPU testing framework for Java 24 projects us
 ## Features
 
 - **Headless Operation**: Runs without display or windowing systems - perfect for CI/CD
+- **CI/CD Compatible**: Graceful handling of missing OpenCL libraries in CI environments
 - **Platform Detection**: Automatic detection of macOS, Linux, Windows with ARM64/AMD64 support  
 - **GPU Discovery**: Automatic OpenCL platform and device enumeration
 - **Memory Management**: Safe LWJGL memory operations with automatic cleanup
 - **JUnit 5 Integration**: Modern testing with conditional execution and assumptions
 - **Graceful Degradation**: Tests skip gracefully when GPU hardware is unavailable
+- **Mock Platform Support**: Provides mock platforms when real OpenCL is unavailable
 - **Comprehensive Logging**: Detailed logging for debugging GPU issues
 
 ## Architecture
@@ -19,6 +21,8 @@ A comprehensive, reusable headless GPU testing framework for Java 24 projects us
 - **`LWJGLHeadlessTest`** - Abstract base class for all LWJGL headless tests
 - **`OpenCLHeadlessTest`** - OpenCL-specific base class with initialization and cleanup
 - **`GPUComputeHeadlessTest`** - GPU compute testing with platform/device discovery
+- **`CICompatibleGPUTest`** - CI-compatible base class with automatic OpenCL detection
+- **`MockPlatform`** - Mock platform/device system for CI environments without OpenCL
 - **`PlatformTestSupport`** - Utilities for platform-conditional test execution
 
 ### Test Infrastructure
@@ -46,10 +50,37 @@ Architecture: ARM64 (64-bit: true)
 
 ### 2. Basic Usage
 
-Extend `GPUComputeHeadlessTest` for your GPU tests:
+**For CI-Compatible Tests** (Recommended):
+Extend `CICompatibleGPUTest` for automatic CI compatibility:
 
 ```java
-public class MyGPUTest extends GPUComputeHeadlessTest {
+public class MyGPUTest extends CICompatibleGPUTest {
+    
+    @Test
+    void testMyGPUKernel() {
+        var platforms = discoverPlatforms();
+        // CICompatibleGPUTest automatically skips when OpenCL unavailable
+        
+        var platform = platforms.get(0);
+        var gpuDevices = discoverDevices(platform.platformId(), CL_DEVICE_TYPE_GPU);
+        
+        if (MockPlatform.isMockPlatform(platform)) {
+            // Skip actual GPU operations with mock platforms
+            log.info("Using mock platform - skipping GPU kernel test");
+            return;
+        }
+        
+        var device = gpuDevices.get(0);
+        testGPUVectorAddition(platform.platformId(), device.deviceId());
+    }
+}
+```
+
+**For Direct GPU Testing**:
+Extend `GPUComputeHeadlessTest` with manual assumptions:
+
+```java  
+public class DirectGPUTest extends GPUComputeHeadlessTest {
     
     @Test
     void testMyGPUKernel() {
@@ -61,8 +92,6 @@ public class MyGPUTest extends GPUComputeHeadlessTest {
         assumeTrue(!gpuDevices.isEmpty(), "No GPU devices available");
         
         var device = gpuDevices.get(0);
-        
-        // Test your GPU kernel here using testGPUVectorAddition() as example
         testGPUVectorAddition(platform.platformId(), device.deviceId());
     }
 }
