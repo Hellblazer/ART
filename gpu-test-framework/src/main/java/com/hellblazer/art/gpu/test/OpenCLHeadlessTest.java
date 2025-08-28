@@ -32,9 +32,44 @@ public abstract class OpenCLHeadlessTest extends LWJGLHeadlessTest {
         } catch (Exception e) {
             var message = String.format("OpenCL initialization failed on %s: %s", 
                                       getPlatformInfo(), e.getMessage());
-            log.warn(message);
-            throw new RuntimeException(message, e);
+            
+            // Check if this is a CI environment or missing OpenCL libraries
+            if (isOpenCLUnavailable(e)) {
+                log.warn("OpenCL not available - this is normal in CI environments without GPU support");
+                log.info("Tests will be skipped. For full GPU testing, use a system with OpenCL drivers installed.");
+                throw new OpenCLUnavailableException(message, e);
+            } else {
+                log.warn(message);
+                throw new RuntimeException(message, e);
+            }
         }
+    }
+    
+    /**
+     * Exception thrown when OpenCL is not available (typically in CI environments).
+     * Tests should handle this gracefully by skipping GPU-specific tests.
+     */
+    public static class OpenCLUnavailableException extends RuntimeException {
+        public OpenCLUnavailableException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+    
+    /**
+     * Check if the exception indicates OpenCL is unavailable due to missing libraries.
+     * 
+     * @param e the exception to check
+     * @return true if this indicates missing OpenCL support
+     */
+    private boolean isOpenCLUnavailable(Exception e) {
+        var message = e.getMessage();
+        if (message == null) return false;
+        
+        return message.contains("libOpenCL.so") ||
+               message.contains("OpenCL.dll") ||
+               message.contains("libOpenCL.dylib") ||
+               message.contains("Failed to locate library") ||
+               message.contains("UnsatisfiedLinkError");
     }
     
     @Override
