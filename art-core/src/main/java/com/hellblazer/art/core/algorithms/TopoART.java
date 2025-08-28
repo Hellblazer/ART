@@ -1,10 +1,17 @@
 package com.hellblazer.art.core.algorithms;
 
+import com.hellblazer.art.core.BaseART;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.WeightVector;
+import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.parameters.TopoARTParameters;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.topological.Cluster;
 import com.hellblazer.art.core.topological.Neuron;
 import com.hellblazer.art.core.topological.TopoARTComponent;
 import com.hellblazer.art.core.utils.MathOperations;
+import com.hellblazer.art.core.weights.TopoARTWeight;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,10 +30,15 @@ import java.util.Set;
  * - Hierarchical representation at two levels of detail
  * - Noise filtering through permanence mechanism
  * - Non-stationary data handling
+ * - Compatible with BaseART template for DeepARTMAP integration
  * 
  * Based on: Tscherepanow, M. (2010). "TopoART: A Topology Learning Hierarchical ART Network"
+ * 
+ * @see BaseART for the template method framework
+ * @see TopoARTWeight for topology-aware weight vectors
+ * @see TopoARTParameters for algorithm parameters
  */
-public final class TopoART {
+public final class TopoART extends BaseART {
     
     private final TopoARTComponent componentA;
     private final TopoARTComponent componentB;
@@ -40,6 +52,7 @@ public final class TopoART {
      * @throws NullPointerException if parameters is null
      */
     public TopoART(TopoARTParameters parameters) {
+        super(); // Initialize BaseART with empty categories
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
         this.parameters = parameters;
@@ -65,51 +78,6 @@ public final class TopoART {
         );
     }
     
-    /**
-     * Learn from a single input pattern.
-     * 
-     * Main TopoART learning algorithm:
-     * 1. Process input through component A
-     * 2. If resonance and neuron is permanent (counter >= φ), also process through component B
-     * 3. Perform periodic cleanup every τ cycles
-     * 
-     * @param input the input pattern with values in [0, 1]
-     * @throws NullPointerException if input is null
-     * @throws IllegalArgumentException if input dimension doesn't match or values outside [0, 1]
-     */
-    public void learn(double[] input) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        
-        if (input.length != parameters.inputDimension()) {
-            throw new IllegalArgumentException(
-                String.format("Input dimension must be %d, got %d", 
-                            parameters.inputDimension(), input.length));
-        }
-        
-        // Validate input range [0, 1]
-        MathOperations.validateRange(input, 0.0, 1.0, "Input");
-        
-        // Process through component A
-        var resultA = componentA.learn(input);
-        
-        // If resonance achieved in A and neuron is permanent, propagate to B
-        if (resultA.isSuccessful() && resultA.bestIndex() >= 0) {
-            var bestNeuronA = componentA.getNeuron(resultA.bestIndex());
-            if (bestNeuronA.getCounter() >= parameters.phi()) {
-                // Neuron is permanent - also train component B
-                componentB.learn(input);
-            }
-        }
-        
-        // Increment learning cycle counter
-        learningCycle++;
-        
-        // Perform periodic cleanup every τ cycles
-        if (learningCycle % parameters.tau() == 0) {
-            componentA.cleanup();
-            componentB.cleanup();
-        }
-    }
     
     /**
      * Get connected component clusters from the specified component.
@@ -219,7 +187,7 @@ public final class TopoART {
      * Clear both components, removing all learned patterns.
      * Resets the network to its initial state.
      */
-    public void clear() {
+    public void clearComponents() {
         componentA.clear();
         componentB.clear();
         learningCycle = 0;
@@ -275,5 +243,215 @@ public final class TopoART {
         var stats = getStats();
         return String.format("TopoART{%s, vigilance: A=%.3f B=%.3f}",
                            stats, parameters.vigilanceA(), parameters.vigilanceB());
+    }
+    
+    // ========================================================================
+    // BaseART Template Method Implementations
+    // ========================================================================
+    
+    /**
+     * Calculate activation for TopoART using component A.
+     * 
+     * For TopoART, we use component A as the primary component for BaseART integration.
+     * The activation is calculated using fuzzy choice function on complement-coded input.
+     * 
+     * @param input the input pattern
+     * @param weight the category weight (must be TopoARTWeight)  
+     * @param parameters the algorithm parameters (must be TopoARTParameters)
+     * @return the activation value
+     */
+    @Override
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        Objects.requireNonNull(weight, "Weight cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (!(parameters instanceof TopoARTParameters topoParams)) {
+            throw new IllegalArgumentException("Parameters must be TopoARTParameters, got: " + 
+                parameters.getClass().getSimpleName());
+        }
+        
+        if (!(weight instanceof TopoARTWeight topoWeight)) {
+            throw new IllegalArgumentException("Weight must be TopoARTWeight, got: " + 
+                weight.getClass().getSimpleName());
+        }
+        
+        // Convert Pattern to double array for TopoART component processing
+        var inputArray = new double[input.dimension()];
+        for (int i = 0; i < input.dimension(); i++) {
+            inputArray[i] = input.get(i);
+        }
+        
+        // Apply complement coding
+        var complementInput = MathOperations.complementCode(inputArray);
+        var weightArray = topoWeight.toArray();
+        
+        // Calculate fuzzy choice function: |I ∧ w| / (α + |w|)
+        var intersection = MathOperations.componentWiseMin(complementInput, weightArray);
+        var intersectionNorm = MathOperations.cityBlockNorm(intersection);
+        var weightNorm = MathOperations.cityBlockNorm(weightArray);
+        
+        return intersectionNorm / (topoParams.alpha() + weightNorm);
+    }
+    
+    /**
+     * Check vigilance for TopoART using component A vigilance criterion.
+     * 
+     * @param input the input pattern
+     * @param weight the category weight (must be TopoARTWeight)
+     * @param parameters the algorithm parameters (must be TopoARTParameters)
+     * @return match result indicating acceptance or rejection
+     */
+    @Override
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        Objects.requireNonNull(weight, "Weight cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (!(parameters instanceof TopoARTParameters topoParams)) {
+            throw new IllegalArgumentException("Parameters must be TopoARTParameters, got: " + 
+                parameters.getClass().getSimpleName());
+        }
+        
+        if (!(weight instanceof TopoARTWeight topoWeight)) {
+            throw new IllegalArgumentException("Weight must be TopoARTWeight, got: " + 
+                weight.getClass().getSimpleName());
+        }
+        
+        // Convert Pattern to double array
+        var inputArray = new double[input.dimension()];
+        for (int i = 0; i < input.dimension(); i++) {
+            inputArray[i] = input.get(i);
+        }
+        
+        // Apply complement coding
+        var complementInput = MathOperations.complementCode(inputArray);
+        var weightArray = topoWeight.toArray();
+        
+        // Calculate match function: |I ∧ w| / |I|
+        var intersection = MathOperations.componentWiseMin(complementInput, weightArray);
+        var intersectionNorm = MathOperations.cityBlockNorm(intersection);
+        var inputNorm = MathOperations.cityBlockNorm(complementInput);
+        
+        double matchValue = (inputNorm > 0) ? intersectionNorm / inputNorm : 0.0;
+        
+        // Use component A vigilance (primary component for BaseART integration)
+        double vigilance = topoWeight.isComponentB() ? topoParams.vigilanceB() : topoParams.vigilanceA();
+        
+        if (matchValue >= vigilance) {
+            return new MatchResult.Accepted(matchValue, vigilance);
+        } else {
+            return new MatchResult.Rejected(matchValue, vigilance);
+        }
+    }
+    
+    /**
+     * Update weights using fuzzy min learning rule.
+     * 
+     * @param input the input pattern
+     * @param currentWeight the current weight (must be TopoARTWeight)
+     * @param parameters the algorithm parameters (must be TopoARTParameters)
+     * @return updated weight vector
+     */
+    @Override
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        Objects.requireNonNull(currentWeight, "Current weight cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (!(parameters instanceof TopoARTParameters topoParams)) {
+            throw new IllegalArgumentException("Parameters must be TopoARTParameters, got: " + 
+                parameters.getClass().getSimpleName());
+        }
+        
+        if (!(currentWeight instanceof TopoARTWeight topoWeight)) {
+            throw new IllegalArgumentException("Weight must be TopoARTWeight, got: " + 
+                currentWeight.getClass().getSimpleName());
+        }
+        
+        // Convert Pattern to double array
+        var inputArray = new double[input.dimension()];
+        for (int i = 0; i < input.dimension(); i++) {
+            inputArray[i] = input.get(i);
+        }
+        
+        // Apply complement coding
+        var complementInput = MathOperations.complementCode(inputArray);
+        var currentWeightArray = topoWeight.toArray();
+        
+        // Fuzzy min learning: w^new = β(I ∧ w^old) + (1-β)w^old
+        var learningRate = topoParams.learningRateSecond();
+        var intersection = MathOperations.componentWiseMin(complementInput, currentWeightArray);
+        var newWeights = new double[currentWeightArray.length];
+        
+        for (int i = 0; i < newWeights.length; i++) {
+            newWeights[i] = learningRate * intersection[i] + (1.0 - learningRate) * currentWeightArray[i];
+        }
+        
+        // Update counter and permanence
+        int newCounter = topoWeight.getCounter() + 1;
+        return topoWeight.withUpdatedWeights(newWeights).withUpdatedCounter(newCounter, topoParams.phi());
+    }
+    
+    /**
+     * Create initial weight vector from input pattern using complement coding.
+     * 
+     * @param input the input pattern
+     * @param parameters the algorithm parameters (must be TopoARTParameters)
+     * @return new TopoARTWeight initialized from input
+     */
+    @Override
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        // Parameters can be null for initial weight creation
+        
+        // Create TopoARTWeight from input (uses component A by default for BaseART integration)
+        return new TopoARTWeight(input, false); // false = component A
+    }
+    
+    /**
+     * Learn from a single input pattern.
+     * 
+     * Main TopoART learning algorithm:
+     * 1. Process input through component A
+     * 2. If resonance and neuron is permanent (counter >= φ), also process through component B
+     * 3. Perform periodic cleanup every τ cycles
+     * 
+     * @param input the input pattern with values in [0, 1]
+     * @throws NullPointerException if input is null
+     * @throws IllegalArgumentException if input dimension doesn't match or values outside [0, 1]
+     */
+    public void learn(double[] input) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        
+        if (input.length != parameters.inputDimension()) {
+            throw new IllegalArgumentException(
+                String.format("Input dimension must be %d, got %d", 
+                            parameters.inputDimension(), input.length));
+        }
+        
+        // Validate input range [0, 1]
+        MathOperations.validateRange(input, 0.0, 1.0, "Input");
+        
+        // Process through component A
+        var resultA = componentA.learn(input);
+        
+        // If resonance achieved in A and neuron is permanent, propagate to B
+        if (resultA.isSuccessful() && resultA.bestIndex() >= 0) {
+            var bestNeuronA = componentA.getNeuron(resultA.bestIndex());
+            if (bestNeuronA.getCounter() >= parameters.phi()) {
+                // Neuron is permanent - also train component B
+                componentB.learn(input);
+            }
+        }
+        
+        // Increment learning cycle counter
+        learningCycle++;
+        
+        // Perform periodic cleanup every τ cycles
+        if (learningCycle % parameters.tau() == 0) {
+            componentA.cleanup();
+            componentB.cleanup();
+        }
     }
 }
