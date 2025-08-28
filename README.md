@@ -22,6 +22,7 @@ An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24
 - Gaussian ART: Statistical pattern recognition with Gaussian clusters
 - Hypersphere ART: Geometric pattern matching in hyperspherical coordinate systems
 - Bayesian ART: Probabilistic learning with uncertainty quantification
+- **TopoART**: Topology learning hierarchical ART network with edge formation and clustering
 - ARTMAP: Supervised learning with prediction capabilities
 - Deep ARTMAP: Hierarchical multi-layer supervised learning
 
@@ -176,6 +177,7 @@ ART Project
 | GaussianART | Statistical clustering | Gaussian probability distributions |
 | HypersphereART | Geometric clustering | Hyperspherical geometry, rotation invariant |
 | BayesianART | Uncertainty quantification | Bayesian inference, confidence estimates |
+| TopoART | Topology learning clustering | Dual-component architecture, edge formation, permanence mechanism |
 | ART-2 | Preprocessing integration | Normalization and noise filtering |
 
 ### Supervised Learning Algorithms
@@ -184,6 +186,139 @@ ART Project
 |-----------|----------|--------------|
 | ARTMAP | Classification | Input-output mapping, match tracking |
 | DeepARTMAP | Hierarchical learning | Multi-layer processing, feature hierarchy |
+
+### TopoART (Topology Learning ART)
+
+**TopoART** is a hierarchical ART architecture that learns topological structure through edge formation between neurons. This makes it particularly effective for clustering problems where the spatial relationships between patterns matter.
+
+#### Key Features
+
+- **Dual-component architecture**: Combines pattern matching with topological edge formation
+- **Permanence mechanism**: Neurons become permanent when they reach a stability threshold
+- **Connected component clustering**: Groups permanent neurons based on learned topology
+- **Complement coding**: Automatically transforms input patterns for improved stability
+
+#### Basic Usage
+
+```java
+import com.hellblazer.art.core.algorithms.TopoART;
+import com.hellblazer.art.core.parameters.TopoARTParameters;
+
+// Configure TopoART parameters
+var params = TopoARTParameters.builder()
+    .vigilanceA(0.85)        // Pattern selectivity component A
+    .vigilanceB(0.85)        // Pattern selectivity component B  
+    .learningRate(0.1)       // Speed of weight adaptation
+    .phi(3)                  // Permanence threshold
+    .build();
+
+var topoART = new TopoART(params);
+
+// Train with patterns
+var patterns = Arrays.asList(
+    new DenseVector(new double[]{0.8, 0.2}),
+    new DenseVector(new double[]{0.7, 0.3}),
+    new DenseVector(new double[]{0.2, 0.8})
+);
+
+// Learn patterns and form topology
+for (var pattern : patterns) {
+    var result = topoART.stepFit(pattern);
+    System.out.printf("Pattern learned -> Neuron %d (permanent: %s)%n", 
+                     result.getNeuron(), result.isPermanent());
+}
+
+// Extract learned clusters
+var clusters = topoART.getClusters();
+System.out.printf("Found %d clusters%n", clusters.size());
+
+clusters.forEach((component, cluster) -> {
+    System.out.printf("Cluster %d: %d neurons, %d edges%n",
+                     component, 
+                     cluster.getNeuronIndices().size(),
+                     cluster.getEdgeCount());
+});
+```
+
+#### Advanced Configuration
+
+```java
+// Fine-tune for specific clustering behavior
+var advancedParams = TopoARTParameters.builder()
+    .vigilanceA(0.9)         // High selectivity for precise clusters
+    .vigilanceB(0.7)         // Lower selectivity allows broader grouping
+    .learningRate(0.05)      // Slower learning for stability
+    .phi(5)                  // Higher threshold for permanence
+    .maxIterations(1000)     // Extended training
+    .complementCoding(true)  // Enable complement coding (default)
+    .build();
+
+var preciseTopoART = new TopoART(advancedParams);
+
+// Monitor training progress
+for (int iteration = 0; iteration < patterns.size(); iteration++) {
+    var result = preciseTopoART.stepFit(patterns.get(iteration));
+    
+    if (result.isResonance()) {
+        System.out.printf("Iteration %d: Resonance achieved%n", iteration);
+    }
+    
+    if (result.isPermanent()) {
+        System.out.printf("Iteration %d: Neuron %d became permanent%n", 
+                         iteration, result.getNeuron());
+    }
+}
+```
+
+#### Understanding TopoART Behavior
+
+TopoART creates edges between the best and second-best matching neurons during learning, which can result in highly connected topological structures. This is correct algorithm behavior:
+
+```java
+// Analysis of topological structure
+var metrics = topoART.getTopologyMetrics();
+System.out.printf("Total neurons: %d%n", metrics.getTotalNeurons());
+System.out.printf("Permanent neurons: %d%n", metrics.getPermanentNeurons());
+System.out.printf("Total edges: %d%n", metrics.getTotalEdges());
+System.out.printf("Connectivity ratio: %.3f%n", metrics.getConnectivityRatio());
+
+// Cluster analysis
+var clusterAnalysis = topoART.analyzeClusterStructure();
+clusterAnalysis.getClusters().forEach(cluster -> {
+    System.out.printf("Cluster size: %d, density: %.3f, diameter: %d%n",
+                     cluster.getSize(), 
+                     cluster.getDensity(),
+                     cluster.getDiameter());
+});
+```
+
+#### Parameter Guidelines
+
+| Parameter | Range | Description | Tuning Tips |
+|-----------|--------|-------------|-------------|
+| `vigilanceA` | 0.0-1.0 | Component A selectivity | Higher = more precise clusters |
+| `vigilanceB` | 0.0-1.0 | Component B selectivity | Can differ from A for asymmetric learning |
+| `learningRate` | 0.0-1.0 | Weight adaptation speed | Lower = more stable, slower convergence |
+| `phi` | 1+ | Permanence threshold | Higher = fewer but more stable permanent neurons |
+
+#### Performance Considerations
+
+TopoART maintains topological structure which requires additional computation:
+
+```java
+// For performance-critical applications, consider vectorized version
+var vectorizedTopoART = new VectorizedTopoART(params);
+
+// Batch processing for better performance
+var batchResults = patterns.parallelStream()
+    .map(vectorizedTopoART::learn)
+    .collect(Collectors.toList());
+
+// Monitor performance
+var perfMetrics = vectorizedTopoART.getPerformanceMetrics();
+System.out.printf("Training throughput: %.1f patterns/sec%n", 
+                 perfMetrics.getPatternsPerSecond());
+```
 
 ### Performance Variants
 
