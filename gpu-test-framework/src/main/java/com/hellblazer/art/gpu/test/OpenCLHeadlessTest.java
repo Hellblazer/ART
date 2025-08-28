@@ -29,6 +29,12 @@ public abstract class OpenCLHeadlessTest extends LWJGLHeadlessTest {
             CL.create();
             
             log.info("OpenCL initialized successfully on platform: {}", getPlatformInfo());
+        } catch (LinkageError e) {
+            var message = String.format("OpenCL native libraries not found on %s: %s", 
+                                      getPlatformInfo(), e.getMessage());
+            log.warn("OpenCL not available - this is normal in CI environments without GPU support");
+            log.info("Tests will be skipped. For full GPU testing, use a system with OpenCL drivers installed.");
+            throw new OpenCLUnavailableException(message, e);
         } catch (Exception e) {
             var message = String.format("OpenCL initialization failed on %s: %s", 
                                       getPlatformInfo(), e.getMessage());
