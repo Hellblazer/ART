@@ -475,6 +475,12 @@ class VectorizedARTMAPAdvancedTest {
         var largeDataset = generateMultiClassData(20, STRESS_TEST_SIZE / 20);
         Collections.shuffle(largeDataset);
         
+        // Measure memory before the test (after cleanup from previous tests)
+        var runtime = Runtime.getRuntime();
+        System.gc(); // Force cleanup of previous test debris
+        Thread.yield(); // Allow GC to complete
+        var memoryBefore = runtime.totalMemory() - runtime.freeMemory();
+        
         var startTime = System.currentTimeMillis();
         var processed = 0;
         
@@ -498,14 +504,18 @@ class VectorizedARTMAPAdvancedTest {
         assertTrue(artmap.getArtA().getCategoryCount() > 0, "Categories should be created");
         assertTrue(artmap.getMapField().size() > 0, "Map field should contain mappings");
         
-        // Test memory efficiency
-        var runtime = Runtime.getRuntime();
-        var usedMemory = runtime.totalMemory() - runtime.freeMemory();
-        var memoryPerSample = (double) usedMemory / largeDataset.size();
+        // Test memory efficiency - measure only memory used by this test
+        System.gc(); // Cleanup any temporary objects from training
+        Thread.yield(); // Allow GC to complete
+        var memoryAfter = runtime.totalMemory() - runtime.freeMemory();
+        var memoryUsedByTest = memoryAfter - memoryBefore;
+        var memoryPerSample = (double) memoryUsedByTest / largeDataset.size();
         
         // Memory usage should be reasonable (less than 10KB per sample)
-        assertTrue(memoryPerSample < 10240, 
-                  "Memory usage per sample should be < 10KB, got: " + memoryPerSample + " bytes");
+        // Use max(0, memoryUsedByTest) to handle cases where GC freed more than we allocated
+        assertTrue(Math.max(0, memoryPerSample) < 10240, 
+                  "Memory usage per sample should be < 10KB, got: " + memoryPerSample + " bytes " +
+                  "(total test memory: " + memoryUsedByTest + " bytes)");
     }
     
     // ================== Learning Curve Analysis ==================
