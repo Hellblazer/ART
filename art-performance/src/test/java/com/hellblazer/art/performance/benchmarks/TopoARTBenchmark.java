@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  * Run with: mvn exec:java -Dexec.mainClass="com.hellblazer.art.core.benchmarks.TopoARTBenchmark"
  */
 @BenchmarkMode(Mode.Throughput)
-@OutputTimeUnit(TimeUnit.OPERATIONS_PER_SECOND)
+@OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Fork(1)
 @Warmup(iterations = 3, time = 2)
@@ -172,14 +172,14 @@ public class TopoARTBenchmark {
     
     @Benchmark
     public void standardSinglePatternLearning(Blackhole blackhole) {
-        standardTopoART.reset();
-        var result = standardTopoART.learn(singlePattern);
-        blackhole.consume(result);
+        standardTopoART = new TopoART(parameters);
+        standardTopoART.learn(singlePattern);
+        blackhole.consume(standardTopoART);
     }
     
     @Benchmark
     public void vectorizedSinglePatternLearning(Blackhole blackhole) {
-        vectorizedTopoART.reset();
+        vectorizedTopoART = new VectorizedTopoART(parameters);
         var result = vectorizedTopoART.learn(singlePattern);
         blackhole.consume(result);
     }
@@ -187,17 +187,17 @@ public class TopoARTBenchmark {
     @Benchmark
     @OperationsPerInvocation(BATCH_SIZE)
     public void standardBatchLearning(Blackhole blackhole) {
-        standardTopoART.reset();
+        standardTopoART = new TopoART(parameters);
         for (int i = 0; i < BATCH_SIZE; i++) {
-            var result = standardTopoART.learn(testPatterns[i % testPatterns.length]);
-            blackhole.consume(result);
+            standardTopoART.learn(testPatterns[i % testPatterns.length]);
+            blackhole.consume(i);
         }
     }
     
     @Benchmark
     @OperationsPerInvocation(BATCH_SIZE)
     public void vectorizedBatchLearning(Blackhole blackhole) {
-        vectorizedTopoART.reset();
+        vectorizedTopoART = new VectorizedTopoART(parameters);
         for (int i = 0; i < BATCH_SIZE; i++) {
             var result = vectorizedTopoART.learn(testPatterns[i % testPatterns.length]);
             blackhole.consume(result);
