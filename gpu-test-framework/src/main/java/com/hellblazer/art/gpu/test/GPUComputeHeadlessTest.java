@@ -59,34 +59,52 @@ public abstract class GPUComputeHeadlessTest extends OpenCLHeadlessTest {
      * @return list of available platforms with their information
      */
     protected List<PlatformInfo> discoverPlatforms() {
+        // Check if we should use mock platform (CI environment or explicit request)
+        if (MockPlatform.shouldUseMockPlatform()) {
+            log.info("*****   Using mock platform for CI environment");
+            return MockPlatform.getMockPlatforms();
+        }
+        
         var platforms = new ArrayList<PlatformInfo>();
         
-        testMemoryAllocation(() -> {
-            try (MemoryStack stack = stackPush()) {
-                IntBuffer pi = stack.mallocInt(1);
-                
-                int result = clGetPlatformIDs(null, pi);
-                if (result != CL_SUCCESS || pi.get(0) == 0) {
-                    log.warn("No OpenCL platforms found");
-                    return;
-                }
-                
-                int numPlatforms = pi.get(0);
-                PointerBuffer platformIds = stack.mallocPointer(numPlatforms);
-                checkCLError(clGetPlatformIDs(platformIds, (IntBuffer)null));
-                
-                for (int i = 0; i < numPlatforms; i++) {
-                    long platformId = platformIds.get(i);
+        try {
+            testMemoryAllocation(() -> {
+                try (MemoryStack stack = stackPush()) {
+                    IntBuffer pi = stack.mallocInt(1);
                     
-                    var name = getPlatformInfoString(stack, platformId, CL_PLATFORM_NAME);
-                    var vendor = getPlatformInfoString(stack, platformId, CL_PLATFORM_VENDOR);
-                    var version = getPlatformInfoString(stack, platformId, CL_PLATFORM_VERSION);
+                    int result = clGetPlatformIDs(null, pi);
+                    if (result != CL_SUCCESS || pi.get(0) == 0) {
+                        log.warn("No OpenCL platforms found");
+                        return;
+                    }
                     
-                    platforms.add(new PlatformInfo(platformId, name, vendor, version));
-                    log.debug("Found platform: {} - {} ({})", name, vendor, version);
+                    int numPlatforms = pi.get(0);
+                    PointerBuffer platformIds = stack.mallocPointer(numPlatforms);
+                    checkCLError(clGetPlatformIDs(platformIds, (IntBuffer)null));
+                    
+                    for (int i = 0; i < numPlatforms; i++) {
+                        long platformId = platformIds.get(i);
+                        
+                        var name = getPlatformInfoString(stack, platformId, CL_PLATFORM_NAME);
+                        var vendor = getPlatformInfoString(stack, platformId, CL_PLATFORM_VENDOR);
+                        var version = getPlatformInfoString(stack, platformId, CL_PLATFORM_VERSION);
+                        
+                        platforms.add(new PlatformInfo(platformId, name, vendor, version));
+                        log.debug("Found platform: {} - {} ({})", name, vendor, version);
+                    }
                 }
-            }
-        });
+            });
+        } catch (Exception e) {
+            log.warn("OpenCL platform discovery failed: {}", e.getMessage());
+            log.info("Falling back to mock platform for CI compatibility");
+            return MockPlatform.getMockPlatforms();
+        }
+        
+        // If no platforms found, return mock platform
+        if (platforms.isEmpty()) {
+            log.info("No real platforms found, using mock platform");
+            return MockPlatform.getMockPlatforms();
+        }
         
         return platforms;
     }
@@ -100,6 +118,12 @@ public abstract class GPUComputeHeadlessTest extends OpenCLHeadlessTest {
      */
     protected List<DeviceInfo> discoverDevices(long platformId, long deviceType) {
         var devices = new ArrayList<DeviceInfo>();
+        
+        // If this is a mock platform (platformId = 0), return mock devices
+        if (platformId == 0L) {
+            log.info("Returning mock devices for mock platform");
+            return MockPlatform.getMockDevices(deviceType);
+        }
         
         testMemoryAllocation(() -> {
             try (MemoryStack stack = stackPush()) {
