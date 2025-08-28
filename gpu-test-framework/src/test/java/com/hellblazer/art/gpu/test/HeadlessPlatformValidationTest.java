@@ -201,7 +201,7 @@ class HeadlessPlatformValidationTest extends CICompatibleGPUTest {
         }
     }
     
-    private static void checkCLError(int errcode) {
+    protected static void checkCLError(int errcode) {
         if (errcode != CL_SUCCESS) {
             throw new RuntimeException("OpenCL error: " + errcode);
         }
