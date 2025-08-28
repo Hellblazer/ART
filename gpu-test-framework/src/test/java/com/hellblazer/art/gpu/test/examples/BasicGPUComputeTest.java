@@ -1,6 +1,7 @@
 package com.hellblazer.art.gpu.test.examples;
 
 import com.hellblazer.art.gpu.test.CICompatibleGPUTest;
+import com.hellblazer.art.gpu.test.MockPlatform;
 import com.hellblazer.art.gpu.test.PlatformTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -40,7 +41,13 @@ class BasicGPUComputeTest extends CICompatibleGPUTest {
             log.info("  {} - {} ({})", platform.name(), platform.vendor(), platform.version());
             assertNotNull(platform.name(), "Platform name should not be null");
             assertNotNull(platform.vendor(), "Platform vendor should not be null");
-            assertTrue(platform.platformId() != 0, "Platform ID should be valid");
+            
+            // Mock platform has platformId = 0, which is valid for testing
+            if (MockPlatform.isMockPlatform(platform)) {
+                log.info("******    Using mock platform for CI compatibility");
+            } else {
+                assertTrue(platform.platformId() != 0, "Real platform ID should be valid");
+            }
         }
         
         assertTrue(platforms.size() > 0, "Should find at least one OpenCL platform");
@@ -67,7 +74,14 @@ class BasicGPUComputeTest extends CICompatibleGPUTest {
         for (var device : allDevices) {
             log.info("  {}", device);
             assertNotNull(device.name(), "Device name should not be null");
-            assertTrue(device.deviceId() != 0, "Device ID should be valid");
+            
+            // Mock device has deviceId = 0, which is valid for testing
+            if (MockPlatform.isMockDevice(device)) {
+                log.info("    Using mock device for CI compatibility");
+            } else {
+                assertTrue(device.deviceId() != 0, "Real device ID should be valid");
+            }
+            
             assertTrue(device.computeUnits() > 0, "Should have compute units");
             assertTrue(device.globalMemSize() > 0, "Should have global memory");
         }
@@ -141,6 +155,11 @@ class BasicGPUComputeTest extends CICompatibleGPUTest {
             try {
                 var platforms = testInstance.discoverPlatforms();
                 for (var platform : platforms) {
+                    // Skip mock platforms for GPU tests - they don't have real GPUs
+                    if (MockPlatform.isMockPlatform(platform)) {
+                        continue;
+                    }
+                    
                     var gpuDevices = testInstance.discoverDevices(platform.platformId(), CL_DEVICE_TYPE_GPU);
                     if (!gpuDevices.isEmpty()) {
                         return true;

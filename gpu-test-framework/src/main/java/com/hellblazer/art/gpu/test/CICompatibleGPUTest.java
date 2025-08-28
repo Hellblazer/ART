@@ -59,6 +59,10 @@ public abstract class CICompatibleGPUTest extends GPUComputeHeadlessTest {
                 testInstance.loadRequiredNativeLibraries();
                 testInstance.cleanupTestEnvironment();
                 return true;
+            } catch (LinkageError e) {
+                log.debug("OpenCL native libraries not found: {}", e.getMessage());
+                log.info("OpenCL libraries unavailable - this is expected in CI environments");
+                return false;
             } catch (OpenCLHeadlessTest.OpenCLUnavailableException e) {
                 log.debug("OpenCL unavailable: {}", e.getMessage());
                 return false;
