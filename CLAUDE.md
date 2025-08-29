@@ -42,6 +42,13 @@ This is an **Adaptive Resonance Theory (ART)** implementation in Java 24. ART is
 - **JMH** for micro-benchmarking performance-critical code
 - **Surefire** configured with 512MB max heap for test execution
 
+### Vectorization & Performance
+- **VectorizedARTAlgorithm Interface** - unified API for all vectorized ART implementations
+- **Java Vector API** - SIMD optimizations for pattern processing
+- **JOML integration** - hardware-accelerated 3D math operations
+- **Parallel processing** - concurrent category search and activation
+- **Performance metrics** - comprehensive tracking for optimization analysis
+
 ### Key Dependencies
 - **Guava** for collections and utilities
 - **Apache Commons Lang3** for common utilities  
@@ -83,6 +90,23 @@ When creating new modules:
 - ART algorithms are compute-intensive - consider parallel processing
 - LWJGL enables GPU acceleration via OpenGL/Vulkan
 - Virtual threads (Java 24) for concurrent pattern processing
+
+### Vectorized Algorithm Implementation
+When working with ART performance algorithms:
+- All vectorized algorithms implement `VectorizedARTAlgorithm<T, P>` interface
+- Generic type `T` represents performance metrics type
+- Generic type `P` represents algorithm-specific parameters type
+- Interface provides: `learn()`, `predict()`, `getCategoryCount()`, `getPerformanceStats()`
+- Resource management via `AutoCloseable` for proper cleanup
+- Performance tracking methods: `resetPerformanceTracking()`, `getPerformanceStats()`
+
+### Algorithm Types
+- **VectorizedART** - basic competitive learning with SIMD optimization
+- **VectorizedFuzzyART** - fuzzy set theory with complement coding
+- **VectorizedHypersphereART** - spherical category representation
+- **VectorizedTopoART** - topological neighborhood preservation
+- **VectorizedARTMAP** - supervised learning with map field
+- **VectorizedDeepARTMAP** - multi-layer hierarchical processing
 
 ### Testing Strategy
 - Unit tests for individual ART components

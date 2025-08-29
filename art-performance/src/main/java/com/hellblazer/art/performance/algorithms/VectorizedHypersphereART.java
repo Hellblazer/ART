@@ -19,6 +19,7 @@
 package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;
@@ -48,7 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Expected Performance: 2-3x speedup over scalar implementation for
  * high-dimensional data (dimension >= 8).
  */
-public class VectorizedHypersphereART {
+public class VectorizedHypersphereART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedHypersphereParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedHypersphereART.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
@@ -292,6 +293,44 @@ public class VectorizedHypersphereART {
             categories.size()
         );
     }
+    
+    // === VectorizedARTAlgorithm Interface Implementation ===
+    
+    @Override
+    public Object learn(Pattern input, VectorizedHypersphereParameters parameters) {
+        // Use the existing learn method with current parameters
+        return learn(input);
+    }
+    
+    @Override
+    public Object predict(Pattern input, VectorizedHypersphereParameters parameters) {
+        // Use classify for prediction
+        return classify(input);
+    }
+    
+    @Override
+    public VectorizedHypersphereParameters getParameters() {
+        return parameters;
+    }
+    
+    // clear() is not required by VectorizedARTAlgorithm interface anymore
+    
+    @Override
+    public void close() {
+        cleanup();
+    }
+    
+    @Override
+    public void resetPerformanceTracking() {
+        resetPerformanceStats();
+    }
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return SPECIES.length();
+    }
+    
+    // === Original Methods (kept for backward compatibility) ===
     
     public void resetPerformanceStats() {
         totalVectorOperations = 0;

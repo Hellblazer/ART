@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;
@@ -27,7 +28,7 @@ import java.util.concurrent.RecursiveTask;
  * This implementation maintains full compatibility with FuzzyART semantics
  * while providing significant performance improvements through vectorization.
  */
-public class VectorizedFuzzyART extends BaseART {
+public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedFuzzyART.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
@@ -371,9 +372,32 @@ public class VectorizedFuzzyART extends BaseART {
         }
     }
     
+    // VectorizedARTAlgorithm interface implementation
+    
+    @Override
+    public Object learn(Pattern input, VectorizedParameters parameters) {
+        return stepFitEnhanced(input, parameters);
+    }
+    
+    @Override
+    public Object predict(Pattern input, VectorizedParameters parameters) {
+        return stepFit(input, parameters);
+    }
+    
+    @Override
+    public VectorizedParameters getParameters() {
+        return defaultParams;
+    }
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return SPECIES.length();
+    }
+    
     /**
      * Close and cleanup resources.
      */
+    @Override
     public void close() {
         computePool.shutdown();
         inputCache.clear();

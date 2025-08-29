@@ -38,35 +38,17 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * DeepARTMAP implementation for hierarchical supervised and unsupervised learning.
+ * Standard DeepARTMAP implementation for hierarchical supervised and unsupervised learning.
  * 
- * This class implements DeepARTMAP, a generalization of ARTMAP that allows an arbitrary 
- * number of ART modules to be used in a hierarchical learning structure. DeepARTMAP 
- * supports both supervised and unsupervised modes:
- * 
- * - Supervised Mode: Uses class labels to train SimpleARTMAP layers
- * - Unsupervised Mode: Uses ARTMAP + SimpleARTMAP chain for hierarchical clustering
- * 
- * Key Features:
- * - Multi-channel data processing (list of input matrices)
- * - Hierarchical label propagation through layers
- * - Deep label concatenation from all layers
- * - Support for arbitrary number of ART modules
- * 
- * Reference: Python implementation at AdaptiveResonanceLib/artlib/hierarchical/DeepARTMAP.py
- * Paper: "Deep ARTMAP: Generalized Hierarchical Learning with Adaptive Resonance Theory"
+ * This implementation provides the reference implementation of DeepARTMAP with full
+ * feature support and compatibility. For high-performance applications, consider
+ * using VectorizedDeepARTMAP which extends the same abstract base.
  * 
  * @author Hal Hildebrand
  */
-public final class DeepARTMAP extends BaseART implements ScikitClusterer<DeepARTMAPResult> {
+public final class DeepARTMAP extends AbstractDeepARTMAP {
     
-    private final List<BaseART> modules;
     private final DeepARTMAPParameters parameters;
-    private final List<BaseARTMAP> layers;
-    private Boolean supervised;
-    private boolean trained;
-    private int[][] storedDeepLabels;  // Store actual deep labels from training
-    private int totalCategoryCount;
     
     /**
      * Create a new DeepARTMAP with specified ART modules and parameters.
@@ -76,41 +58,12 @@ public final class DeepARTMAP extends BaseART implements ScikitClusterer<DeepART
      * @throws IllegalArgumentException if modules is null, empty, or contains null elements
      */
     public DeepARTMAP(List<BaseART> modules, DeepARTMAPParameters parameters) {
-        super(); // Call BaseART constructor
-        if (modules == null) {
-            throw new IllegalArgumentException("modules cannot be null");
-        }
+        super(modules); // Call AbstractDeepARTMAP constructor
         if (parameters == null) {
             throw new IllegalArgumentException("parameters cannot be null");
         }
         
-        if (modules.isEmpty()) {
-            throw new IllegalArgumentException("Must provide at least one ART module");
-        }
-        
-        // Check for null elements in modules before creating defensive copy
-        for (int i = 0; i < modules.size(); i++) {
-            if (modules.get(i) == null) {
-                throw new IllegalArgumentException("modules cannot contain null elements");
-            }
-        }
-        
-        this.modules = List.copyOf(modules); // Defensive copy
         this.parameters = parameters;
-        this.layers = new java.util.ArrayList<>();
-        this.supervised = null;
-        this.trained = false;
-        this.storedDeepLabels = null;
-        this.totalCategoryCount = 0;
-    }
-    
-    /**
-     * Get the list of ART modules used by this DeepARTMAP.
-     * 
-     * @return immutable list of ART modules
-     */
-    public List<BaseART> getModules() {
-        return modules;
     }
     
     /**
@@ -120,51 +73,6 @@ public final class DeepARTMAP extends BaseART implements ScikitClusterer<DeepART
      */
     public DeepARTMAPParameters getParameters() {
         return parameters;
-    }
-    
-    /**
-     * Get the number of ART modules.
-     * 
-     * @return the number of modules
-     */
-    public int getModuleCount() {
-        return modules.size();
-    }
-    
-    /**
-     * Get the list of trained layers.
-     * 
-     * @return immutable list of layers
-     */
-    public List<BaseARTMAP> getLayers() {
-        return List.copyOf(layers);
-    }
-    
-    /**
-     * Get the number of layers in the hierarchy.
-     * 
-     * @return the number of layers
-     */
-    public int getLayerCount() {
-        return layers.size();
-    }
-    
-    /**
-     * Check if this DeepARTMAP is in supervised mode.
-     * 
-     * @return true if supervised, false if unsupervised, null if not yet trained
-     */
-    public Boolean isSupervised() {
-        return supervised;
-    }
-    
-    /**
-     * Check if this DeepARTMAP has been trained.
-     * 
-     * @return true if trained, false otherwise
-     */
-    public boolean isTrained() {
-        return trained;
     }
     
     /**

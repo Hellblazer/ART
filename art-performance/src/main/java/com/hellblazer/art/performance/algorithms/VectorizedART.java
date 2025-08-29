@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.slf4j.Logger;
@@ -28,7 +29,7 @@ import java.util.concurrent.RecursiveTask;
  * This implementation extends BaseART and provides high-performance
  * implementations of the abstract methods using vectorized operations.
  */
-public class VectorizedART extends BaseART {
+public class VectorizedART extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedART.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
@@ -478,9 +479,32 @@ public class VectorizedART extends BaseART {
      */
     public record CategoryActivation(int categoryIndex, double activation) {}
     
+    // VectorizedARTAlgorithm interface implementation
+    
+    @Override
+    public Object learn(Pattern input, VectorizedParameters parameters) {
+        return stepFitEnhanced(input, parameters);
+    }
+    
+    @Override
+    public Object predict(Pattern input, VectorizedParameters parameters) {
+        return findBestMatch(input, parameters);
+    }
+    
+    @Override
+    public VectorizedParameters getParameters() {
+        return defaultParams;
+    }
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return SPECIES.length();
+    }
+    
     /**
      * Close and cleanup resources.
      */
+    @Override
     public void close() {
         computePool.shutdown();
         vectorCache.clear();

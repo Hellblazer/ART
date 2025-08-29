@@ -19,6 +19,7 @@
 package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.artmap.AbstractDeepARTMAP;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.artmap.DeepARTMAPResult;
@@ -27,6 +28,8 @@ import com.hellblazer.art.core.artmap.ARTMAP;
 import com.hellblazer.art.core.artmap.ARTMAPParameters;
 import com.hellblazer.art.core.algorithms.FuzzyART;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.weights.FuzzyWeight;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;
@@ -62,14 +65,12 @@ import java.util.stream.IntStream;
  * 
  * @author Hal Hildebrand
  */
-public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPResult> {
+public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements VectorizedARTAlgorithm<VectorizedDeepARTMAPPerformanceStats, VectorizedDeepARTMAPParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedDeepARTMAP.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
     
-    private final List<BaseART> vectorizedModules;
     private final VectorizedDeepARTMAPParameters parameters;
-    private final List<BaseARTMAP> layers;
     
     // Parallel processing pools
     private final ForkJoinPool channelPool;
@@ -78,12 +79,6 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
     // SIMD caches
     private final Map<Integer, FloatVector> predictionCache = new ConcurrentHashMap<>();
     private final Map<Integer, float[]> probabilityCache = new ConcurrentHashMap<>();
-    
-    // Training state
-    private Boolean supervised;
-    private boolean trained;
-    private int[][] storedDeepLabels;
-    private int totalCategoryCount;
     
     // Performance metrics
     private long totalVectorOperations = 0;
@@ -101,31 +96,21 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
      * @throws IllegalArgumentException if modules or parameters are invalid
      */
     public VectorizedDeepARTMAP(List<BaseART> modules, VectorizedDeepARTMAPParameters parameters) {
+        // Call parent constructor with optimized modules
+        super(optimizeModules(modules));
         
-        if (modules == null || modules.isEmpty()) {
-            throw new IllegalArgumentException("modules cannot be null or empty");
-        }
         if (parameters == null) {
             throw new IllegalArgumentException("parameters cannot be null");
         }
         
-        // Validate and convert modules to vectorized versions where possible
-        this.vectorizedModules = optimizeModules(modules);
         this.parameters = parameters;
-        this.layers = new ArrayList<>();
         
         // Initialize parallel processing pools
         this.channelPool = new ForkJoinPool(parameters.channelParallelismLevel());
         this.layerPool = new ForkJoinPool(parameters.layerParallelismLevel());
         
-        // Initialize state
-        this.supervised = null;
-        this.trained = false;
-        this.storedDeepLabels = null;
-        this.totalCategoryCount = 0;
-        
         log.info("Initialized VectorizedDeepARTMAP with {} modules, {} channel threads, {} layer threads, SIMD vector size: {}", 
-                 vectorizedModules.size(), parameters.channelParallelismLevel(), 
+                 modules.size(), parameters.channelParallelismLevel(), 
                  parameters.layerParallelismLevel(), SPECIES.length());
     }
     
@@ -169,7 +154,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         try {
             validateInputDataAndThrow(data, null);
             
-            if (vectorizedModules.size() < 2) {
+            if (modules.size() < 2) {
                 return new DeepARTMAPResult.TrainingFailure(
                     DeepARTMAPResult.TrainingStage.LAYER_INITIALIZATION,
                     -1,
@@ -353,7 +338,10 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
     /**
      * Optimize modules by converting to vectorized versions where possible.
      */
-    private List<BaseART> optimizeModules(List<BaseART> modules) {
+    private static List<BaseART> optimizeModules(List<BaseART> modules) {
+        if (modules == null || modules.isEmpty()) {
+            throw new IllegalArgumentException("modules cannot be null or empty");
+        }
         var optimizedModules = new ArrayList<BaseART>();
         
         for (var module : modules) {
@@ -380,10 +368,10 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         totalChannelParallelTasks++;
         
         // Create training tasks for each channel
-        var trainingTasks = IntStream.range(0, vectorizedModules.size())
+        var trainingTasks = IntStream.range(0, modules.size())
             .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
-                var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-                simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(vectorizedModules.get(i)));
+                var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+                simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(modules.get(i)));
                 return simpleARTMAP;
             }, channelPool))
             .toList();
@@ -411,9 +399,9 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
      * Sequential supervised training (fallback).
      */
     private DeepARTMAPResult fitSupervisedSequential(List<Pattern[]> data, int[] labels) {
-        for (int i = 0; i < vectorizedModules.size(); i++) {
-            var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-            simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(vectorizedModules.get(i)));
+        for (int i = 0; i < modules.size(); i++) {
+            var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+            simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(modules.get(i)));
             layers.add(simpleARTMAP);
         }
         
@@ -436,13 +424,13 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         
         // First layer: ARTMAP (channels 0 and 1)
         var artmapParams = ARTMAPParameters.defaults();
-        var artmap = new ARTMAP(vectorizedModules.get(0), vectorizedModules.get(1), artmapParams);
+        var artmap = new ARTMAP(modules.get(0), modules.get(1), artmapParams);
         
         // Train ARTMAP with individual samples
         var inputChannel = data.get(1); // ARTa input
         var targetChannel = data.get(0); // ARTb target
-        var artAParams = createDefaultVectorizedParameters(vectorizedModules.get(1));
-        var artBParams = createDefaultVectorizedParameters(vectorizedModules.get(0));
+        var artAParams = createDefaultVectorizedParameters(modules.get(1));
+        var artBParams = createDefaultVectorizedParameters(modules.get(0));
         
         for (int sampleIndex = 0; sampleIndex < inputChannel.length; sampleIndex++) {
             artmap.train(inputChannel[sampleIndex], targetChannel[sampleIndex], artAParams, artBParams);
@@ -453,8 +441,8 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         if (data.size() > 2) {
             var remainingTasks = IntStream.range(2, data.size())
                 .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
-                    var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-                    simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(vectorizedModules.get(i)));
+                    var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+                    simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(modules.get(i)));
                     return simpleARTMAP;
                 }, channelPool))
                 .toList();
@@ -483,13 +471,13 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
     private DeepARTMAPResult fitUnsupervisedSequential(List<Pattern[]> data) {
         // First layer: ARTMAP
         var artmapParams = ARTMAPParameters.defaults();
-        var artmap = new ARTMAP(vectorizedModules.get(0), vectorizedModules.get(1), artmapParams);
+        var artmap = new ARTMAP(modules.get(0), modules.get(1), artmapParams);
         
         // Train ARTMAP with individual samples
         var inputChannel = data.get(1); // ARTa input
         var targetChannel = data.get(0); // ARTb target
-        var artAParams = createDefaultVectorizedParameters(vectorizedModules.get(1));
-        var artBParams = createDefaultVectorizedParameters(vectorizedModules.get(0));
+        var artAParams = createDefaultVectorizedParameters(modules.get(1));
+        var artBParams = createDefaultVectorizedParameters(modules.get(0));
         
         for (int sampleIndex = 0; sampleIndex < inputChannel.length; sampleIndex++) {
             artmap.train(inputChannel[sampleIndex], targetChannel[sampleIndex], artAParams, artBParams);
@@ -498,8 +486,8 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         
         // Remaining layers: SimpleARTMAP
         for (int i = 2; i < data.size(); i++) {
-            var simpleARTMAP = new SimpleARTMAP(vectorizedModules.get(i));
-            simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(vectorizedModules.get(i)));
+            var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+            simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(modules.get(i)));
             layers.add(simpleARTMAP);
         }
         
@@ -741,8 +729,8 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         if (data.isEmpty()) {
             throw new IllegalArgumentException("Cannot process empty data");
         }
-        if (data.size() != vectorizedModules.size()) {
-            throw new IllegalArgumentException("Must provide " + vectorizedModules.size() + 
+        if (data.size() != modules.size()) {
+            throw new IllegalArgumentException("Must provide " + modules.size() + 
                 " channels, got " + data.size());
         }
         
@@ -789,8 +777,36 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
     
     // === BaseART Implementation ===
     
-    public int getCategoryCount() {
-        return totalCategoryCount;
+    @Override
+    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+        // VectorizedDeepARTMAP doesn't use traditional activation calculation
+        // Return a default value that works for the framework
+        return 1.0;
+    }
+    
+    @Override
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+        // VectorizedDeepARTMAP uses its own hierarchical vigilance checking
+        // Always accept for compatibility
+        return new MatchResult.Accepted(1.0, 0.0);
+    }
+    
+    @Override
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+        // VectorizedDeepARTMAP doesn't update weights directly - this is handled by internal layers
+        // Return the current weight unchanged
+        return currentWeight;
+    }
+    
+    @Override
+    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+        // Create a simple initial weight for compatibility
+        // This won't be used in practice since VectorizedDeepARTMAP manages its own hierarchical structure
+        // Create initial weight with complement coding
+        int dim = input.dimension();
+        double[] initialWeights = new double[dim * 2];
+        Arrays.fill(initialWeights, 1.0); // Initialize to ones for FuzzyART
+        return new FuzzyWeight(initialWeights, dim);
     }
     
     // === ScikitClusterer Implementation ===
@@ -988,7 +1004,7 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
         params.put("enableSIMD", parameters.enableSIMD());
         params.put("enablePerformanceMonitoring", parameters.enablePerformanceMonitoring());
         params.put("memoryOptimizationThreshold", parameters.memoryOptimizationThreshold());
-        params.put("vectorizedModuleCount", vectorizedModules.size());
+        params.put("vectorizedModuleCount", modules.size());
         params.put("trained", trained);
         params.put("supervised", supervised);
         params.put("totalCategoryCount", totalCategoryCount);
@@ -1016,9 +1032,73 @@ public final class VectorizedDeepARTMAP implements ScikitClusterer<DeepARTMAPRes
     public String toString() {
         return String.format("VectorizedDeepARTMAP{modules=%d, layers=%d, categories=%d, " +
                            "vectorOps=%d, channelTasks=%d, layerTasks=%d, simdOps=%d}",
-                           vectorizedModules.size(), layers.size(), totalCategoryCount,
+                           modules.size(), layers.size(), totalCategoryCount,
                            totalVectorOperations, totalChannelParallelTasks, 
                            totalLayerParallelTasks, totalSIMDOperations);
+    }
+    
+    // VectorizedARTAlgorithm interface implementation
+    
+    @Override
+    public Object learn(Pattern input, VectorizedDeepARTMAPParameters parameters) {
+        // For single pattern learning, create a single-channel data structure
+        // This provides compatibility with the VectorizedARTAlgorithm interface
+        if (input == null) {
+            throw new IllegalArgumentException("Input pattern cannot be null");
+        }
+        
+        var singleChannelData = List.<Pattern[]>of(new Pattern[]{input});
+        
+        // Use unsupervised learning for single pattern
+        var result = fitUnsupervised(singleChannelData);
+        
+        if (result instanceof DeepARTMAPResult.Success success) {
+            // Return the first layer's first prediction as the category
+            var deepLabels = success.deepLabels();
+            if (deepLabels.length > 0 && deepLabels[0].length > 0) {
+                return deepLabels[0][0];
+            }
+        }
+        
+        // Return 0 as default category if learning failed
+        return 0;
+    }
+    
+    @Override
+    public Object predict(Pattern input, VectorizedDeepARTMAPParameters parameters) {
+        // For single pattern prediction, create a single-channel data structure
+        // This provides compatibility with the VectorizedARTAlgorithm interface
+        if (input == null) {
+            throw new IllegalArgumentException("Input pattern cannot be null");
+        }
+        
+        if (!trained) {
+            throw new IllegalStateException("VectorizedDeepARTMAP must be trained before prediction");
+        }
+        
+        var singleChannelData = List.<Pattern[]>of(new Pattern[]{input});
+        var predictions = predict(singleChannelData);
+        
+        // Return the first prediction
+        return predictions.length > 0 ? predictions[0] : 0;
+    }
+    
+    // getCategoryCount() is inherited from BaseART as a final method, no override needed
+    
+    // getPerformanceStats() is already implemented above, no override needed
+    
+    // resetPerformanceTracking() is already implemented above, no override needed
+    
+    // clear() is inherited from BaseART as a final method, no override needed
+    
+    @Override
+    public VectorizedDeepARTMAPParameters getParameters() {
+        return parameters;
+    }
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return SPECIES.length();
     }
     
     /**
