@@ -28,6 +28,7 @@ import com.hellblazer.art.core.artmap.ARTMAP;
 import com.hellblazer.art.core.artmap.ARTMAPParameters;
 import com.hellblazer.art.core.algorithms.FuzzyART;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.parameters.SimpleARTMAPParameters;
 import com.hellblazer.art.core.weights.FuzzyWeight;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
@@ -370,7 +371,7 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
         // Create training tasks for each channel
         var trainingTasks = IntStream.range(0, modules.size())
             .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
-                var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+                var simpleARTMAP = new SimpleARTMAP(modules.get(i), SimpleARTMAPParameters.defaults());
                 simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(modules.get(i)));
                 return simpleARTMAP;
             }, channelPool))
@@ -400,7 +401,7 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
      */
     private DeepARTMAPResult fitSupervisedSequential(List<Pattern[]> data, int[] labels) {
         for (int i = 0; i < modules.size(); i++) {
-            var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+            var simpleARTMAP = new SimpleARTMAP(modules.get(i), SimpleARTMAPParameters.defaults());
             simpleARTMAP.fit(data.get(i), labels, createDefaultVectorizedParameters(modules.get(i)));
             layers.add(simpleARTMAP);
         }
@@ -441,7 +442,7 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
         if (data.size() > 2) {
             var remainingTasks = IntStream.range(2, data.size())
                 .mapToObj(i -> CompletableFuture.supplyAsync(() -> {
-                    var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+                    var simpleARTMAP = new SimpleARTMAP(modules.get(i), SimpleARTMAPParameters.defaults());
                     simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(modules.get(i)));
                     return simpleARTMAP;
                 }, channelPool))
@@ -486,7 +487,7 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
         
         // Remaining layers: SimpleARTMAP
         for (int i = 2; i < data.size(); i++) {
-            var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+            var simpleARTMAP = new SimpleARTMAP(modules.get(i), SimpleARTMAPParameters.defaults());
             simpleARTMAP.fit(data.get(i), null, createDefaultVectorizedParameters(modules.get(i)));
             layers.add(simpleARTMAP);
         }
@@ -676,7 +677,7 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
             .mapToObj(layerIndex -> CompletableFuture.runAsync(() -> {
                 var layer = layers.get(layerIndex);
                 if (layer instanceof SimpleARTMAP simpleLayer) {
-                    var layerPredictions = simpleLayer.predict(data.get(layerIndex), createDefaultVectorizedParameters(simpleLayer.getArtModule()));
+                    var layerPredictions = simpleLayer.predict(data.get(layerIndex), createDefaultVectorizedParameters(simpleLayer.getModuleA()));
                     for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
                         storedDeepLabels[sampleIndex][layerIndex] = layerPredictions[sampleIndex];
                     }
@@ -700,7 +701,7 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
         for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
             var layer = layers.get(layerIndex);
             if (layer instanceof SimpleARTMAP simpleLayer) {
-                var layerPredictions = simpleLayer.predict(data.get(layerIndex), createDefaultVectorizedParameters(simpleLayer.getArtModule()));
+                var layerPredictions = simpleLayer.predict(data.get(layerIndex), createDefaultVectorizedParameters(simpleLayer.getModuleA()));
                 for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
                     storedDeepLabels[sampleIndex][layerIndex] = layerPredictions[sampleIndex];
                 }
