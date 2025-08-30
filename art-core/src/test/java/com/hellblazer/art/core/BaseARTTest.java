@@ -122,9 +122,9 @@ class BaseARTTest {
         var accepted = new MatchResult.Accepted(0.8, 0.6);
         var rejected = new MatchResult.Rejected(0.4, 0.6);
         
-        assertEquals(0.8, accepted.getMatchValue(), 1e-10);
+        assertEquals(0.8, accepted.matchValue(), 1e-10);
         assertEquals(0.6, accepted.getVigilanceThreshold(), 1e-10);
-        assertEquals(0.4, rejected.getMatchValue(), 1e-10);
+        assertEquals(0.4, rejected.matchValue(), 1e-10);
         assertEquals(0.6, rejected.getVigilanceThreshold(), 1e-10);
         
         // Pattern matching

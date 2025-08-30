@@ -34,12 +34,12 @@ public abstract class BaseART {
     }
     
     /**
-     * Main template method implementing the ART algorithm.
-     * This method orchestrates the complete ART learning cycle:
+     * Main template method implementing the complete ART algorithm (Reference-compatible).
+     * This method orchestrates the complete ART learning cycle with full reference parity compatibility:
      * 1. Handle empty category case
-     * 2. Calculate activations for all existing categories
-     * 3. Find winner through winner-take-all competition
-     * 4. Test vigilance criterion
+     * 2. Calculate activations with optional match reset filtering
+     * 3. Test categories in activation order with NaN marking
+     * 4. Apply match tracking on vigilance failures
      * 5. Update weights or create new category
      * 
      * @param input the input vector
@@ -47,6 +47,25 @@ public abstract class BaseART {
      * @return the result of the activation process
      */
     public final ActivationResult stepFit(Pattern input, Object parameters) {
+        return stepFit(input, parameters, null, MatchTrackingMode.MT_PLUS, 0.0);
+    }
+
+    /**
+     * Complete step_fit implementation matching reference parity exactly.
+     * 
+     * @param input the input vector
+     * @param parameters the algorithm parameters  
+     * @param matchResetFunc optional match reset function
+     * @param matchTracking match tracking mode
+     * @param epsilon epsilon parameter for match tracking
+     * @return the result of the activation process
+     */
+    public final ActivationResult stepFit(
+            Pattern input, 
+            Object parameters, 
+            MatchResetFunction matchResetFunc,
+            MatchTrackingMode matchTracking,
+            double epsilon) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -57,34 +76,193 @@ public abstract class BaseART {
             return new ActivationResult.Success(0, 1.0, newWeight);
         }
         
-        // Step 2: Calculate activations for all categories
-        var activations = new double[categories.size()];
+        // Step 2: Calculate activations, applying match reset filtering if specified
+        var activations = new Double[categories.size()];
+        var caches = new ActivationCache[categories.size()];
+        
         for (int i = 0; i < categories.size(); i++) {
-            activations[i] = calculateActivation(input, categories.get(i), parameters);
+            var weight = categories.get(i);
+            
+            // Apply match reset function if provided (Python MT~ mode)
+            if (matchTracking == MatchTrackingMode.MT_COMPLEMENT && matchResetFunc != null) {
+                boolean shouldConsider = matchResetFunc.shouldConsiderCategory(
+                    input, weight, i, parameters, java.util.Optional.empty());
+                if (!shouldConsider) {
+                    activations[i] = Double.NaN;
+                    caches[i] = ActivationCache.empty("skipped");
+                    continue;
+                }
+            }
+            
+            // Calculate activation with caching
+            var result = calculateActivationWithCache(input, weight, parameters);
+            activations[i] = result.activation();
+            caches[i] = result.cache();
         }
         
-        // Step 3: Find winner through competition (highest activation)
-        var winnerResult = findWinner(activations);
-        var winnerIndex = winnerResult.winnerIndex();
-        var winnerWeight = categories.get(winnerIndex);
+        // Step 3: Python-style iterative category testing with NaN marking
+        var baseParams = deepCopyParams(parameters);
+        var mtOperator = matchTracking.getOperator();
         
-        // Step 4: Test vigilance criterion
-        var matchResult = checkVigilance(input, winnerWeight, parameters);
-        
-        // Step 5: Update or create based on vigilance test
-        if (matchResult.isAccepted()) {
-            // Learn: update the winning category
-            var updatedWeight = updateWeights(input, winnerWeight, parameters);
-            categories.set(winnerIndex, updatedWeight);
-            return new ActivationResult.Success(winnerIndex, winnerResult.winnerActivation(), updatedWeight);
-        } else {
-            // Vigilance failed: create new category
-            var newWeight = createInitialWeight(input, parameters);
-            categories.add(newWeight);
-            var newIndex = categories.size() - 1;
-            return new ActivationResult.Success(newIndex, 1.0, newWeight);
+        while (hasValidActivation(activations)) {
+            // Find category with highest valid activation (nanargmax equivalent)
+            int bestCategory = findBestValidCategory(activations);
+            var weight = categories.get(bestCategory);
+            var cache = caches[bestCategory];
+            
+            // Test match criterion (vigilance) with caching
+            var matchResult = checkVigilanceWithCache(input, weight, parameters, cache, mtOperator);
+            
+            // Apply match reset logic
+            boolean noMatchReset = matchResetFunc == null || 
+                (matchTracking != MatchTrackingMode.MT_COMPLEMENT && 
+                 matchResetFunc.shouldConsiderCategory(input, weight, bestCategory, parameters, 
+                     matchResult.cache().getData()));
+            
+            if (matchResult.result().isAccepted() && noMatchReset) {
+                // Success: update weight and return
+                var updatedWeight = updateWeightsWithCache(input, weight, parameters, matchResult.cache());
+                categories.set(bestCategory, updatedWeight);
+                restoreParams(baseParams, parameters);
+                return new ActivationResult.Success(bestCategory, activations[bestCategory], updatedWeight);
+            } else {
+                // Mark this category as tested (Python: T[c_] = np.nan)
+                activations[bestCategory] = Double.NaN;
+                
+                // Apply match tracking if vigilance passed but match reset failed
+                if (matchResult.result().isAccepted() && !noMatchReset) {
+                    boolean keepSearching = applyMatchTracking(
+                        matchResult.cache(), epsilon, parameters, matchTracking);
+                    if (!keepSearching) {
+                        // Stop searching all categories (Python: T[:] = np.nan)
+                        for (int i = 0; i < activations.length; i++) {
+                            activations[i] = Double.NaN;
+                        }
+                    }
+                }
+            }
         }
+        
+        // Step 4: All categories failed - create new category
+        var newWeight = createInitialWeight(input, parameters);
+        categories.add(newWeight);
+        var newIndex = categories.size() - 1;
+        restoreParams(baseParams, parameters);
+        return new ActivationResult.Success(newIndex, 1.0, newWeight);
     }
+    
+    // ==================== PYTHON-COMPATIBLE HELPER METHODS ====================
+    
+    /**
+     * Check if there are any valid (non-NaN) activations remaining.
+     */
+    private boolean hasValidActivation(Double[] activations) {
+        for (Double activation : activations) {
+            if (!Double.isNaN(activation)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Find the index of the highest valid (non-NaN) activation (nanargmax equivalent).
+     */
+    private int findBestValidCategory(Double[] activations) {
+        int bestIndex = -1;
+        double bestActivation = Double.NEGATIVE_INFINITY;
+        
+        for (int i = 0; i < activations.length; i++) {
+            if (!Double.isNaN(activations[i]) && activations[i] > bestActivation) {
+                bestActivation = activations[i];
+                bestIndex = i;
+            }
+        }
+        
+        if (bestIndex == -1) {
+            throw new IllegalStateException("No valid activation found");
+        }
+        
+        return bestIndex;
+    }
+    
+    /**
+     * Record for activation result with cache.
+     */
+    public record ActivationWithCache(double activation, ActivationCache cache) {}
+    
+    /**
+     * Record for vigilance result with cache.
+     */
+    public record VigilanceWithCache(MatchResult result, ActivationCache cache) {}
+    
+    // ==================== CACHED COMPUTATION METHODS ====================
+    
+    /**
+     * Calculate activation with caching support.
+     */
+    protected ActivationWithCache calculateActivationWithCache(
+            Pattern input, WeightVector weight, Object parameters) {
+        double activation = calculateActivation(input, weight, parameters);
+        var cache = ActivationCache.empty(getAlgorithmName());
+        return new ActivationWithCache(activation, cache);
+    }
+    
+    /**
+     * Check vigilance with caching and match tracking operator.
+     */
+    protected VigilanceWithCache checkVigilanceWithCache(
+            Pattern input, WeightVector weight, Object parameters, 
+            ActivationCache cache, java.util.function.BinaryOperator<Double> mtOperator) {
+        var result = checkVigilance(input, weight, parameters);
+        return new VigilanceWithCache(result, cache);
+    }
+    
+    /**
+     * Update weights with caching support.
+     */
+    protected WeightVector updateWeightsWithCache(
+            Pattern input, WeightVector currentWeight, Object parameters, ActivationCache cache) {
+        return updateWeights(input, currentWeight, parameters);
+    }
+    
+    // ==================== PARAMETER MANAGEMENT ====================
+    
+    /**
+     * Create a deep copy of parameters for restoration after match tracking.
+     */
+    protected Object deepCopyParams(Object parameters) {
+        // Default implementation returns the same object (assuming immutable)
+        // Subclasses should override if parameters are mutable
+        return parameters;
+    }
+    
+    /**
+     * Restore parameters from a saved copy.
+     */
+    protected void restoreParams(Object savedParams, Object currentParams) {
+        // Default implementation does nothing (assuming immutable parameters)
+        // Subclasses should override if parameters are mutable
+    }
+    
+    /**
+     * Apply match tracking logic.
+     */
+    protected boolean applyMatchTracking(
+            ActivationCache cache, double epsilon, Object parameters, MatchTrackingMode mode) {
+        // Default implementation: always continue searching
+        // Subclasses can override for specific match tracking behavior
+        return true;
+    }
+    
+    /**
+     * Get the algorithm name for cache identification.
+     */
+    protected String getAlgorithmName() {
+        return getClass().getSimpleName();
+    }
+    
+    // ==================== ABSTRACT METHODS ====================
     
     /**
      * Calculate the activation value for a specific category given an input.

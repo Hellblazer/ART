@@ -154,6 +154,26 @@ public final class VectorizedFuzzyWeight implements WeightVector {
     }
     
     /**
+     * Update fuzzy weight with already complement-coded input.
+     * This method does not apply complement coding - it expects the input
+     * to already be complement-coded and match the weight dimensions.
+     */
+    public VectorizedFuzzyWeight updateFuzzyDirect(Pattern input, VectorizedParameters params) {
+        Objects.requireNonNull(input, "Input cannot be null");
+        Objects.requireNonNull(params, "Parameters cannot be null");
+        
+        if (input.dimension() != dimension()) {
+            throw new IllegalArgumentException("Input dimension must match weight dimension for direct update");
+        }
+        
+        if (params.enableSIMD() && dimension() >= SPECIES.length()) {
+            return updateSIMD(input, params);
+        } else {
+            return updateStandard(input, params);
+        }
+    }
+    
+    /**
      * SIMD-optimized fuzzy learning update.
      */
     private VectorizedFuzzyWeight updateSIMD(Pattern input, VectorizedParameters params) {
@@ -235,41 +255,14 @@ public final class VectorizedFuzzyWeight implements WeightVector {
     }
     
     /**
-     * SIMD-optimized vigilance computation.
+     * SIMD-optimized vigilance computation with high precision.
+     * For vigilance calculations, we prioritize precision over performance
+     * to match reference exactly.
      */
     private double computeVigilanceSIMD(Pattern input) {
-        var inputArray = convertToFloatArray(input);
-        var weightArray = getCategoryWeights();
-        
-        double intersectionSum = 0.0;
-        double inputSum = 0.0;
-        
-        int vectorLength = SPECIES.length();
-        int upperBound = SPECIES.loopBound(dimension());
-        
-        // Vectorized intersection and input norm computation
-        for (int i = 0; i < upperBound; i += vectorLength) {
-            var inputVec = FloatVector.fromArray(SPECIES, inputArray, i);
-            var weightVec = FloatVector.fromArray(SPECIES, weightArray, i);
-            
-            // Compute fuzzy intersection: min(input, weight)
-            var intersection = inputVec.min(weightVec);
-            intersectionSum += intersection.reduceLanes(VectorOperators.ADD);
-            
-            // Sum input values
-            inputSum += inputVec.reduceLanes(VectorOperators.ADD);
-        }
-        
-        // Handle remaining elements
-        for (int i = upperBound; i < dimension(); i++) {
-            double inputVal = inputArray[i];
-            double weightVal = weightArray[i];
-            intersectionSum += Math.min(inputVal, weightVal);
-            inputSum += inputVal;
-        }
-        
-        // Vigilance test: |I ∧ w| / |I|
-        return inputSum > 0.0 ? intersectionSum / inputSum : 0.0;
+        // For vigilance calculations, use standard method to avoid float precision loss
+        // SIMD optimization trades precision for speed, but vigilance requires exactness
+        return computeVigilanceStandard(input);
     }
     
     /**
@@ -277,16 +270,15 @@ public final class VectorizedFuzzyWeight implements WeightVector {
      */
     private double computeVigilanceStandard(Pattern input) {
         double intersection = 0.0;
-        double inputNorm = 0.0;
         
         for (int i = 0; i < dimension(); i++) {
             double inputVal = input.get(i);
             double weightVal = weights[i];
             intersection += Math.min(inputVal, weightVal);
-            inputNorm += inputVal;
         }
         
-        return inputNorm > 0.0 ? intersection / inputNorm : 0.0;
+        // Vigilance test: |I ∧ w| / originalDimension (matches reference)
+        return intersection / originalDimension;
     }
     
     /**

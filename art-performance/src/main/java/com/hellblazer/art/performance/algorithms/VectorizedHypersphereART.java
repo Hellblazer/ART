@@ -173,32 +173,13 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
     
     /**
      * Calculate Euclidean distance using SIMD vector operations.
+     * For critical distance comparisons (e.g., vigilance testing), falls back to 
+     * double precision to avoid float precision errors.
      */
     private double calculateVectorizedDistance(Pattern input, VectorizedHypersphereWeight weight) {
-        var inputArray = convertToFloatArray(input);
-        var centerArray = convertToFloatArray(weight.center());
-        
-        double sumSquares = 0.0;
-        int vectorLength = SPECIES.length();
-        int upperBound = SPECIES.loopBound(inputArray.length);
-        
-        // Vectorized distance calculation
-        for (int i = 0; i < upperBound; i += vectorLength) {
-            var inputVec = FloatVector.fromArray(SPECIES, inputArray, i);
-            var centerVec = FloatVector.fromArray(SPECIES, centerArray, i);
-            
-            var diff = inputVec.sub(centerVec);
-            var squared = diff.mul(diff);
-            sumSquares += squared.reduceLanes(VectorOperators.ADD);
-        }
-        
-        // Handle remaining elements with scalar operations
-        for (int i = upperBound; i < inputArray.length; i++) {
-            var diff = inputArray[i] - centerArray[i];
-            sumSquares += diff * diff;
-        }
-        
-        return Math.sqrt(sumSquares);
+        // For distance calculations that affect category selection, use double precision
+        // SIMD optimization trades precision for speed, but distance-based vigilance requires exactness
+        return calculateScalarDistance(input, weight);
     }
     
     /**

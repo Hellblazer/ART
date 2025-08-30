@@ -40,7 +40,7 @@ import java.util.List;
  * - Deep label concatenation from all layers
  * - Support for arbitrary number of ART modules
  * 
- * Reference: Python implementation at AdaptiveResonanceLib/artlib/hierarchical/DeepARTMAP.py
+ * Reference: Python implementation at reference parity/artlib/hierarchical/DeepARTMAP.py
  * Paper: "Deep ARTMAP: Generalized Hierarchical Learning with Adaptive Resonance Theory"
  * 
  * @author Hal Hildebrand

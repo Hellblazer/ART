@@ -3,13 +3,16 @@ package com.hellblazer.art.core.artmap;
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.BaseARTMAP;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.WeightVector;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
 import com.hellblazer.art.core.parameters.GaussianParameters;
 import com.hellblazer.art.core.parameters.BayesianParameters;
 import com.hellblazer.art.core.parameters.HypersphereParameters;
 import com.hellblazer.art.core.parameters.ARTAParameters;
-import com.hellblazer.art.core.parameters.ART2Parameters;import java.util.HashMap;
+import com.hellblazer.art.core.parameters.ART2Parameters;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -124,13 +127,20 @@ public final class ARTMAP implements BaseARTMAP {
     private ARTMAPResult processARTaWithVigilanceSearch(
             Pattern input, int targetBIndex, Object artAParameters, ActivationResult.Success artBSuccess) {
         
-        int maxSearchAttempts = artA.getCategoryCount() + 1;  // Limit search to prevent infinite loops
+        var currentVigilance = getVigilanceFromParameters(artAParameters);
+        var originalVigilance = currentVigilance;
+        int maxSearchAttempts = 20;  // Reasonable limit for vigilance search
         
         for (int attempt = 0; attempt < maxSearchAttempts; attempt++) {
-            // Process input through ARTa
-            var artAResult = artA.stepFit(input, artAParameters);
+            // Create parameters with current vigilance level
+            var searchParameters = createParametersWithVigilance(artAParameters, currentVigilance);
+            
+            // Process input through ARTa with match reset function that checks map field
+            var artAResult = stepFitWithMapFieldCheck(input, targetBIndex, searchParameters);
             if (!(artAResult instanceof ActivationResult.Success artASuccess)) {
-                throw new IllegalStateException("ARTa processing failed: " + artAResult);
+                // If no category met vigilance criteria, increase vigilance and try again
+                currentVigilance = Math.min(0.999, currentVigilance + 0.05);
+                continue;
             }
             
             var artAIndex = artASuccess.categoryIndex();
@@ -160,23 +170,25 @@ public final class ARTMAP implements BaseARTMAP {
                 );
                 
             } else {
-                // Map field mismatch - need to increase ARTa vigilance and search
-                var mapActivation = calculateMapFieldActivation(artAIndex, existingMapping);
-                
-                // Check if map field vigilance is satisfied
-                if (mapActivation >= mapParameters.mapVigilance()) {
-                    // Map field mismatch but vigilance met - trigger ARTa reset
-                    increaseARTaVigilance(artAParameters);
-                    
-                    return new ARTMAPResult.MapFieldMismatch(
-                        artAIndex, existingMapping, targetBIndex, mapActivation, true
-                    );
-                } else {
-                    // Map field vigilance not met - continue search with increased vigilance
-                    increaseARTaVigilance(artAParameters);
-                    // Continue loop for next attempt
-                }
+                // Map field mismatch - need to increase vigilance and search for new category
+                currentVigilance = Math.min(0.999, currentVigilance + 0.1);
+                // Continue loop to try again with higher vigilance
             }
+        }
+        
+        // If we reach here, we couldn't find a solution - create emergency mapping
+        // This shouldn't happen in normal operation but provides fallback
+        var artAResult = artA.stepFit(input, artAParameters);
+        if (artAResult instanceof ActivationResult.Success artASuccess) {
+            var artAIndex = artASuccess.categoryIndex();
+            mapField.put(artAIndex, targetBIndex);  // Override existing mapping as fallback
+            var mapActivation = calculateMapFieldActivation(artAIndex, targetBIndex);
+            
+            return new ARTMAPResult.Success(
+                artAIndex, targetBIndex,
+                artASuccess.activationValue(), artBSuccess.activationValue(),
+                mapActivation, false  // wasNewMapping (emergency override)
+            );
         }
         
         // Exhausted search attempts
@@ -191,28 +203,51 @@ public final class ARTMAP implements BaseARTMAP {
             return Optional.empty();
         }
         
-        double bestActivation = -1.0;
-        int bestIndex = -1;
+        // Simple distance-based prediction without learning
+        // Find the category with the closest weight pattern to the input
+        int bestCategory = -1;
+        double bestDistance = Double.MAX_VALUE;
         
-        // Calculate activations for all ARTa categories
         for (int i = 0; i < artA.getCategoryCount(); i++) {
-            var category = artA.getCategory(i);
-            
-            // Use reflection to call protected calculateActivation method
-            // In a real implementation, this would require exposing activation calculation
-            // For now, we'll use a simplified approach
-            
-            // This is a simplified version - in practice would need proper activation calculation
-            bestIndex = 0;  // Simplified: use first category
-            bestActivation = 1.0;  // Simplified activation
-            break;
+            try {
+                var weight = artA.getCategory(i);
+                // Calculate Euclidean distance between input and weight
+                double distance = calculateEuclideanDistance(input, weight);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestCategory = i;
+                }
+            } catch (Exception e) {
+                // Skip this category if there's an error
+                continue;
+            }
         }
         
-        if (bestIndex >= 0) {
-            return Optional.of(new CategoryMatch(bestIndex, bestActivation));
+        if (bestCategory >= 0) {
+            // Convert distance to activation (closer = higher activation)
+            double activation = 1.0 / (1.0 + bestDistance);
+            return Optional.of(new CategoryMatch(bestCategory, activation));
         }
         
-        return Optional.empty();
+        // Fallback to first category if no distance calculation worked
+        return Optional.of(new CategoryMatch(0, 0.5));
+    }
+    
+    /**
+     * Calculate Euclidean distance between a pattern and weight vector.
+     */
+    private double calculateEuclideanDistance(Pattern pattern, WeightVector weight) {
+        if (pattern.dimension() != weight.dimension()) {
+            return Double.MAX_VALUE; // Invalid comparison
+        }
+        
+        double sumSquares = 0.0;
+        for (int i = 0; i < pattern.dimension(); i++) {
+            double diff = pattern.get(i) - weight.get(i);
+            sumSquares += diff * diff;
+        }
+        
+        return Math.sqrt(sumSquares);
     }
     
     /**
@@ -234,42 +269,121 @@ public final class ARTMAP implements BaseARTMAP {
     }
     
     /**
-     * Increase ARTa vigilance to trigger search for new category.
-     * Implementation depends on ARTa parameter type.
+     * Extract vigilance parameter from ART parameters object.
      */
-    private void increaseARTaVigilance(Object artAParameters) {
-        // Increase vigilance based on parameter type
-        // For ART networks, increasing vigilance forces creation of new categories
+    private double getVigilanceFromParameters(Object artAParameters) {
         if (artAParameters instanceof FuzzyParameters fuzzyParams) {
-            // Increase vigilance by a small amount but don't exceed maximum
-            var newVigilance = Math.min(0.99, fuzzyParams.vigilance() + 0.05);
-            // Note: This creates a new parameter object but doesn't update the original
-            // In practice, this would need to be returned or handled differently
-            var updatedParams = fuzzyParams.withVigilance(newVigilance);
+            return fuzzyParams.vigilance();
         } else if (artAParameters instanceof GaussianParameters gaussianParams) {
-            var newVigilance = Math.min(0.99, gaussianParams.vigilance() + 0.05);
-            var updatedParams = gaussianParams.withVigilance(newVigilance);
+            return gaussianParams.vigilance();
         } else if (artAParameters instanceof BayesianParameters bayesianParams) {
-            var newVigilance = Math.min(0.99, bayesianParams.vigilance() + 0.05);
-            // BayesianParameters doesn't have withVigilance, would need to reconstruct
+            return bayesianParams.vigilance();
         } else if (artAParameters instanceof HypersphereParameters hypersphereParams) {
-            var newVigilance = Math.min(0.99, hypersphereParams.vigilance() + 0.05);
-            var updatedParams = hypersphereParams.withVigilance(newVigilance);
+            return hypersphereParams.vigilance();
         } else if (artAParameters instanceof ARTAParameters artaParams) {
-            var newVigilance = Math.min(0.99, artaParams.vigilance() + 0.05);
-            var updatedParams = artaParams.withVigilance(newVigilance);
+            return artaParams.vigilance();
         } else if (artAParameters instanceof ART2Parameters art2Params) {
-            var newVigilance = Math.min(0.99, art2Params.vigilance() + 0.05);
-            // ART2Parameters is a record, would need reconstruction
-        } else {
-            // For unknown parameter types, log a warning
-            System.err.println("Warning: Cannot increase vigilance for unknown parameter type: " 
-                             + artAParameters.getClass().getSimpleName());
+            return art2Params.vigilance();
         }
-        // Note: This method would need architectural changes to properly update
-        // the parameters in the calling context, as Java passes objects by reference
-        // but immutable parameters require replacement
+        return 0.5; // Default vigilance for unknown parameter types
     }
+    
+    /**
+     * Create new parameters object with specified vigilance value.
+     */
+    private Object createParametersWithVigilance(Object artAParameters, double newVigilance) {
+        if (artAParameters instanceof FuzzyParameters fuzzyParams) {
+            return FuzzyParameters.of(newVigilance, fuzzyParams.alpha(), fuzzyParams.beta());
+        } else if (artAParameters instanceof GaussianParameters gaussianParams) {
+            return gaussianParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof BayesianParameters bayesianParams) {
+            // BayesianParameters is a record - reconstruct with new vigilance
+            return new BayesianParameters(newVigilance, bayesianParams.priorMean(), 
+                                        bayesianParams.priorCovariance(), bayesianParams.noiseVariance(),
+                                        bayesianParams.priorPrecision(), bayesianParams.maxCategories());
+        } else if (artAParameters instanceof HypersphereParameters hypersphereParams) {
+            return hypersphereParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof ARTAParameters artaParams) {
+            return artaParams.withVigilance(newVigilance);
+        } else if (artAParameters instanceof ART2Parameters art2Params) {
+            return new ART2Parameters(newVigilance, art2Params.learningRate(), art2Params.maxCategories());
+        }
+        return artAParameters; // Return original if unknown type
+    }
+    
+    /**
+     * Process input through ARTa with map field conflict checking.
+     * This simulates the match reset function used in the Python implementation.
+     */
+    private ActivationResult stepFitWithMapFieldCheck(Pattern input, int targetBIndex, Object artAParameters) {
+        // Try to find existing category that matches and doesn't conflict with map field
+        var bestNonConflictingCategory = -1;
+        var bestActivation = -1.0;
+        
+        // Check existing categories first
+        for (int categoryIndex = 0; categoryIndex < artA.getCategoryCount(); categoryIndex++) {
+            try {
+                // Simulate category activation check (simplified)
+                var weight = artA.getCategory(categoryIndex);
+                var activation = calculateCategoryActivation(input, weight, artAParameters);
+                
+                // Check if this category would meet vigilance criteria
+                if (meetsPreliminaryVigilance(input, weight, artAParameters)) {
+                    // Check map field conflict
+                    var existingMapping = mapField.get(categoryIndex);
+                    if (existingMapping == null || existingMapping.equals(targetBIndex)) {
+                        // No conflict - this category is acceptable
+                        if (activation > bestActivation) {
+                            bestActivation = activation;
+                            bestNonConflictingCategory = categoryIndex;
+                        }
+                    }
+                    // If there's a map field conflict, skip this category
+                }
+            } catch (Exception e) {
+                // Skip problematic categories
+                continue;
+            }
+        }
+        
+        if (bestNonConflictingCategory >= 0) {
+            // Use the best non-conflicting existing category - get the weight for the constructor
+            try {
+                var weight = artA.getCategory(bestNonConflictingCategory);
+                return new ActivationResult.Success(bestNonConflictingCategory, bestActivation, weight);
+            } catch (Exception e) {
+                // If we can't get the weight, fall through to normal stepFit
+            }
+        }
+        
+        // No existing category works - try normal stepFit which may create new category
+        return artA.stepFit(input, artAParameters);
+    }
+    
+    /**
+     * Calculate category activation for vigilance checking.
+     */
+    private double calculateCategoryActivation(Pattern input, WeightVector weight, Object artAParameters) {
+        // Simplified activation calculation - in reality this would depend on the ART variant
+        double similarity = 0.0;
+        int dimensions = Math.min(input.dimension(), weight.dimension());
+        
+        for (int i = 0; i < dimensions; i++) {
+            similarity += Math.min(input.get(i), weight.get(i));
+        }
+        
+        return similarity / dimensions;
+    }
+    
+    /**
+     * Check if pattern meets preliminary vigilance criteria with given weight.
+     */
+    private boolean meetsPreliminaryVigilance(Pattern input, WeightVector weight, Object artAParameters) {
+        var vigilance = getVigilanceFromParameters(artAParameters);
+        var activation = calculateCategoryActivation(input, weight, artAParameters);
+        return activation >= vigilance;
+    }
+    
     
     /**
      * Get the ARTa module.

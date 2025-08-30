@@ -57,7 +57,7 @@ class VectorizedARTMAPRegressionTest {
             if (prediction.isPresent()) {
                 total++;
                 var predicted = prediction.get().predictedBIndex();
-                var expected = (int) sample.target().get(0) - 1; // Account for +1.0 offset
+                var expected = findExpectedBIndex(sample.target()); // Find index in one-hot encoded target
                 if (predicted == expected) {
                     correct++;
                 }
@@ -93,12 +93,28 @@ class VectorizedARTMAPRegressionTest {
                     0.1 + Math.abs(Math.cos(classId * Math.PI / numClasses)) * 0.6 + Math.abs(random.nextGaussian()) * 0.02
                 );
                 
-                var target = Pattern.of(classId + 1.0); // Avoid zero
+                // Create one-hot encoded target vector
+                var targetValues = new double[numClasses];
+                targetValues[classId] = 1.0;
+                var target = Pattern.of(targetValues);
                 data.add(new ClassificationSample(input, target));
             }
         }
         
         return data;
+    }
+    
+    private int findExpectedBIndex(Pattern target) {
+        // Find the index of the maximum value in one-hot encoded target vector
+        int maxIndex = 0;
+        double maxValue = target.get(0);
+        for (int i = 1; i < target.dimension(); i++) {
+            if (target.get(i) > maxValue) {
+                maxValue = target.get(i);
+                maxIndex = i;
+            }
+        }
+        return maxIndex;
     }
     
     private record ClassificationSample(Pattern input, Pattern target) {}

@@ -1041,18 +1041,48 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
     
     @Override
     public Object learn(Pattern input, VectorizedDeepARTMAPParameters parameters) {
-        // For single pattern learning, create a single-channel data structure
+        // For single pattern learning, create multi-channel data by replicating the input
         // This provides compatibility with the VectorizedARTAlgorithm interface
         if (input == null) {
             throw new IllegalArgumentException("Input pattern cannot be null");
         }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         
-        var singleChannelData = List.<Pattern[]>of(new Pattern[]{input});
+        // Special handling for single module case (use simple supervised learning)
+        if (modules.size() == 1) {
+            // For single module, use supervised learning with label 0
+            var multiChannelData = List.<Pattern[]>of(new Pattern[]{input});
+            var result = fitSupervised(multiChannelData, new int[]{0});
+            
+            if (result instanceof DeepARTMAPResult.Success) {
+                // Update the categories list to reflect learning
+                var newCategories = new ArrayList<WeightVector>();
+                newCategories.add(createInitialWeight(input, parameters));
+                replaceAllCategories(newCategories);
+                return 0; // Return category 0 for single module
+            }
+            return 0;
+        }
+        
+        // Replicate the input pattern across all channels (one for each module)
+        var multiChannelData = new ArrayList<Pattern[]>(modules.size());
+        for (int i = 0; i < modules.size(); i++) {
+            multiChannelData.add(new Pattern[]{input});
+        }
         
         // Use unsupervised learning for single pattern
-        var result = fitUnsupervised(singleChannelData);
+        var result = fitUnsupervised(multiChannelData);
         
         if (result instanceof DeepARTMAPResult.Success success) {
+            // Update the categories list to reflect the total categories learned
+            var newCategories = new ArrayList<WeightVector>();
+            for (int i = 0; i < totalCategoryCount; i++) {
+                newCategories.add(createInitialWeight(input, parameters));
+            }
+            replaceAllCategories(newCategories);
+            
             // Return the first layer's first prediction as the category
             var deepLabels = success.deepLabels();
             if (deepLabels.length > 0 && deepLabels[0].length > 0) {
@@ -1076,8 +1106,12 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
             throw new IllegalStateException("VectorizedDeepARTMAP must be trained before prediction");
         }
         
-        var singleChannelData = List.<Pattern[]>of(new Pattern[]{input});
-        var predictions = predict(singleChannelData);
+        // Replicate input across all channels as DeepARTMAP expects
+        var multiChannelData = new ArrayList<Pattern[]>(modules.size());
+        for (int i = 0; i < modules.size(); i++) {
+            multiChannelData.add(new Pattern[]{input});
+        }
+        var predictions = predict(multiChannelData);
         
         // Return the first prediction
         return predictions.length > 0 ? predictions[0] : 0;

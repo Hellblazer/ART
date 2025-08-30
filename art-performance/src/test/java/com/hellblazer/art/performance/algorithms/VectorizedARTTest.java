@@ -137,7 +137,7 @@ class VectorizedARTTest {
     @DisplayName("Vectorized activation calculation")
     void testVectorizedActivation() {
         var input = Pattern.of(0.8, 0.6, 0.4);
-        var weight = VectorizedWeight.fromInput(Pattern.of(0.7, 0.5, 0.3), params);
+        var weight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.7, 0.5, 0.3), params);
         
         // Test activation calculation
         var activation = art.calculateActivation(input, weight, params);
@@ -146,7 +146,7 @@ class VectorizedARTTest {
         
         // Test with different dimensions
         var input4D = Pattern.of(0.8, 0.6, 0.4, 0.2);
-        var weight4D = VectorizedWeight.fromInput(input4D, params);
+        var weight4D = VectorizedFuzzyWeight.fromInput(input4D, params);
         var activation4D = art.calculateActivation(input4D, weight4D, params);
         assertTrue(activation4D >= 0.0);
         assertTrue(activation4D <= 1.0);
@@ -156,8 +156,8 @@ class VectorizedARTTest {
     @DisplayName("Vigilance testing")
     void testVigilanceTesting() {
         var input = Pattern.of(0.8, 0.6, 0.4);
-        var similarWeight = VectorizedWeight.fromInput(Pattern.of(0.85, 0.65, 0.45), params);
-        var differentWeight = VectorizedWeight.fromInput(Pattern.of(0.1, 0.1, 0.1), params);
+        var similarWeight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.85, 0.65, 0.45), params);
+        var differentWeight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.1, 0.1, 0.1), params);
         
         // Similar input should pass vigilance
         var similarResult = art.checkVigilance(input, similarWeight, params);
@@ -172,25 +172,43 @@ class VectorizedARTTest {
     @DisplayName("Weight updates")
     void testWeightUpdates() {
         var input = Pattern.of(0.8, 0.6, 0.4);
-        var originalWeight = VectorizedWeight.fromInput(Pattern.of(0.7, 0.5, 0.3), params);
+        var originalWeight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.7, 0.5, 0.3), params);
         
         var updatedWeight = art.updateWeights(input, originalWeight, params);
         assertNotNull(updatedWeight);
         assertNotSame(originalWeight, updatedWeight); // Should be immutable
+        assertTrue(updatedWeight instanceof VectorizedFuzzyWeight);
         
-        // Updated weights should be between original and input
+        // Both weights should be complement-coded
+        assertEquals(input.dimension() * 2, originalWeight.dimension());
+        assertEquals(input.dimension() * 2, updatedWeight.dimension());
+        
+        // For fuzzy ART, the update rule is: β * min(input, weight) + (1-β) * weight
+        // This means the weight moves toward the minimum of input and weight
+        double beta = params.learningRate(); // 0.1
+        
+        // Check first half (original values)
         for (int i = 0; i < input.dimension(); i++) {
             double original = originalWeight.get(i);
             double inputVal = input.get(i);
             double updated = updatedWeight.get(i);
             
-            if (original < inputVal) {
-                assertTrue(updated >= original);
-                assertTrue(updated <= inputVal);
-            } else {
-                assertTrue(updated <= original);
-                assertTrue(updated >= inputVal);
-            }
+            // Expected value based on fuzzy learning rule
+            double expectedValue = beta * Math.min(inputVal, original) + (1.0 - beta) * original;
+            assertEquals(expectedValue, updated, 1e-6,  // Use float precision tolerance
+                String.format("Updated[%d] should match fuzzy learning rule", i));
+        }
+        
+        // Check complement values (second half)
+        for (int i = 0; i < input.dimension(); i++) {
+            double original = originalWeight.get(input.dimension() + i);
+            double inputComplement = 1.0 - input.get(i);
+            double updated = updatedWeight.get(input.dimension() + i);
+            
+            // Expected value based on fuzzy learning rule
+            double expectedValue = beta * Math.min(inputComplement, original) + (1.0 - beta) * original;
+            assertEquals(expectedValue, updated, 1e-6,  // Use float precision tolerance
+                String.format("Updated complement[%d] should match fuzzy learning rule", i));
         }
     }
     
@@ -201,12 +219,14 @@ class VectorizedARTTest {
         var weight = art.createInitialWeight(input, params);
         
         assertNotNull(weight);
-        assertTrue(weight instanceof VectorizedWeight);
-        assertEquals(input.dimension(), weight.dimension());
+        assertTrue(weight instanceof VectorizedFuzzyWeight);
+        // Weight is complement-coded, so expect 2x input dimension
+        assertEquals(input.dimension() * 2, weight.dimension());
         
-        // Initial weight should match input
+        // Initial weight should have complement-coded values
         for (int i = 0; i < input.dimension(); i++) {
             assertEquals(input.get(i), weight.get(i), 1e-10);
+            assertEquals(1.0 - input.get(i), weight.get(input.dimension() + i), 1e-10);
         }
     }
     
@@ -227,7 +247,8 @@ class VectorizedARTTest {
         assertTrue(result instanceof ActivationResult.Success);
         
         var success = (ActivationResult.Success) result;
-        assertEquals(input.dimension(), success.updatedWeight().dimension());
+        // Weights are complement-coded, so expect 2x the input dimension
+        assertEquals(input.dimension() * 2, success.updatedWeight().dimension());
     }
     
     @Test

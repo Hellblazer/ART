@@ -22,7 +22,7 @@ An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24
 - Gaussian ART: Statistical pattern recognition with Gaussian clusters
 - Hypersphere ART: Geometric pattern matching in hyperspherical coordinate systems
 - Bayesian ART: Probabilistic learning with uncertainty quantification
-- **TopoART**: Topology learning hierarchical ART network with edge formation and clustering
+- TopoART: Topology learning hierarchical ART network with edge formation and clustering
 - ARTMAP: Supervised learning with prediction capabilities
 - Deep ARTMAP: Hierarchical multi-layer supervised learning
 
@@ -31,6 +31,24 @@ An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24
 - Type Safety: Full Java 24 type system utilization
 - Immutable Data: Thread-safe by design
 - Resource Management: Automatic cleanup and memory management
+
+## 📖 Documentation Index
+
+### 🏗️ **Module Documentation**
+- **[📘 ART Core Module](art-core/README.md)** - Base algorithms, data structures, and mathematical foundations
+- **[⚡ ART Performance Module](art-performance/README.md)** - High-performance vectorized implementations with SIMD
+- **[🎮 GPU Test Framework](gpu-test-framework/README.md)** - Headless GPU testing infrastructure for CI/CD
+
+### 🔧 **Technical Documentation**
+- **[🏛️ Architecture Guide](docs/ARCHITECTURE.md)** - System design, performance architecture, and extensibility
+- **[📚 API Documentation](docs/API.md)** - Comprehensive API reference with examples
+- **[⚙️ Developer Guide](CLAUDE.md)** - Build configuration and development guidelines
+
+### 🚀 **Quick Navigation**
+- [Quick Start](#quick-start) - Get running in 5 minutes
+- [Algorithm Guide](#algorithm-guide) - Choose the right ART algorithm
+- [Performance Guide](#performance-optimization-guide) - Optimize for your use case
+- [Testing Guide](#testing-and-validation) - Run tests and benchmarks
 
 ## Performance Results
 
@@ -153,10 +171,15 @@ ART Project
 │   ├── parameters/       # Configuration classes
 │   └── utils/            # Mathematical utilities
 │
-└── art-performance/      # High-performance vectorized implementations
-    ├── algorithms/       # SIMD-optimized ART algorithms
-    ├── supervised/       # Vectorized ARTMAP implementations
-    └── benchmarks/       # JMH performance tests
+├── art-performance/      # High-performance vectorized implementations
+│   ├── algorithms/       # SIMD-optimized ART algorithms
+│   ├── supervised/       # Vectorized ARTMAP implementations
+│   └── benchmarks/       # JMH performance tests
+│
+└── gpu-test-framework/   # GPU testing infrastructure (implemented)
+    ├── headless/         # Headless GPU testing support
+    ├── opencl/          # OpenCL testing utilities
+    └── mock/            # Mock platforms for CI/CD
 ```
 
 ### Key Design Principles
@@ -596,7 +619,7 @@ For commercial licensing options that don't require AGPL compliance, please cont
 ## Acknowledgments
 
 - Stephen Grossberg and Gail Carpenter for the original ART theory
-- [AdaptiveResonanceLib](https://github.com/NiklasMelton/AdaptiveResonanceLib) by Niklas Melton - the Python ART library that inspired this Java implementation
+- [PyTorch ART](https://github.com/NiklasMelton/AdaptiveResonanceTheory) by Niklas Melton - the Python ART library that inspired this Java implementation
 - OpenJDK Project for Java 24 and the Vector API
 - JMH Team for the excellent benchmarking framework
 - Contributors who have helped improve this implementation

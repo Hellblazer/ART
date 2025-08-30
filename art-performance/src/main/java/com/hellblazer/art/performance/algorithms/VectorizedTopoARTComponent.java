@@ -132,21 +132,21 @@ public final class VectorizedTopoARTComponent {
         
         int bestIndex = -1;
         int secondBestIndex = -1;
-        double bestActivation = -1.0;
-        double secondBestActivation = -1.0;
+        double bestActivation = 0.0;
+        double secondBestActivation = 0.0;
         
         // Vectorized computation of all activations
         for (int i = 0; i < neurons.size(); i++) {
             var neuron = neurons.get(i);
             double activation = VectorizedMathOperations.activation(input, neuron.getWeights(), alpha);
             
-            if (activation > bestActivation) {
+            if (bestIndex == -1 || activation > bestActivation) {
                 // New best match
                 secondBestIndex = bestIndex;
-                secondBestActivation = bestActivation;
+                secondBestActivation = bestIndex == -1 ? 0.0 : bestActivation;
                 bestIndex = i;
                 bestActivation = activation;
-            } else if (activation > secondBestActivation) {
+            } else if (secondBestIndex == -1 || activation > secondBestActivation) {
                 // New second-best match
                 secondBestIndex = i;
                 secondBestActivation = activation;

@@ -60,7 +60,7 @@ import com.hellblazer.art.core.utils.Matrix;
  * - Layer stack: BaseARTMAP instances (ARTMAP or SimpleARTMAP)
  * - Supports arbitrary number of ART modules as building blocks
  * 
- * Reference: Python implementation at /Users/hal.hildebrand/git/AdaptiveResonanceLib/artlib/hierarchical/DeepARTMAP.py
+ * Reference: Python implementation at /Users/hal.hildebrand/git/reference parity/artlib/hierarchical/DeepARTMAP.py
  * Paper: "Deep ARTMAP: Generalized Hierarchical Learning with Adaptive Resonance Theory"
  * 
  * @author Hal Hildebrand

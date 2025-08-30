@@ -652,6 +652,9 @@ public class VectorizedARTMAP implements VectorizedARTAlgorithm<VectorizedARTMAP
         if (input == null) {
             throw new IllegalArgumentException("Input pattern cannot be null");
         }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         
         // For ARTMAP without explicit target, we can use the pattern itself as both input and target
         // This creates an auto-associative learning pattern

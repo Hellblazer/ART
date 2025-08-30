@@ -32,6 +32,11 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     private final VectorizedTopoARTComponent componentB;
     private final TopoARTParameters parameters;
     
+    // Performance tracking
+    private long totalVectorOperations = 0;
+    private long totalTopologicalUpdates = 0;
+    private long totalClusterAnalyses = 0;
+    
     /**
      * Create a new vectorized TopoART network with the given parameters.
      * 
@@ -87,6 +92,10 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
         var resultA = componentA.learn(input);
         var resultB = componentB.learn(input);
         
+        // Track performance metrics
+        totalVectorOperations += 2; // Two component operations
+        totalTopologicalUpdates++; // One learning cycle
+        
         // Return combined result (typically focusing on component A for primary categorization)
         return new TopoARTResult(
             resultA.resonance() || resultB.resonance(),
@@ -126,6 +135,9 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
         
         var clusters = new ArrayList<Cluster>();
         var visited = new boolean[neurons.size()];
+        
+        // Track cluster analysis performance
+        totalClusterAnalyses++;
         
         // Find connected components using depth-first search
         for (int i = 0; i < neurons.size(); i++) {
@@ -261,17 +273,19 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     public VectorizedPerformanceStats getPerformanceStats() {
         return new VectorizedPerformanceStats(
             componentA.getNeurons().size() + componentB.getNeurons().size(),
-            0L,
-            0.0,
-            0,
-            0,
+            totalVectorOperations,
+            0.0, // Average processing time not tracked
+            (int) totalTopologicalUpdates,
+            (int) totalClusterAnalyses,
             getCategoryCount()
         );
     }
     
     @Override
     public void resetPerformanceTracking() {
-        // Performance tracking not implemented for TopoART
+        totalVectorOperations = 0;
+        totalTopologicalUpdates = 0;
+        totalClusterAnalyses = 0;
     }
     
     // clear() is not required by VectorizedARTAlgorithm interface anymore

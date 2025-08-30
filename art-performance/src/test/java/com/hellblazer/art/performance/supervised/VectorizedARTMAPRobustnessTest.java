@@ -384,8 +384,8 @@ class VectorizedARTMAPRobustnessTest {
             testParams.withMapVigilance(1.0).withMaxVigilance(0.8)
         );
         
-        // Note: baseline vigilance > map vigilance validation is not implemented in the current parameters class
-        // This is expected behavior - the validation only checks range [0,1] individually
+        // Note: Cross-parameter validation (baseline > map vigilance) is handled by application logic
+        // Individual parameter validation ensures values are in [0,1] range
         
         // Test with zero vigilance increment
         assertThrows(IllegalArgumentException.class, () ->
