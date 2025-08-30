@@ -4,6 +4,7 @@ import com.hellblazer.art.core.parameters.TopoARTParameters;
 import com.hellblazer.art.core.results.TopoARTResult;
 import com.hellblazer.art.core.topological.Cluster;
 import com.hellblazer.art.core.topological.Neuron;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -25,11 +26,16 @@ import java.util.Stack;
  * - Periodic cleanup of non-permanent, unused neurons
  * - High-performance vectorized learning rules
  */
-public final class VectorizedTopoART {
+public final class VectorizedTopoART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, TopoARTParameters> {
     
     private final VectorizedTopoARTComponent componentA;
     private final VectorizedTopoARTComponent componentB;
     private final TopoARTParameters parameters;
+    
+    // Performance tracking
+    private long totalVectorOperations = 0;
+    private long totalTopologicalUpdates = 0;
+    private long totalClusterAnalyses = 0;
     
     /**
      * Create a new vectorized TopoART network with the given parameters.
@@ -86,11 +92,30 @@ public final class VectorizedTopoART {
         var resultA = componentA.learn(input);
         var resultB = componentB.learn(input);
         
+        // Track performance metrics
+        totalVectorOperations += 2; // Two component operations
+        totalTopologicalUpdates++; // One learning cycle
+        
         // Return combined result (typically focusing on component A for primary categorization)
         return new TopoARTResult(
             resultA.resonance() || resultB.resonance(),
             resultA.bestIndex()
         );
+    }
+    
+    /**
+     * Present an input Pattern to the network and perform learning.
+     * Convenience method that delegates to the double[] version.
+     * 
+     * @param input the input pattern
+     * @return combined learning result from both components
+     */
+    public TopoARTResult learn(com.hellblazer.art.core.Pattern input) {
+        var inputArray = new double[input.dimension()];
+        for (int i = 0; i < input.dimension(); i++) {
+            inputArray[i] = input.get(i);
+        }
+        return learn(inputArray);
     }
     
     /**
@@ -110,6 +135,9 @@ public final class VectorizedTopoART {
         
         var clusters = new ArrayList<Cluster>();
         var visited = new boolean[neurons.size()];
+        
+        // Track cluster analysis performance
+        totalClusterAnalyses++;
         
         // Find connected components using depth-first search
         for (int i = 0; i < neurons.size(); i++) {
@@ -222,6 +250,56 @@ public final class VectorizedTopoART {
                            componentA.getStats(),
                            componentB.getStats(),
                            isVectorizedSupported() ? "Enabled" : "Not Available");
+    }
+    
+    // VectorizedARTAlgorithm interface implementation
+    
+    @Override
+    public Object learn(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
+        return learn(input);
+    }
+    
+    @Override
+    public Object predict(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
+        return learn(input);
+    }
+    
+    @Override
+    public int getCategoryCount() {
+        return Math.max(componentA.getNeurons().size(), componentB.getNeurons().size());
+    }
+    
+    @Override
+    public VectorizedPerformanceStats getPerformanceStats() {
+        return new VectorizedPerformanceStats(
+            componentA.getNeurons().size() + componentB.getNeurons().size(),
+            totalVectorOperations,
+            0.0, // Average processing time not tracked
+            (int) totalTopologicalUpdates,
+            (int) totalClusterAnalyses,
+            getCategoryCount()
+        );
+    }
+    
+    @Override
+    public void resetPerformanceTracking() {
+        totalVectorOperations = 0;
+        totalTopologicalUpdates = 0;
+        totalClusterAnalyses = 0;
+    }
+    
+    // clear() is not required by VectorizedARTAlgorithm interface anymore
+    
+    @Override
+    public void close() {
+        // No resources to clean up
+    }
+    
+    // getParameters() is already implemented above, no override needed
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return VectorizedTopoARTComponent.isVectorizedSupported() ? -1 : -1;
     }
     
     @Override

@@ -124,9 +124,17 @@ Future extensibility is built into the architecture:
 3. **Result Processing**: Pluggable result processing chains
 4. **Metric Collection**: Extensible monitoring and metrics
 
-### Future GPU Integration (Planned)
+### GPU Testing Framework (Implemented)
 
-Planned art-gpu module will provide:
+The `gpu-test-framework` module provides:
+- **Headless GPU Testing**: LWJGL-based testing without display requirements
+- **CI/CD Compatibility**: Graceful handling of OpenCL-unavailable environments
+- **Cross-platform Support**: macOS, Linux, Windows GPU testing
+- **Mock Platform System**: Testing fallbacks when GPU unavailable
+
+### Future GPU Compute Integration (Planned)
+
+Planned `art-gpu` compute module will provide:
 
 - **GPU Accelerated Algorithms**: OpenCL kernels, memory management, buffer pools
 - **Hybrid Execution Strategy**: Device selection, load balancing, fallback handling

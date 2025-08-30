@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.slf4j.Logger;
@@ -28,11 +29,12 @@ import java.util.concurrent.RecursiveTask;
  * This implementation extends BaseART and provides high-performance
  * implementations of the abstract methods using vectorized operations.
  */
-public class VectorizedART extends BaseART {
+public class VectorizedART extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedART.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
     
+    // Performance tracking fields
     private final ForkJoinPool computePool;
     private final Map<Integer, Vector3f> vectorCache = new ConcurrentHashMap<>();
     private final VectorizedParameters defaultParams;
@@ -51,82 +53,116 @@ public class VectorizedART extends BaseART {
     }
     
     /**
-     * Convert WeightVector to VectorizedWeight for compatibility with BaseART.
+     * Convert WeightVector to VectorizedFuzzyWeight for compatibility with BaseART.
      */
-    private VectorizedWeight convertToVectorizedWeight(WeightVector weight) {
-        if (weight instanceof VectorizedWeight vWeight) {
+    private VectorizedFuzzyWeight convertToVectorizedFuzzyWeight(WeightVector weight) {
+        if (weight instanceof VectorizedFuzzyWeight vWeight) {
             return vWeight;
         }
         
-        // Create VectorizedWeight from any WeightVector
-        var weights = new double[weight.dimension()];
-        for (int i = 0; i < weight.dimension(); i++) {
-            weights[i] = weight.get(i);
+        // Check if the weight is already complement-coded (even dimension)
+        if (weight.dimension() % 2 == 0) {
+            // Assume it's already complement-coded
+            var weights = new double[weight.dimension()];
+            for (int i = 0; i < weight.dimension(); i++) {
+                weights[i] = weight.get(i);
+            }
+            int originalDim = weight.dimension() / 2;
+            return new VectorizedFuzzyWeight(weights, originalDim, System.currentTimeMillis(), 0);
+        } else {
+            // Not complement-coded - need to apply complement coding
+            var originalWeights = new double[weight.dimension()];
+            for (int i = 0; i < weight.dimension(); i++) {
+                originalWeights[i] = weight.get(i);
+            }
+            
+            // Create complement-coded weights: [w1, w2, ..., wn, 1-w1, 1-w2, ..., 1-wn]
+            var complementWeights = new double[weight.dimension() * 2];
+            for (int i = 0; i < weight.dimension(); i++) {
+                double w = Math.max(0.0, Math.min(1.0, originalWeights[i])); // clamp to [0,1]
+                complementWeights[i] = w;
+                complementWeights[weight.dimension() + i] = 1.0 - w;
+            }
+            
+            return new VectorizedFuzzyWeight(complementWeights, weight.dimension(), System.currentTimeMillis(), 0);
         }
-        return new VectorizedWeight(weights, System.currentTimeMillis(), 0);
     }
     
     @Override
     protected double calculateActivation(com.hellblazer.art.core.Pattern input, WeightVector weight, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(weight, "Weight cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        totalVectorOperations++; // Track each activation calculation as a vector operation
+        // Use FuzzyART activation calculation with complement coding
+        var complementInput = VectorizedFuzzyWeight.getComplementCoded(input);
+        if (!(parameters instanceof VectorizedParameters)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedParameters, got: " + 
+                (parameters == null ? "null" : parameters.getClass().getName()));
+        }
+        var params = (VectorizedParameters) parameters;
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        // Calculate fuzzy intersection |I ∧ w|
+        double intersection = 0.0;
+        for (int i = 0; i < weight.dimension(); i++) {
+            intersection += Math.min(complementInput.get(i), weight.get(i));
         }
         
-        // Convert WeightVector to VectorizedWeight
-        VectorizedWeight vWeight = convertToVectorizedWeight(weight);
+        // Calculate input norm |I|
+        double inputNorm = 0.0;
+        for (int i = 0; i < complementInput.dimension(); i++) {
+            inputNorm += complementInput.get(i);
+        }
         
-        totalVectorOperations++;
-        return computeVectorizedActivation(input, vWeight, vParams);
+        return intersection / (params.alpha() + inputNorm);
     }
     
     @Override
     protected MatchResult checkVigilance(com.hellblazer.art.core.Pattern input, WeightVector weight, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(weight, "Weight cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        // Use VectorizedFuzzyWeight's vigilance calculation for consistent behavior
+        var fuzzyWeight = convertToVectorizedFuzzyWeight(weight);
+        if (!(parameters instanceof VectorizedParameters)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedParameters, got: " + 
+                (parameters == null ? "null" : parameters.getClass().getName()));
         }
+        var params = (VectorizedParameters) parameters;
+        double vigilanceValue = fuzzyWeight.computeVigilance(input, params);
+        double threshold = params.vigilanceThreshold();
         
-        // Convert WeightVector to VectorizedWeight
-        VectorizedWeight vWeight = convertToVectorizedWeight(weight);
-        
-        double similarity = vWeight.computeSimilarity(input, vParams);
-        return similarity >= vParams.vigilanceThreshold() ? 
-               new MatchResult.Accepted(similarity, vParams.vigilanceThreshold()) : 
-               new MatchResult.Rejected(similarity, vParams.vigilanceThreshold());
+        if (vigilanceValue >= threshold) {
+            return new MatchResult.Accepted(vigilanceValue, threshold);
+        } else {
+            return new MatchResult.Rejected(vigilanceValue, threshold);
+        }
     }
     
     @Override
     protected WeightVector updateWeights(com.hellblazer.art.core.Pattern input, WeightVector currentWeight, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(currentWeight, "Current weight cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        // Use VectorizedFuzzyWeight's update method for consistent behavior
+        var fuzzyWeight = convertToVectorizedFuzzyWeight(currentWeight);
+        if (!(parameters instanceof VectorizedParameters)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedParameters, got: " + 
+                (parameters == null ? "null" : parameters.getClass().getName()));
         }
+        var params = (VectorizedParameters) parameters;
         
-        // Convert and update
-        VectorizedWeight vWeight = convertToVectorizedWeight(currentWeight);
-        return vWeight.update(input, vParams);
+        // Check if input is already complement-coded (matching weight dimension)
+        if (input.dimension() == fuzzyWeight.dimension()) {
+            // Input is already complement-coded, pass it directly
+            return fuzzyWeight.updateFuzzyDirect(input, params);
+        } else {
+            // Input needs complement coding
+            return fuzzyWeight.updateFuzzy(input, params);
+        }
     }
     
     @Override
     protected WeightVector createInitialWeight(com.hellblazer.art.core.Pattern input, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        // Create VectorizedFuzzyWeight using the static factory method for consistency
+        if (!(parameters instanceof VectorizedParameters)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedParameters, got: " + 
+                (parameters == null ? "null" : parameters.getClass().getName()));
         }
-        
-        return VectorizedWeight.fromInput(input, vParams);
+        var params = (VectorizedParameters) parameters;
+        totalVectorOperations++; // Track vector operation when creating weights
+        return VectorizedFuzzyWeight.fromInput(input, params);
     }
     
     /**
@@ -137,6 +173,7 @@ public class VectorizedART extends BaseART {
         Objects.requireNonNull(params, "Parameters cannot be null");
         
         long startTime = System.nanoTime();
+        totalVectorOperations++; // Track each step fit as a vector operation
         
         try {
             // Use parallel processing for large category sets
@@ -167,7 +204,7 @@ public class VectorizedART extends BaseART {
     /**
      * Vectorized activation computation using Java Pattern API and JOML optimizations.
      */
-    private double computeVectorizedActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeVectorizedActivation(com.hellblazer.art.core.Pattern input, VectorizedFuzzyWeight weight, VectorizedParameters params) {
         if ((input.dimension() == 3 || input.dimension() == 4) && params.enableJOML()) {
             return computeJOMLActivation(input, weight, params);
         } else if (params.enableSIMD()) {
@@ -180,10 +217,12 @@ public class VectorizedART extends BaseART {
     /**
      * JOML-optimized activation for 3D/4D vectors.
      */
-    private double computeJOMLActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeJOMLActivation(com.hellblazer.art.core.Pattern input, VectorizedFuzzyWeight weight, VectorizedParameters params) {
+        totalVectorOperations++; // Track JOML vector operation
         if (input.dimension() == 3) {
             var inputVec = getCachedVector3f(input);
-            var weightVec = weight.asVector3f();
+            // Convert weight to Vector3f
+            var weightVec = new Vector3f((float) weight.get(0), (float) weight.get(1), (float) weight.get(2));
             
             // Compute fuzzy intersection using JOML
             var intersection = new Vector3f();
@@ -196,8 +235,9 @@ public class VectorizedART extends BaseART {
             
             return intersectionNorm / (params.alpha() + inputNorm);
         } else if (input.dimension() == 4) {
-            var inputVec = weight.asVector4f(input);
-            var weightVec = weight.asVector4f();
+            // Convert input and weight to Vector4f
+            var inputVec = new Vector4f((float) input.get(0), (float) input.get(1), (float) input.get(2), (float) input.get(3));
+            var weightVec = new Vector4f((float) weight.get(0), (float) weight.get(1), (float) weight.get(2), (float) weight.get(3));
             
             var intersection = new Vector4f();
             intersection.x = Math.min(inputVec.x, weightVec.x);
@@ -218,9 +258,9 @@ public class VectorizedART extends BaseART {
     /**
      * SIMD-optimized activation using Pattern API for larger dimensions.
      */
-    private double computeSIMDActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeSIMDActivation(com.hellblazer.art.core.Pattern input, VectorizedFuzzyWeight weight, VectorizedParameters params) {
         int dimension = input.dimension();
-        var inputArray = weight.getInputArray(input);
+        var inputArray = convertToFloatArray(input);
         var weightArray = weight.getCategoryWeights();
         
         double intersectionSum = 0.0;
@@ -240,6 +280,8 @@ public class VectorizedART extends BaseART {
             
             // Sum input values
             inputSum += inputVec.reduceLanes(jdk.incubator.vector.VectorOperators.ADD);
+            
+            totalVectorOperations++; // Track SIMD vector operations
         }
         
         // Handle remaining elements
@@ -256,7 +298,7 @@ public class VectorizedART extends BaseART {
     /**
      * Standard activation computation fallback.
      */
-    private double computeStandardActivation(com.hellblazer.art.core.Pattern input, VectorizedWeight weight, VectorizedParameters params) {
+    private double computeStandardActivation(com.hellblazer.art.core.Pattern input, VectorizedFuzzyWeight weight, VectorizedParameters params) {
         double intersection = 0.0;
         double inputNorm = 0.0;
         
@@ -267,6 +309,17 @@ public class VectorizedART extends BaseART {
         }
         
         return intersection / (params.alpha() + inputNorm);
+    }
+    
+    /**
+     * Convert Pattern to float array for SIMD operations.
+     */
+    private float[] convertToFloatArray(com.hellblazer.art.core.Pattern input) {
+        var array = new float[input.dimension()];
+        for (int i = 0; i < input.dimension(); i++) {
+            array[i] = (float) input.get(i);
+        }
+        return array;
     }
     
     /**
@@ -400,12 +453,12 @@ public class VectorizedART extends BaseART {
     }
     
     /**
-     * Get a VectorizedWeight by index (type-safe accessor).
+     * Get a VectorizedFuzzyWeight by index (type-safe accessor).
      */
-    public VectorizedWeight getVectorizedCategory(int index) {
+    public VectorizedFuzzyWeight getVectorizedCategory(int index) {
         var category = getCategory(index);
-        if (!(category instanceof VectorizedWeight vWeight)) {
-            throw new IllegalStateException("Category at index " + index + " is not a VectorizedWeight");
+        if (!(category instanceof VectorizedFuzzyWeight vWeight)) {
+            throw new IllegalStateException("Category at index " + index + " is not a VectorizedFuzzyWeight");
         }
         return vWeight;
     }
@@ -478,9 +531,33 @@ public class VectorizedART extends BaseART {
      */
     public record CategoryActivation(int categoryIndex, double activation) {}
     
+    // VectorizedARTAlgorithm interface implementation
+    
+    @Override
+    public Object learn(Pattern input, VectorizedParameters parameters) {
+        totalVectorOperations++; // Track each learning operation as a vector operation
+        return stepFitEnhanced(input, parameters);
+    }
+    
+    @Override
+    public Object predict(Pattern input, VectorizedParameters parameters) {
+        return findBestMatch(input, parameters);
+    }
+    
+    @Override
+    public VectorizedParameters getParameters() {
+        return defaultParams;
+    }
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return SPECIES.length();
+    }
+    
     /**
      * Close and cleanup resources.
      */
+    @Override
     public void close() {
         computePool.shutdown();
         vectorCache.clear();

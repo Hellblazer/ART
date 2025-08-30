@@ -596,7 +596,10 @@ class VectorizedARTMAPAdvancedTest {
                     0.1 + Math.abs(Math.cos(classId * Math.PI / numClasses)) * 0.6 + Math.abs(random.nextGaussian()) * 0.02  // Reduced range and noise, ensure non-negative
                 );
                 
-                var target = Pattern.of(classId + 1.0); // Single-value target (avoid zero)
+                // Create one-hot encoded target vector for proper class separation
+                var targetValues = new double[numClasses];
+                targetValues[classId] = 1.0;
+                var target = Pattern.of(targetValues);
                 data.add(new ClassificationSample(input, target));
             }
         }
@@ -648,9 +651,16 @@ class VectorizedARTMAPAdvancedTest {
     }
     
     private int findExpectedBIndex(Pattern target) {
-        // Convert target vector to expected B index
-        // Account for the +1.0 offset added to avoid zero values
-        return (int) target.get(0) - 1;
+        // Find the index of the maximum value in one-hot encoded target vector
+        int maxIndex = 0;
+        double maxValue = target.get(0);
+        for (int i = 1; i < target.dimension(); i++) {
+            if (target.get(i) > maxValue) {
+                maxValue = target.get(i);
+                maxIndex = i;
+            }
+        }
+        return maxIndex;
     }
     
     private double calculateStandardDeviation(List<Double> values, double mean) {
@@ -675,7 +685,7 @@ class VectorizedARTMAPAdvancedTest {
         }
         
         for (var sample : data) {
-            var classId = (int) sample.target().get(0) - 1; // Account for +1.0 offset
+            var classId = findExpectedBIndex(sample.target());
             classSamples.get(classId).add(sample.input());
         }
         

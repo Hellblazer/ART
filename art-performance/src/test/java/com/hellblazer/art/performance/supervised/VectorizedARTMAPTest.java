@@ -329,7 +329,7 @@ class VectorizedARTMAPTest {
         // For now, just verify both complete successfully
         assertTrue(simdTime > 0 && noSIMDTime > 0, 
                   "Both SIMD and non-SIMD should complete successfully");
-        // Note: In a real implementation, performance gains would be more measurable
+        // Note: Performance gains depend on data size and SIMD vector width
     }
     
     @Test
@@ -364,7 +364,7 @@ class VectorizedARTMAPTest {
         // For now, just verify both complete successfully
         assertTrue(parallelTime > 0 && serialTime > 0,
                   "Both parallel and serial processing should complete successfully");
-        // Note: Performance gains depend on actual parallel implementation
+        // Note: Performance gains depend on workload size and thread contention
     }
     
     @Test

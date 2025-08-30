@@ -2,6 +2,7 @@ package com.hellblazer.art.performance.supervised;
 
 import com.hellblazer.art.performance.algorithms.VectorizedART;
 import com.hellblazer.art.performance.algorithms.VectorizedParameters;
+import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.artmap.ARTMAP;
@@ -27,7 +28,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * 
  * This implementation extends the existing ARTMAP while maintaining full backward compatibility.
  */
-public class VectorizedARTMAP implements AutoCloseable {
+public class VectorizedARTMAP implements VectorizedARTAlgorithm<VectorizedARTMAPResult.PerformanceMetrics, VectorizedARTMAPParameters>, AutoCloseable {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedARTMAP.class);
     
@@ -639,6 +640,78 @@ public class VectorizedARTMAP implements AutoCloseable {
             metrics.totalTrainingOperations(), metrics.totalPredictionOperations(),
             metrics.matchTrackingSearches(), metrics.mapFieldMismatches(),
             metrics.overallEfficiency()
+        );
+    }
+    
+    // VectorizedARTAlgorithm interface implementation
+    
+    @Override
+    public Object learn(Pattern input, VectorizedARTMAPParameters parameters) {
+        // For single input pattern learning without target, use unsupervised mode
+        // This provides compatibility with the VectorizedARTAlgorithm interface
+        if (input == null) {
+            throw new IllegalArgumentException("Input pattern cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
+        
+        // For ARTMAP without explicit target, we can use the pattern itself as both input and target
+        // This creates an auto-associative learning pattern
+        var result = train(input, input);
+        
+        if (result instanceof VectorizedARTMAPResult.Success success) {
+            return success.artAIndex();
+        } else {
+            // Log the failure but return a default category to maintain interface compatibility
+            log.warn("ARTMAP training failed: {}", result);
+            return 0;
+        }
+    }
+    
+    @Override
+    public Object predict(Pattern input, VectorizedARTMAPParameters parameters) {
+        return predict(input);
+    }
+    
+    @Override
+    public int getCategoryCount() {
+        return Math.max(vectorizedArtA.getCategoryCount(), vectorizedArtB.getCategoryCount());
+    }
+    
+    @Override
+    public VectorizedARTMAPResult.PerformanceMetrics getPerformanceStats() {
+        return getPerformanceMetrics();
+    }
+    
+    @Override
+    public void resetPerformanceTracking() {
+        lock.writeLock().lock();
+        try {
+            trainingOperations.set(0);
+            predictionOperations.set(0);
+            matchTrackingSearches.set(0);
+            mapFieldMismatches.set(0);
+            totalTrainingTime = 0.0;
+            totalPredictionTime = 0.0;
+            totalSearchDepth = 0.0;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
+    // clear() method is already implemented above, no override needed
+    
+    @Override
+    public VectorizedARTMAPParameters getParameters() {
+        return vectorizedParams;
+    }
+    
+    @Override
+    public int getVectorSpeciesLength() {
+        return Math.max(
+            vectorizedArtA.getVectorSpeciesLength(),
+            vectorizedArtB.getVectorSpeciesLength()
         );
     }
     
