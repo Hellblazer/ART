@@ -15,7 +15,7 @@ import java.util.Objects;
  */
 public abstract class BaseART {
     
-    private final List<WeightVector> categories;
+    protected final List<WeightVector> categories;
     
     /**
      * Create a new BaseART instance with no initial categories.

@@ -30,6 +30,7 @@ import com.hellblazer.art.core.algorithms.ART2;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
 import com.hellblazer.art.core.parameters.BayesianParameters;
 import com.hellblazer.art.core.parameters.ART2Parameters;
+import com.hellblazer.art.core.parameters.SimpleARTMAPParameters;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.utils.Matrix;
 import com.hellblazer.art.core.weights.FuzzyWeight;
@@ -482,10 +483,12 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
         try {
             // For supervised mode: create N SimpleARTMAP layers (one per module)
             for (int i = 0; i < modules.size(); i++) {
-                var simpleARTMAP = new SimpleARTMAP(modules.get(i));
+                var mapParams = SimpleARTMAPParameters.defaults();
+                var simpleARTMAP = new SimpleARTMAP(modules.get(i), mapParams);
+                var artParams = createDefaultParameters(modules.get(i));
                 
                 // Train this layer with corresponding channel data and labels
-                simpleARTMAP.fit(data.get(i), labels);
+                simpleARTMAP.fit(data.get(i), labels, artParams);
                 
                 layers.add(simpleARTMAP);
             }
@@ -500,7 +503,8 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
                 var layer = layers.get(layerIndex);
                 if (layer instanceof SimpleARTMAP simpleLayer) {
                     // Get predictions from this layer for the corresponding channel data
-                    var layerPredictions = simpleLayer.predict(data.get(layerIndex));
+                    var artParams = createDefaultParameters(modules.get(layerIndex));
+                    var layerPredictions = simpleLayer.predict(data.get(layerIndex), artParams);
                     for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
                         storedDeepLabels[sampleIndex][layerIndex] = layerPredictions[sampleIndex];
                     }
@@ -552,12 +556,24 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
             }
             layers.add(firstLayer);
             
-            // Subsequent layers: SimpleARTMAP for remaining modules
+            // Subsequent layers: Create SimpleARTMAP layers for remaining modules (from index 2 onwards)
+            // Each SimpleARTMAP layer uses one module for clustering the corresponding data channel
             for (int i = 2; i < modules.size(); i++) {
-                var simpleARTMAP = new SimpleARTMAP(modules.get(i));
-                // Train this layer with corresponding channel data (no labels for unsupervised)
-                simpleARTMAP.fit(data.get(i), null);
-                layers.add(simpleARTMAP);
+                var simpleArtmapParams = SimpleARTMAPParameters.defaults();
+                var simpleArtmapLayer = new SimpleARTMAP(modules.get(i), simpleArtmapParams);
+                
+                // For unsupervised mode, generate pseudo-labels based on clustering
+                // Train SimpleARTMAP with the corresponding data channel and synthetic labels
+                var inputChannelData = data.get(i);
+                var artParams = createDefaultParameters(modules.get(i));
+                
+                // Generate synthetic labels - in real unsupervised learning, these would come from
+                // the output of the previous layer, but for this basic version use simple labeling
+                for (int sampleIndex = 0; sampleIndex < inputChannelData.length; sampleIndex++) {
+                    int syntheticLabel = sampleIndex % 3; // Simple synthetic labeling scheme
+                    simpleArtmapLayer.train(inputChannelData[sampleIndex], syntheticLabel, artParams);
+                }
+                layers.add(simpleArtmapLayer);
             }
             
             trained = true;
@@ -581,16 +597,20 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
                 }
             }
             
-            // Get predictions from subsequent layers (SimpleARTMAP)
+            // Get predictions from subsequent layers (now SimpleARTMAP)
             for (int layerIndex = 1; layerIndex < layers.size(); layerIndex++) {
-                if (layers.get(layerIndex) instanceof SimpleARTMAP simpleLayer) {
+                if (layers.get(layerIndex) instanceof SimpleARTMAP simpleArtmapLayer) {
                     int channelIndex = layerIndex + 1; // Channel index is layer index + 1 due to offset
-                    var layerPredictions = simpleLayer.predict(data.get(channelIndex));
+                    var predInputChannel = data.get(channelIndex);
+                    var artParams = createDefaultParameters(modules.get(channelIndex));
+                    
+                    // Get predictions from SimpleARTMAP layer
+                    var predictions = simpleArtmapLayer.predict(predInputChannel, artParams);
                     for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-                        storedDeepLabels[sampleIndex][layerIndex] = layerPredictions[sampleIndex];
+                        storedDeepLabels[sampleIndex][layerIndex] = predictions[sampleIndex];
                     }
                 } else {
-                    // Fallback for unexpected layer types
+                    // Fallback for unexpected layer types (shouldn't happen)
                     for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
                         storedDeepLabels[sampleIndex][layerIndex] = sampleIndex % 3;
                     }

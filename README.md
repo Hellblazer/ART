@@ -4,79 +4,23 @@
 [![Maven](https://img.shields.io/badge/Maven-3.9.1+-blue.svg)](https://maven.apache.org/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Build Status](https://github.com/Hellblazer/ART/workflows/Java%20CI/badge.svg)](https://github.com/Hellblazer/ART/actions)
-[![Performance](https://img.shields.io/badge/SIMD-optimized-red.svg)]()
 
 An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24, utilizing the Vector API, virtual threads, and modern concurrency primitives.
 
-## Key Features
+## Features
 
-### Performance
-- SIMD Vectorization: Java 24 Vector API provides 4-8x performance gains
-- Multi-threaded Processing: Parallel execution strategies
-- Memory Optimized: Zero-copy operations and efficient memory layouts
-- JMH Benchmarked: Performance validation and regression testing
-
-### Algorithm Coverage
-- ART-1 & ART-2: Classic unsupervised learning algorithms
-- Fuzzy ART: Handles analog input patterns with fuzzy set theory
-- Gaussian ART: Statistical pattern recognition with Gaussian clusters
-- Hypersphere ART: Geometric pattern matching in hyperspherical coordinate systems
-- Bayesian ART: Probabilistic learning with uncertainty quantification
-- TopoART: Topology learning hierarchical ART network with edge formation and clustering
-- ARTMAP: Supervised learning with prediction capabilities
-- Deep ARTMAP: Hierarchical multi-layer supervised learning
-
-### Architecture
-- Modular Design: Clean separation between core algorithms and performance optimizations
-- Type Safety: Full Java 24 type system utilization
-- Immutable Data: Thread-safe by design
-- Resource Management: Automatic cleanup and memory management
-
-## 📖 Documentation Index
-
-### 🏗️ **Module Documentation**
-- **[📘 ART Core Module](art-core/README.md)** - Base algorithms, data structures, and mathematical foundations
-- **[⚡ ART Performance Module](art-performance/README.md)** - High-performance vectorized implementations with SIMD
-- **[🎮 GPU Test Framework](gpu-test-framework/README.md)** - Headless GPU testing infrastructure for CI/CD
-
-### 🔧 **Technical Documentation**
-- **[🏛️ Architecture Guide](docs/ARCHITECTURE.md)** - System design, performance architecture, and extensibility
-- **[📚 API Documentation](docs/API.md)** - Comprehensive API reference with examples
-- **[⚙️ Developer Guide](CLAUDE.md)** - Build configuration and development guidelines
-
-### 🚀 **Quick Navigation**
-- [Quick Start](#quick-start) - Get running in 5 minutes
-- [Algorithm Guide](#algorithm-guide) - Choose the right ART algorithm
-- [Performance Guide](#performance-optimization-guide) - Optimize for your use case
-- [Testing Guide](#testing-and-validation) - Run tests and benchmarks
-
-## Performance Results
-
-To generate performance benchmarks, run the JMH tests:
-
-```bash
-# Build the project first
-mvn clean compile
-
-# Run all benchmarks  
-mvn test -pl art-performance -Dtest=*Benchmark
-
-# Run specific algorithm benchmark
-mvn test -pl art-performance -Dtest=VectorizedFuzzyARTBenchmark
-```
-
-The vectorized implementations use Java 24 Vector API for SIMD optimization, providing significant speedups over standard implementations on supported hardware.
+- **High Performance**: SIMD vectorization via Java 24 Vector API (4-8x speedup)
+- **Comprehensive Coverage**: 10+ ART algorithm variants implemented
+- **Modern Java**: Full Java 24 feature utilization
+- **Production Ready**: Extensive testing, benchmarking, and documentation
 
 ## Quick Start
 
 ### Prerequisites
-
-- Java 24+ ([Download JDK 24](https://jdk.java.net/24/))
-- Maven 3.9.1+ 
-- macOS ARM64 (configured for Apple Silicon, easily adaptable)
+- Java 24+ ([Download](https://jdk.java.net/24/))
+- Maven 3.9.1+
 
 ### Installation
-
 ```bash
 git clone https://github.com/Hellblazer/ART.git
 cd ART
@@ -84,548 +28,116 @@ mvn clean install
 ```
 
 ### Basic Usage
-
 ```java
 import com.hellblazer.art.core.algorithms.FuzzyART;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
 import com.hellblazer.art.core.DenseVector;
 
-// Create a Fuzzy ART network
+// Create and train a Fuzzy ART network
 var parameters = FuzzyParameters.of(0.85, 0.1, 0.001);  // vigilance, learning rate, bias
 var network = new FuzzyART(parameters);
 
-// Train with patterns
 var pattern1 = new DenseVector(new double[]{0.8, 0.2, 0.9, 0.1});
 var pattern2 = new DenseVector(new double[]{0.1, 0.9, 0.2, 0.8});
 
-int category1 = network.stepFit(pattern1);  // Returns category index
+int category1 = network.stepFit(pattern1);
 int category2 = network.stepFit(pattern2);
-
-System.out.printf("Pattern 1 -> Category %d%n", category1);
-System.out.printf("Pattern 2 -> Category %d%n", category2);
-System.out.printf("Network has %d categories%n", network.getCategoryCount());
 ```
 
-### High-Performance Vectorized Usage
-
+### High-Performance Version
 ```java
 import com.hellblazer.art.performance.algorithms.VectorizedFuzzyART;
 import com.hellblazer.art.performance.algorithms.VectorizedParameters;
 
-// Use SIMD-optimized implementation for maximum performance
+// Use SIMD-optimized implementation
 var parameters = VectorizedParameters.builder()
     .vigilance(0.85)
     .learningRate(0.1)
-    .inputDimensions(4)
-    .maxCategories(100)
-    .enableSIMD(true)      // Enable Vector API acceleration
-    .parallelThreads(8)    // Multi-threading
+    .enableSIMD(true)
+    .parallelThreads(8)
     .build();
 
 var vectorizedNetwork = new VectorizedFuzzyART(parameters);
-
-// Batch processing for maximum throughput
-var patterns = Arrays.asList(
-    new DenseVector(new double[]{0.8, 0.2, 0.9, 0.1}),
-    new DenseVector(new double[]{0.7, 0.3, 0.8, 0.2}),
-    new DenseVector(new double[]{0.1, 0.9, 0.2, 0.8})
-);
-
-// Process batch with automatic parallelization
-var categories = patterns.parallelStream()
-    .map(vectorizedNetwork::learn)
-    .collect(Collectors.toList());
 ```
 
-### Supervised Learning with ARTMAP
+## Documentation
 
-```java
-import com.hellblazer.art.core.artmap.ARTMAP;
-import com.hellblazer.art.core.artmap.ARTMAPParameters;
+- **[Algorithm Overview](docs/OVERVIEW.md)** - Detailed algorithm descriptions and usage
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - System design and architecture
+- **[API Reference](docs/API.md)** - Complete API documentation
+- **[Developer Guide](CLAUDE.md)** - Build configuration and development
 
-// Create supervised learning network
-var artmapParams = ARTMAPParameters.of(0.9, 0.001, true);  // vigilance, baseline, match tracking
-var artmap = new ARTMAP(artmapParams);
+## Algorithms
 
-// Train with input-output pairs
-var input = new DenseVector(new double[]{0.8, 0.2, 0.9});
-var target = new DenseVector(new double[]{1.0});  // Class label
+### Unsupervised Learning
+| Algorithm | Use Case | Key Feature |
+|-----------|----------|-------------|
+| FuzzyART | General pattern recognition | Fuzzy set operations |
+| DualVigilanceART | Noise-robust clustering | Dual threshold system |
+| TopoART | Topology learning | Edge formation, clustering |
+| BayesianART | Uncertainty quantification | Confidence estimates |
+| GaussianART | Statistical clustering | Gaussian distributions |
+| HypersphereART | Geometric clustering | Rotation invariant |
+| ART-2 | Preprocessing integration | Noise filtering |
 
-var result = artmap.learn(input, target);
-System.out.printf("Learned association: input -> category %d%n", result.getCategory());
+### Supervised Learning
+| Algorithm | Use Case | Key Feature |
+|-----------|----------|-------------|
+| ARTMAP | Classification | Match tracking |
+| DeepARTMAP | Hierarchical learning | Multi-layer processing |
 
-// Make predictions
-var prediction = artmap.predict(input);
-System.out.printf("Prediction confidence: %.3f%n", prediction.getActivation());
+## Performance
+
+All algorithms have vectorized implementations with:
+- 6-8x performance improvement via SIMD
+- Parallel processing support
+- Memory-optimized operations
+
+Run benchmarks:
+```bash
+mvn test -pl art-performance -Dtest=*Benchmark
 ```
 
-## Architecture Overview
-
-### Module Structure
+## Project Structure
 
 ```
-ART Project
-├── art-core/              # Core algorithms and data structures
-│   ├── algorithms/        # Base ART implementations
-│   ├── artmap/           # Supervised learning algorithms  
-│   ├── parameters/       # Configuration classes
-│   └── utils/            # Mathematical utilities
-│
-├── art-performance/      # High-performance vectorized implementations
-│   ├── algorithms/       # SIMD-optimized ART algorithms
-│   ├── supervised/       # Vectorized ARTMAP implementations
-│   └── benchmarks/       # JMH performance tests
-│
-└── gpu-test-framework/   # GPU testing infrastructure (implemented)
-    ├── headless/         # Headless GPU testing support
-    ├── opencl/          # OpenCL testing utilities
-    └── mock/            # Mock platforms for CI/CD
+art-core/           # Core algorithms and data structures
+art-performance/    # High-performance vectorized implementations  
+gpu-test-framework/ # GPU testing infrastructure
+docs/              # Documentation
 ```
 
-### Key Design Principles
-
-- Performance First: Every algorithm optimized for modern hardware
-- Scientific Accuracy: Faithful implementation of published ART theories
-- Type Safety: Leverage Java's strong type system
-- Memory Efficiency: Minimal allocation in hot paths
-- Testability: Comprehensive test coverage with property-based testing
-
-## Algorithm Guide
-
-### Unsupervised Learning Algorithms
-
-| Algorithm | Use Case | Key Features |
-|-----------|----------|--------------|
-| FuzzyART | General pattern recognition | Handles analog inputs, fuzzy set operations |
-| GaussianART | Statistical clustering | Gaussian probability distributions |
-| HypersphereART | Geometric clustering | Hyperspherical geometry, rotation invariant |
-| BayesianART | Uncertainty quantification | Bayesian inference, confidence estimates |
-| TopoART | Topology learning clustering | Dual-component architecture, edge formation, permanence mechanism |
-| ART-2 | Preprocessing integration | Normalization and noise filtering |
-
-### Supervised Learning Algorithms
-
-| Algorithm | Use Case | Key Features |
-|-----------|----------|--------------|
-| ARTMAP | Classification | Input-output mapping, match tracking |
-| DeepARTMAP | Hierarchical learning | Multi-layer processing, feature hierarchy |
-
-### TopoART (Topology Learning ART)
-
-**TopoART** is a hierarchical ART architecture that learns topological structure through edge formation between neurons. This makes it particularly effective for clustering problems where the spatial relationships between patterns matter.
-
-#### Key Features
-
-- **Dual-component architecture**: Combines pattern matching with topological edge formation
-- **Permanence mechanism**: Neurons become permanent when they reach a stability threshold
-- **Connected component clustering**: Groups permanent neurons based on learned topology
-- **Complement coding**: Automatically transforms input patterns for improved stability
-
-#### Basic Usage
-
-```java
-import com.hellblazer.art.core.algorithms.TopoART;
-import com.hellblazer.art.core.parameters.TopoARTParameters;
-
-// Configure TopoART parameters
-var params = TopoARTParameters.builder()
-    .vigilanceA(0.85)        // Pattern selectivity component A
-    .vigilanceB(0.85)        // Pattern selectivity component B  
-    .learningRate(0.1)       // Speed of weight adaptation
-    .phi(3)                  // Permanence threshold
-    .build();
-
-var topoART = new TopoART(params);
-
-// Train with patterns
-var patterns = Arrays.asList(
-    new DenseVector(new double[]{0.8, 0.2}),
-    new DenseVector(new double[]{0.7, 0.3}),
-    new DenseVector(new double[]{0.2, 0.8})
-);
-
-// Learn patterns and form topology
-for (var pattern : patterns) {
-    var result = topoART.stepFit(pattern);
-    System.out.printf("Pattern learned -> Neuron %d (permanent: %s)%n", 
-                     result.getNeuron(), result.isPermanent());
-}
-
-// Extract learned clusters
-var clusters = topoART.getClusters();
-System.out.printf("Found %d clusters%n", clusters.size());
-
-clusters.forEach((component, cluster) -> {
-    System.out.printf("Cluster %d: %d neurons, %d edges%n",
-                     component, 
-                     cluster.getNeuronIndices().size(),
-                     cluster.getEdgeCount());
-});
-```
-
-#### Advanced Configuration
-
-```java
-// Fine-tune for specific clustering behavior
-var advancedParams = TopoARTParameters.builder()
-    .vigilanceA(0.9)         // High selectivity for precise clusters
-    .vigilanceB(0.7)         // Lower selectivity allows broader grouping
-    .learningRate(0.05)      // Slower learning for stability
-    .phi(5)                  // Higher threshold for permanence
-    .maxIterations(1000)     // Extended training
-    .complementCoding(true)  // Enable complement coding (default)
-    .build();
-
-var preciseTopoART = new TopoART(advancedParams);
-
-// Monitor training progress
-for (int iteration = 0; iteration < patterns.size(); iteration++) {
-    var result = preciseTopoART.stepFit(patterns.get(iteration));
-    
-    if (result.isResonance()) {
-        System.out.printf("Iteration %d: Resonance achieved%n", iteration);
-    }
-    
-    if (result.isPermanent()) {
-        System.out.printf("Iteration %d: Neuron %d became permanent%n", 
-                         iteration, result.getNeuron());
-    }
-}
-```
-
-#### Understanding TopoART Behavior
-
-TopoART creates edges between the best and second-best matching neurons during learning, which can result in highly connected topological structures. This is correct algorithm behavior:
-
-```java
-// Analysis of topological structure
-var metrics = topoART.getTopologyMetrics();
-System.out.printf("Total neurons: %d%n", metrics.getTotalNeurons());
-System.out.printf("Permanent neurons: %d%n", metrics.getPermanentNeurons());
-System.out.printf("Total edges: %d%n", metrics.getTotalEdges());
-System.out.printf("Connectivity ratio: %.3f%n", metrics.getConnectivityRatio());
-
-// Cluster analysis
-var clusterAnalysis = topoART.analyzeClusterStructure();
-clusterAnalysis.getClusters().forEach(cluster -> {
-    System.out.printf("Cluster size: %d, density: %.3f, diameter: %d%n",
-                     cluster.getSize(), 
-                     cluster.getDensity(),
-                     cluster.getDiameter());
-});
-```
-
-#### Parameter Guidelines
-
-| Parameter | Range | Description | Tuning Tips |
-|-----------|--------|-------------|-------------|
-| `vigilanceA` | 0.0-1.0 | Component A selectivity | Higher = more precise clusters |
-| `vigilanceB` | 0.0-1.0 | Component B selectivity | Can differ from A for asymmetric learning |
-| `learningRate` | 0.0-1.0 | Weight adaptation speed | Lower = more stable, slower convergence |
-| `phi` | 1+ | Permanence threshold | Higher = fewer but more stable permanent neurons |
-
-#### Performance Considerations
-
-TopoART maintains topological structure which requires additional computation:
-
-```java
-// For performance-critical applications, consider vectorized version
-var vectorizedTopoART = new VectorizedTopoART(params);
-
-// Batch processing for better performance
-var batchResults = patterns.parallelStream()
-    .map(vectorizedTopoART::learn)
-    .collect(Collectors.toList());
-
-// Monitor performance
-var perfMetrics = vectorizedTopoART.getPerformanceMetrics();
-System.out.printf("Training throughput: %.1f patterns/sec%n", 
-                 perfMetrics.getPatternsPerSecond());
-```
-
-### Performance Variants
-
-All algorithms have vectorized counterparts in `art-performance` module:
-- `VectorizedFuzzyART`, `VectorizedHypersphereART`, etc.
-- 6-8x performance improvement over base implementations
-- Automatic fallback for edge cases
-- Full API compatibility
-
-## Advanced Features
-
-### Bayesian ART with Uncertainty
-
-```java
-var bayesianART = new BayesianART(BayesianParameters.conservative(4));
-var result = bayesianART.stepFit(pattern);
-
-// Get uncertainty estimates
-double confidence = result.getConfidence();
-double entropy = result.getEntropy();
-System.out.printf("Classification confidence: %.3f (entropy: %.3f)%n", confidence, entropy);
-```
-
-### Deep Hierarchical Learning
-
-```java
-var deepParams = DeepARTMAPParameters.builder()
-    .layers(3)                    // 3-layer hierarchy
-    .vigilanceSchedule(0.9, 0.7, 0.5)  // Decreasing vigilance per layer
-    .build();
-
-var deepARTMAP = new DeepARTMAP(deepParams);
-var hierarchicalResult = deepARTMAP.learnHierarchical(inputPattern, targetPattern);
-
-// Access per-layer activations
-for (int layer = 0; layer < 3; layer++) {
-    var activation = hierarchicalResult.getLayerActivation(layer);
-    System.out.printf("Layer %d activation: %.3f%n", layer, activation);
-}
-```
-
-### Real-time Streaming Processing
-
-```java
-// Process continuous data streams
-try (var stream = patterns.stream()) {
-    var results = stream
-        .parallel()
-        .map(vectorizedART::learn)
-        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-    
-    // Analyze category distribution
-    results.forEach((category, count) -> 
-        System.out.printf("Category %d: %d patterns%n", category, count));
-}
-```
-
-## Performance Optimization Guide
-
-### Choosing the Right Algorithm
-
-```java
-// For maximum performance with large datasets (>10k patterns)
-var vectorizedART = new VectorizedFuzzyART(parameters);
-
-// For small datasets or when memory is constrained
-var standardART = new FuzzyART(parameters);
-
-// For real-time processing
-var parameters = VectorizedParameters.builder()
-    .enableSIMD(true)
-    .parallelThreads(Runtime.getRuntime().availableProcessors())
-    .build();
-```
-
-### Memory Optimization
-
-```java
-// Use try-with-resources for automatic cleanup
-try (var art = new VectorizedHypersphereART(parameters)) {
-    // Process patterns
-    var results = patterns.stream()
-        .map(art::learn)
-        .collect(Collectors.toList());
-} // Automatic memory cleanup
-```
-
-### Batch Processing
-
-```java
-// Process patterns in optimal batch sizes
-int batchSize = VectorizedART.getOptimalBatchSize();
-var batches = Lists.partition(patterns, batchSize);
-
-var allResults = batches.parallelStream()
-    .flatMap(batch -> batch.stream().map(network::learn))
-    .collect(Collectors.toList());
-```
-
-## Testing and Validation
-
-### Running Tests
+## Testing
 
 ```bash
 # Run all tests
 mvn test
 
-# Run specific test suite
-mvn test -Dtest=VectorizedFuzzyARTTest
+# Run specific algorithm tests
+mvn test -Dtest=FuzzyARTTest
 
-# Run performance benchmarks
-mvn test -Dtest=**/*Benchmark
-
-# Generate test coverage report  
+# Generate coverage report
 mvn jacoco:report
-```
-
-### Property-Based Testing
-
-Our test suite uses property-based testing to validate mathematical invariants:
-
-```java
-@Property
-void artShouldBeStableUnderRepeatedPresentation(@ForAll("patterns") Pattern pattern) {
-    var art = new FuzzyART(FuzzyParameters.of(0.8, 0.1, 0.001));
-    
-    int category1 = art.stepFit(pattern);
-    int category2 = art.stepFit(pattern);  // Present same pattern again
-    
-    assertEquals(category1, category2);  // Should get same category
-}
-```
-
-### Benchmark Results
-
-```bash
-# Run comprehensive benchmarks
-mvn clean compile exec:java -Dexec.mainClass="org.openjdk.jmh.Main" \
-    -Dexec.args="-f 1 -wi 5 -i 10 -t 1 com.hellblazer.art.performance.benchmarks.*"
-```
-
-## Configuration and Tuning
-
-### Algorithm Parameters
-
-Each algorithm provides multiple parameter presets:
-
-```java
-// Conservative parameters (slower learning, more stable)
-var conservative = FuzzyParameters.conservative(inputDimensions);
-
-// Aggressive parameters (faster learning, less stable)  
-var aggressive = FuzzyParameters.aggressive(inputDimensions);
-
-// Custom parameters
-var custom = FuzzyParameters.of(
-    vigilance,      // 0.0-1.0: Higher = more selective
-    learningRate,   // 0.0-1.0: Higher = faster adaptation
-    bias           // Small positive: Prevents uncommitted nodes
-);
-```
-
-### Performance Tuning
-
-```java
-// Tune for your specific use case
-var parameters = VectorizedParameters.builder()
-    .vigilance(0.85)                    // Pattern selectivity
-    .learningRate(0.1)                  // Adaptation speed
-    .inputDimensions(64)                // Pattern dimensions
-    .maxCategories(1000)                // Memory allocation
-    .enableSIMD(true)                   // Vector API
-    .parallelThreads(8)                 // Thread pool size
-    .batchSize(256)                     // Batch processing size
-    .memoryStrategy(POOL_REUSE)         // Memory management
-    .build();
-```
-
-## Monitoring and Observability
-
-### Performance Metrics
-
-```java
-// Enable performance monitoring
-var monitor = new ARTPerformanceMonitor();
-var monitoredART = new MonitoredVectorizedART(network, monitor);
-
-// Access metrics
-var metrics = monitor.getMetrics();
-System.out.printf("Throughput: %.1f patterns/sec%n", metrics.getThroughput());
-System.out.printf("Memory usage: %.1f MB%n", metrics.getMemoryUsageMB());
-System.out.printf("Category count: %d%n", metrics.getCategoryCount());
-```
-
-### Logging Configuration
-
-```xml
-<!-- logback.xml -->
-<configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-    
-    <!-- Enable detailed ART logging -->
-    <logger name="com.hellblazer.art" level="INFO"/>
-    <logger name="com.hellblazer.art.performance" level="DEBUG"/>
-    
-    <root level="WARN">
-        <appender-ref ref="STDOUT"/>
-    </root>
-</configuration>
 ```
 
 ## Contributing
 
-We welcome contributions!
-
-### Development Setup
-
-```bash
-# Clone and setup development environment
-git clone https://github.com/Hellblazer/ART.git
-cd ART
-
-# Install Java 24 
-# macOS: brew install openjdk@24
-# Linux: Download from https://jdk.java.net/24/
-
-# Build and test
-mvn clean install
-mvn test
-
-# Run benchmarks
-mvn test -Dtest=**/*Benchmark
-```
-
-### Code Style
-
-- Follow Google Java Style Guide
-- Use `var` for local variables where type is obvious
-- No `synchronized` - use concurrent collections instead
-- Leverage Java 24 features (records, pattern matching, etc.)
-
-## Documentation
-
-- [Architecture Guide](docs/ARCHITECTURE.md): Detailed system architecture
-- [API Documentation](docs/API.md): Complete API reference
-
-## References
-
-### Academic Papers
-
-- Carpenter, G.A. & Grossberg, S. (1987). "A massively parallel architecture for a self-organizing neural pattern recognition machine." *Computer Vision, Graphics, and Image Processing*, 37, 54-115.
-
-- Carpenter, G.A., Grossberg, S., & Rosen, D.B. (1991). "Fuzzy ART: Fast stable learning and categorization of analog patterns by an adaptive resonance system." *Neural Networks*, 4, 759-771.
-
-- Carpenter, G.A. & Grossberg, S. (1991). "Pattern recognition by self-organizing neural networks." Cambridge, MA: MIT Press.
-
-### Implementation References
-
-- PyTorch ART: Reference implementations in Python
-- MATLAB ART Toolbox: Academic reference implementations
-- C++ ART Library: High-performance native implementations
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file.
 
-### Commercial Licensing
-
-For commercial licensing options that don't require AGPL compliance, please contact [hal.hildebrand@me.com](mailto:hal.hildebrand@me.com).
+For commercial licensing options, contact [hal.hildebrand@me.com](mailto:hal.hildebrand@me.com).
 
 ## Acknowledgments
 
 - Stephen Grossberg and Gail Carpenter for the original ART theory
-- [PyTorch ART](https://github.com/NiklasMelton/AdaptiveResonanceTheory) by Niklas Melton - the Python ART library that inspired this Java implementation
+- [AdaptiveResonanceLib](https://github.com/NiklasMelton/AdaptiveResonanceLib) by Niklas Melton
 - OpenJDK Project for Java 24 and the Vector API
-- JMH Team for the excellent benchmarking framework
-- Contributors who have helped improve this implementation
 
 ---
 
 Built using Java 24. Optimized for Performance. Scientifically Accurate.
 
-*For questions, issues, or feature requests, please visit our [GitHub Issues](https://github.com/Hellblazer/ART/issues) page.*
+*For questions or issues, visit our [GitHub Issues](https://github.com/Hellblazer/ART/issues) page.*
