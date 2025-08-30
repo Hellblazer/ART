@@ -21,6 +21,7 @@ package com.hellblazer.art.core.artmap;
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.BaseARTMAP;
 import com.hellblazer.art.core.MatchResetFunction;
+import com.hellblazer.art.core.MatchTrackingMethod;
 import com.hellblazer.art.core.MatchTrackingMode;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.parameters.SimpleARTMAPParameters;

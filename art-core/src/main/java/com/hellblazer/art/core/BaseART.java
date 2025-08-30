@@ -16,12 +16,17 @@ import java.util.Objects;
 public abstract class BaseART {
     
     protected final List<WeightVector> categories;
+    protected final List<Long> categoryUsageCount;
+    protected final List<Long> categoryLastUsedTimestamp;
+    protected long totalActivations = 0;
     
     /**
      * Create a new BaseART instance with no initial categories.
      */
     protected BaseART() {
         this.categories = new ArrayList<>();
+        this.categoryUsageCount = new ArrayList<>();
+        this.categoryLastUsedTimestamp = new ArrayList<>();
     }
     
     /**
@@ -31,6 +36,13 @@ public abstract class BaseART {
     protected BaseART(List<? extends WeightVector> initialCategories) {
         Objects.requireNonNull(initialCategories, "Initial categories cannot be null");
         this.categories = new ArrayList<>(initialCategories);
+        this.categoryUsageCount = new ArrayList<>();
+        this.categoryLastUsedTimestamp = new ArrayList<>();
+        var currentTime = System.currentTimeMillis();
+        for (int i = 0; i < initialCategories.size(); i++) {
+            this.categoryUsageCount.add(0L);
+            this.categoryLastUsedTimestamp.add(currentTime);
+        }
     }
     
     /**
@@ -73,6 +85,9 @@ public abstract class BaseART {
         if (categories.isEmpty()) {
             var newWeight = createInitialWeight(input, parameters);
             categories.add(newWeight);
+            categoryUsageCount.add(1L);
+            categoryLastUsedTimestamp.add(System.currentTimeMillis());
+            totalActivations++;
             return new ActivationResult.Success(0, 1.0, newWeight);
         }
         
@@ -123,6 +138,10 @@ public abstract class BaseART {
                 // Success: update weight and return
                 var updatedWeight = updateWeightsWithCache(input, weight, parameters, matchResult.cache());
                 categories.set(bestCategory, updatedWeight);
+                // Update usage statistics
+                categoryUsageCount.set(bestCategory, categoryUsageCount.get(bestCategory) + 1);
+                categoryLastUsedTimestamp.set(bestCategory, System.currentTimeMillis());
+                totalActivations++;
                 restoreParams(baseParams, parameters);
                 return new ActivationResult.Success(bestCategory, activations[bestCategory], updatedWeight);
             } else {
@@ -146,6 +165,9 @@ public abstract class BaseART {
         // Step 4: All categories failed - create new category
         var newWeight = createInitialWeight(input, parameters);
         categories.add(newWeight);
+        categoryUsageCount.add(1L);
+        categoryLastUsedTimestamp.add(System.currentTimeMillis());
+        totalActivations++;
         var newIndex = categories.size() - 1;
         restoreParams(baseParams, parameters);
         return new ActivationResult.Success(newIndex, 1.0, newWeight);
@@ -367,6 +389,9 @@ public abstract class BaseART {
      */
     public final void clear() {
         categories.clear();
+        categoryUsageCount.clear();
+        categoryLastUsedTimestamp.clear();
+        totalActivations = 0;
     }
     
     /**
@@ -377,6 +402,14 @@ public abstract class BaseART {
         Objects.requireNonNull(newCategories, "New categories cannot be null");
         categories.clear();
         categories.addAll(newCategories);
+        // Reset usage stats
+        categoryUsageCount.clear();
+        categoryLastUsedTimestamp.clear();
+        var currentTime = System.currentTimeMillis();
+        for (int i = 0; i < newCategories.size(); i++) {
+            categoryUsageCount.add(0L);
+            categoryLastUsedTimestamp.add(currentTime);
+        }
     }
     
     /**
@@ -386,5 +419,167 @@ public abstract class BaseART {
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{categories=" + categories.size() + "}";
+    }
+    
+    // ==================== CATEGORY PRUNING METHODS ====================
+    
+    /**
+     * Prune categories based on usage frequency.
+     * Removes categories that have been used less than the threshold percentage.
+     * 
+     * @param minUsageRatio minimum usage ratio (0.0 to 1.0) relative to mean usage
+     * @return number of categories pruned
+     */
+    public int pruneByUsageFrequency(double minUsageRatio) {
+        if (minUsageRatio < 0.0 || minUsageRatio > 1.0) {
+            throw new IllegalArgumentException("minUsageRatio must be between 0.0 and 1.0");
+        }
+        if (categories.isEmpty()) {
+            return 0;
+        }
+        
+        // Calculate mean usage
+        var meanUsage = categoryUsageCount.stream()
+            .mapToLong(Long::longValue)
+            .average()
+            .orElse(0.0);
+        
+        var threshold = (long)(meanUsage * minUsageRatio);
+        
+        // Find indices to remove
+        var indicesToRemove = new ArrayList<Integer>();
+        for (int i = 0; i < categoryUsageCount.size(); i++) {
+            if (categoryUsageCount.get(i) < threshold) {
+                indicesToRemove.add(i);
+            }
+        }
+        
+        // Remove in reverse order to maintain indices
+        for (int i = indicesToRemove.size() - 1; i >= 0; i--) {
+            int idx = indicesToRemove.get(i);
+            categories.remove(idx);
+            categoryUsageCount.remove(idx);
+            categoryLastUsedTimestamp.remove(idx);
+        }
+        
+        return indicesToRemove.size();
+    }
+    
+    /**
+     * Prune categories based on age (time since last use).
+     * 
+     * @param maxAgeMillis maximum age in milliseconds since last use
+     * @return number of categories pruned
+     */
+    public int pruneByAge(long maxAgeMillis) {
+        if (maxAgeMillis <= 0) {
+            throw new IllegalArgumentException("maxAgeMillis must be positive");
+        }
+        if (categories.isEmpty()) {
+            return 0;
+        }
+        
+        var currentTime = System.currentTimeMillis();
+        var cutoffTime = currentTime - maxAgeMillis;
+        
+        // Find indices to remove
+        var indicesToRemove = new ArrayList<Integer>();
+        for (int i = 0; i < categoryLastUsedTimestamp.size(); i++) {
+            if (categoryLastUsedTimestamp.get(i) < cutoffTime) {
+                indicesToRemove.add(i);
+            }
+        }
+        
+        // Remove in reverse order
+        for (int i = indicesToRemove.size() - 1; i >= 0; i--) {
+            int idx = indicesToRemove.get(i);
+            categories.remove(idx);
+            categoryUsageCount.remove(idx);
+            categoryLastUsedTimestamp.remove(idx);
+        }
+        
+        return indicesToRemove.size();
+    }
+    
+    /**
+     * Prune categories to maintain a maximum count.
+     * Keeps the most frequently used categories.
+     * 
+     * @param maxCategories maximum number of categories to keep
+     * @return number of categories pruned
+     */
+    public int pruneToMaxSize(int maxCategories) {
+        if (maxCategories <= 0) {
+            throw new IllegalArgumentException("maxCategories must be positive");
+        }
+        if (categories.size() <= maxCategories) {
+            return 0;
+        }
+        
+        // Create indices sorted by usage count
+        var indices = new ArrayList<Integer>();
+        for (int i = 0; i < categories.size(); i++) {
+            indices.add(i);
+        }
+        indices.sort((a, b) -> Long.compare(
+            categoryUsageCount.get(b), categoryUsageCount.get(a)));
+        
+        // Keep top maxCategories, remove the rest
+        var toKeep = new ArrayList<WeightVector>();
+        var toKeepUsage = new ArrayList<Long>();
+        var toKeepTimestamp = new ArrayList<Long>();
+        
+        for (int i = 0; i < maxCategories; i++) {
+            int idx = indices.get(i);
+            toKeep.add(categories.get(idx));
+            toKeepUsage.add(categoryUsageCount.get(idx));
+            toKeepTimestamp.add(categoryLastUsedTimestamp.get(idx));
+        }
+        
+        var pruned = categories.size() - maxCategories;
+        
+        categories.clear();
+        categories.addAll(toKeep);
+        categoryUsageCount.clear();
+        categoryUsageCount.addAll(toKeepUsage);
+        categoryLastUsedTimestamp.clear();
+        categoryLastUsedTimestamp.addAll(toKeepTimestamp);
+        
+        return pruned;
+    }
+    
+    /**
+     * Get usage statistics for a specific category.
+     * 
+     * @param index category index
+     * @return usage count for the category
+     */
+    public long getCategoryUsageCount(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index out of bounds");
+        }
+        return categoryUsageCount.get(index);
+    }
+    
+    /**
+     * Get last used timestamp for a specific category.
+     * 
+     * @param index category index
+     * @return timestamp when category was last used
+     */
+    public long getCategoryLastUsedTimestamp(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index out of bounds");
+        }
+        return categoryLastUsedTimestamp.get(index);
+    }
+    
+    /**
+     * Get total number of activations.
+     * 
+     * @return total activation count
+     */
+    public long getTotalActivations() {
+        return totalActivations;
     }
 }
