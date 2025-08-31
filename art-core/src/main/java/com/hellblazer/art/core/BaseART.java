@@ -287,6 +287,24 @@ public abstract class BaseART {
     // ==================== ABSTRACT METHODS ====================
     
     /**
+     * Public method to get activation value for a specific category.
+     * This allows external algorithms (like SMART) to access proper activation calculations.
+     * 
+     * @param input the input vector
+     * @param categoryIndex the index of the category to calculate activation for
+     * @param parameters the algorithm-specific parameters
+     * @return the activation value (higher means better match)
+     * @throws IndexOutOfBoundsException if categoryIndex is invalid
+     */
+    public double getActivationValue(Pattern input, int categoryIndex, Object parameters) {
+        if (categoryIndex < 0 || categoryIndex >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index " + categoryIndex + 
+                " out of bounds for " + categories.size() + " categories");
+        }
+        return calculateActivation(input, categories.get(categoryIndex), parameters);
+    }
+    
+    /**
      * Calculate the activation value for a specific category given an input.
      * This is algorithm-specific (e.g., choice function in FuzzyART).
      * 
