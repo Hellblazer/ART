@@ -1,0 +1,303 @@
+package com.hellblazer.art.core.parameters;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Parameters for FusionART multi-modal/multi-channel learning.
+ * 
+ * FusionART parameters include:
+ * - Channel-specific parameters for each modality
+ * - Channel weights for combining activations
+ * - Channel sizes for input splitting
+ * - Channel-specific vigilance parameters
+ */
+public class FusionARTParameters {
+    
+    private final List<Object> channelParameters;
+    private final double[] channelWeights;
+    private final int[] channelSizes;
+    private final double[] channelVigilance;
+    private final int numChannels;
+    
+    private FusionARTParameters(Builder builder) {
+        this.numChannels = builder.numChannels;
+        this.channelParameters = new ArrayList<>(builder.channelParameters);
+        this.channelWeights = builder.channelWeights.clone();
+        this.channelSizes = builder.channelSizes.clone();
+        this.channelVigilance = builder.channelVigilance.clone();
+        
+        validateParameters();
+    }
+    
+    private void validateParameters() {
+        if (numChannels < 2) {
+            throw new IllegalArgumentException("FusionART requires at least 2 channels");
+        }
+        
+        if (channelParameters.size() != numChannels) {
+            throw new IllegalArgumentException("Must provide parameters for all channels");
+        }
+        
+        if (channelWeights.length != numChannels) {
+            throw new IllegalArgumentException("Must provide weights for all channels");
+        }
+        
+        if (channelSizes.length != numChannels) {
+            throw new IllegalArgumentException("Must provide sizes for all channels");
+        }
+        
+        if (channelVigilance.length != numChannels) {
+            throw new IllegalArgumentException("Must provide vigilance for all channels");
+        }
+        
+        // Validate channel weights sum to 1.0
+        double weightSum = 0.0;
+        for (double weight : channelWeights) {
+            if (weight < 0.0 || weight > 1.0) {
+                throw new IllegalArgumentException("Channel weights must be in [0, 1]");
+            }
+            weightSum += weight;
+        }
+        
+        if (Math.abs(weightSum - 1.0) > 1e-6) {
+            throw new IllegalArgumentException("Channel weights must sum to 1.0");
+        }
+        
+        // Validate channel sizes
+        for (int size : channelSizes) {
+            if (size <= 0) {
+                throw new IllegalArgumentException("Channel sizes must be positive");
+            }
+        }
+        
+        // Validate vigilance parameters
+        for (double vigilance : channelVigilance) {
+            if (vigilance < 0.0 || vigilance > 1.0) {
+                throw new IllegalArgumentException("Vigilance must be in [0, 1]");
+            }
+        }
+    }
+    
+    /**
+     * Get parameters for a specific channel.
+     */
+    public Object getChannelParameters(int channel) {
+        validateChannelIndex(channel);
+        return channelParameters.get(channel);
+    }
+    
+    /**
+     * Get the weight/importance of a specific channel.
+     */
+    public double getChannelWeight(int channel) {
+        validateChannelIndex(channel);
+        return channelWeights[channel];
+    }
+    
+    /**
+     * Get the input size for a specific channel.
+     */
+    public int getChannelSize(int channel) {
+        validateChannelIndex(channel);
+        return channelSizes[channel];
+    }
+    
+    /**
+     * Get the vigilance parameter for a specific channel.
+     */
+    public double getChannelVigilance(int channel) {
+        validateChannelIndex(channel);
+        return channelVigilance[channel];
+    }
+    
+    /**
+     * Get the total number of channels.
+     */
+    public int getNumChannels() {
+        return numChannels;
+    }
+    
+    /**
+     * Get the total input size across all channels.
+     */
+    public int getTotalInputSize() {
+        int total = 0;
+        for (int size : channelSizes) {
+            total += size;
+        }
+        return total;
+    }
+    
+    private void validateChannelIndex(int channel) {
+        if (channel < 0 || channel >= numChannels) {
+            throw new IndexOutOfBoundsException("Invalid channel index: " + channel);
+        }
+    }
+    
+    /**
+     * Create a new builder for FusionARTParameters.
+     */
+    public static Builder builder(int numChannels) {
+        return new Builder(numChannels);
+    }
+    
+    /**
+     * Builder for FusionARTParameters.
+     */
+    public static class Builder {
+        private final int numChannels;
+        private final List<Object> channelParameters;
+        private double[] channelWeights;
+        private int[] channelSizes;
+        private double[] channelVigilance;
+        
+        private Builder(int numChannels) {
+            if (numChannels < 2) {
+                throw new IllegalArgumentException("FusionART requires at least 2 channels");
+            }
+            
+            this.numChannels = numChannels;
+            this.channelParameters = new ArrayList<>(numChannels);
+            
+            // Initialize with equal weights
+            this.channelWeights = new double[numChannels];
+            for (int i = 0; i < numChannels; i++) {
+                channelWeights[i] = 1.0 / numChannels;
+            }
+            
+            this.channelSizes = new int[numChannels];
+            this.channelVigilance = new double[numChannels];
+            
+            // Default vigilance
+            for (int i = 0; i < numChannels; i++) {
+                channelVigilance[i] = 0.75;
+            }
+        }
+        
+        /**
+         * Set parameters for a specific channel.
+         */
+        public Builder channelParameters(int channel, Object parameters) {
+            validateChannel(channel);
+            Objects.requireNonNull(parameters, "Channel parameters cannot be null");
+            
+            // Ensure list is large enough
+            while (channelParameters.size() <= channel) {
+                channelParameters.add(null);
+            }
+            channelParameters.set(channel, parameters);
+            return this;
+        }
+        
+        /**
+         * Set all channel parameters at once.
+         */
+        public Builder allChannelParameters(List<Object> parameters) {
+            if (parameters.size() != numChannels) {
+                throw new IllegalArgumentException("Must provide parameters for all channels");
+            }
+            this.channelParameters.clear();
+            this.channelParameters.addAll(parameters);
+            return this;
+        }
+        
+        /**
+         * Set channel weights (must sum to 1.0).
+         */
+        public Builder channelWeights(double... weights) {
+            if (weights.length != numChannels) {
+                throw new IllegalArgumentException("Must provide weights for all channels");
+            }
+            this.channelWeights = weights.clone();
+            return this;
+        }
+        
+        /**
+         * Set channel input sizes.
+         */
+        public Builder channelSizes(int... sizes) {
+            if (sizes.length != numChannels) {
+                throw new IllegalArgumentException("Must provide sizes for all channels");
+            }
+            this.channelSizes = sizes.clone();
+            return this;
+        }
+        
+        /**
+         * Set channel-specific vigilance parameters.
+         */
+        public Builder channelVigilance(double... vigilance) {
+            if (vigilance.length != numChannels) {
+                throw new IllegalArgumentException("Must provide vigilance for all channels");
+            }
+            this.channelVigilance = vigilance.clone();
+            return this;
+        }
+        
+        /**
+         * Set uniform vigilance for all channels.
+         */
+        public Builder uniformVigilance(double vigilance) {
+            for (int i = 0; i < numChannels; i++) {
+                this.channelVigilance[i] = vigilance;
+            }
+            return this;
+        }
+        
+        private void validateChannel(int channel) {
+            if (channel < 0 || channel >= numChannels) {
+                throw new IndexOutOfBoundsException("Invalid channel index: " + channel);
+            }
+        }
+        
+        /**
+         * Build the FusionARTParameters instance.
+         */
+        public FusionARTParameters build() {
+            // Ensure all channel parameters are set
+            if (channelParameters.size() != numChannels || 
+                channelParameters.contains(null)) {
+                throw new IllegalStateException("All channel parameters must be set");
+            }
+            
+            // Ensure channel sizes are set
+            boolean sizeSet = false;
+            for (int size : channelSizes) {
+                if (size > 0) {
+                    sizeSet = true;
+                    break;
+                }
+            }
+            if (!sizeSet) {
+                throw new IllegalStateException("Channel sizes must be set");
+            }
+            
+            return new FusionARTParameters(this);
+        }
+    }
+    
+    @Override
+    public String toString() {
+        var sb = new StringBuilder("FusionARTParameters{");
+        sb.append("numChannels=").append(numChannels);
+        sb.append(", channelWeights=[");
+        for (int i = 0; i < numChannels; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(String.format("%.3f", channelWeights[i]));
+        }
+        sb.append("], channelSizes=[");
+        for (int i = 0; i < numChannels; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(channelSizes[i]);
+        }
+        sb.append("], channelVigilance=[");
+        for (int i = 0; i < numChannels; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(String.format("%.3f", channelVigilance[i]));
+        }
+        sb.append("]}");
+        return sb.toString();
+    }
+}
