@@ -553,4 +553,30 @@ public class SklearnWrapper {
             "Use BinaryFuzzyARTMAP class directly with fit(X, y) and predict(X)."
         );
     }
+    
+    /**
+     * Create a GaussianARTMAP supervised learning wrapper.
+     * Note: GaussianARTMAP is supervised and uses Gaussian distributions for continuous data.
+     * Use GaussianARTMAP class directly with fit(X, y) and predict(X).
+     */
+    public static SklearnWrapper gaussianARTMAP(double vigilance, double[] sigmaInit, double alpha) {
+        // GaussianARTMAP doesn't extend BaseART, so we need a different approach
+        throw new UnsupportedOperationException(
+            "GaussianARTMAP is a supervised algorithm for continuous data and requires labels. " +
+            "Use GaussianARTMAP class directly with fit(X, y) and predict(X)."
+        );
+    }
+    
+    /**
+     * Create a HypersphereARTMAP supervised learning wrapper.
+     * Note: HypersphereARTMAP is supervised and uses spherical clusters with bounded radius.
+     * Use HypersphereARTMAP class directly with fit(X, y) and predict(X).
+     */
+    public static SklearnWrapper hypersphereARTMAP(double vigilance, double alpha, double beta, double rHat) {
+        // HypersphereARTMAP doesn't extend BaseART, so we need a different approach
+        throw new UnsupportedOperationException(
+            "HypersphereARTMAP is a supervised algorithm with spherical clusters and requires labels. " +
+            "Use HypersphereARTMAP class directly with fit(X, y) and predict(X)."
+        );
+    }
 }
