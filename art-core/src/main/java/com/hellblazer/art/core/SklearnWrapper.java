@@ -540,4 +540,17 @@ public class SklearnWrapper {
             "Use FuzzyARTMAP class directly with fit(X, y) and predict(X)."
         );
     }
+    
+    /**
+     * Create a BinaryFuzzyARTMAP supervised learning wrapper.
+     * Note: BinaryFuzzyARTMAP is supervised and optimized for binary data.
+     * Use BinaryFuzzyARTMAP class directly with fit(X, y) and predict(X).
+     */
+    public static SklearnWrapper binaryFuzzyARTMAP(double vigilance, double alpha) {
+        // BinaryFuzzyARTMAP doesn't extend BaseART, so we need a different approach
+        throw new UnsupportedOperationException(
+            "BinaryFuzzyARTMAP is a supervised algorithm for binary data and requires labels. " +
+            "Use BinaryFuzzyARTMAP class directly with fit(X, y) and predict(X)."
+        );
+    }
 }
