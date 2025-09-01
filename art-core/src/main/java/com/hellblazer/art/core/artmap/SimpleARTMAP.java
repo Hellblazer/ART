@@ -26,6 +26,7 @@ import com.hellblazer.art.core.MatchTrackingMode;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.parameters.SimpleARTMAPParameters;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.results.MatchResult;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -205,16 +206,25 @@ public class SimpleARTMAP implements BaseARTMAP {
     /**
      * Predict the class label for a single input pattern.
      * 
+     * Note: This method uses stepPredict which does not check vigilance.
+     * For applications requiring vigilance-based rejection of novel patterns,
+     * consider using a higher-level wrapper or custom prediction logic.
+     * 
      * @param input the input pattern
-     * @param artParams parameters for the ART module
+     * @param artParams parameters for the ART module (only used for activation calculation)
      * @return the predicted class label, or -1 if no match
      */
     public int predict(Pattern input, Object artParams) {
         Objects.requireNonNull(input, "input cannot be null");
         Objects.requireNonNull(artParams, "artParams cannot be null");
         
-        // Use stepFit for non-learning prediction (no actual learning occurs)
-        var result = moduleA.stepFit(input, artParams);
+        // If no categories exist, return -1
+        if (moduleA.getCategoryCount() == 0) {
+            return -1;
+        }
+        
+        // Use stepPredict for non-learning prediction
+        var result = moduleA.stepPredict(input, artParams);
         
         if (result instanceof ActivationResult.Success success) {
             int categoryA = success.categoryIndex();
