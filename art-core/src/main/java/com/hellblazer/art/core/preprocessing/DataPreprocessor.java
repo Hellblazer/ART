@@ -1,6 +1,10 @@
 package com.hellblazer.art.core.preprocessing;
 
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.DenseVector;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DataPreprocessor {
     
@@ -224,6 +228,152 @@ public class DataPreprocessor {
         return new DataBounds(min, max);
     }
     
+    // Pattern-aware methods for working with ART Pattern objects
+    
+    /**
+     * Convert Pattern array to 2D double array.
+     */
+    public static double[][] patternsToArray(Pattern[] patterns) {
+        if (patterns.length == 0) {
+            return new double[0][0];
+        }
+        var data = new double[patterns.length][];
+        for (int i = 0; i < patterns.length; i++) {
+            // Extract data from Pattern - if it's a DenseVector, get its data array
+            if (patterns[i] instanceof DenseVector dv) {
+                data[i] = Arrays.copyOf(dv.data(), dv.data().length);
+            } else {
+                // For other Pattern implementations, extract element by element
+                var dim = patterns[i].dimension();
+                data[i] = new double[dim];
+                for (int j = 0; j < dim; j++) {
+                    data[i][j] = patterns[i].get(j);
+                }
+            }
+        }
+        return data;
+    }
+    
+    /**
+     * Convert 2D double array to Pattern array.
+     */
+    public static Pattern[] arrayToPatterns(double[][] data) {
+        var patterns = new Pattern[data.length];
+        for (int i = 0; i < data.length; i++) {
+            patterns[i] = Pattern.of(data[i]);
+        }
+        return patterns;
+    }
+    
+    /**
+     * Apply complement coding to Pattern arrays.
+     */
+    public Pattern[] complementCode(Pattern[] patterns) {
+        var data = patternsToArray(patterns);
+        var complemented = complementCode(data);
+        return arrayToPatterns(complemented);
+    }
+    
+    /**
+     * Fit the preprocessor to data and transform it.
+     */
+    public Pattern[] fitTransform(Pattern[] patterns) {
+        if (pipeline != null) {
+            var data = patternsToArray(patterns);
+            var processed = pipeline.fit(data);
+            processed = pipeline.transform(processed);
+            return arrayToPatterns(processed);
+        }
+        // Default: just apply complement coding for ART algorithms
+        return complementCode(patterns);
+    }
+    
+    /**
+     * Transform data using fitted parameters.
+     */
+    public Pattern[] transform(Pattern[] patterns) {
+        if (pipeline != null) {
+            var data = patternsToArray(patterns);
+            var processed = pipeline.transform(data);
+            return arrayToPatterns(processed);
+        }
+        // Default: just apply complement coding
+        return complementCode(patterns);
+    }
+    
+    private Pipeline pipeline;
+    
+    /**
+     * Create a builder for configuring the preprocessor.
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+    
+    /**
+     * Enhanced builder for creating configured DataPreprocessor instances.
+     */
+    public static class Builder {
+        private final List<PipelineStep> steps = new ArrayList<>();
+        private boolean normalizeFirst = false;
+        private double[] min;
+        private double[] max;
+        
+        public Builder addNormalization() {
+            normalizeFirst = true;
+            return this;
+        }
+        
+        public Builder addNormalization(double[] min, double[] max) {
+            normalizeFirst = true;
+            this.min = min;
+            this.max = max;
+            return this;
+        }
+        
+        public Builder addComplementCoding() {
+            steps.add(new PipelineStep(PreprocessingStep.COMPLEMENT_CODE, new Object[0]));
+            return this;
+        }
+        
+        public Builder addL1Normalization() {
+            steps.add(new PipelineStep(PreprocessingStep.L1_NORMALIZE, new Object[0]));
+            return this;
+        }
+        
+        public Builder addL2Normalization() {
+            steps.add(new PipelineStep(PreprocessingStep.L2_NORMALIZE, new Object[0]));
+            return this;
+        }
+        
+        public Builder handleMissingValues(MissingValueStrategy strategy) {
+            steps.add(new PipelineStep(PreprocessingStep.HANDLE_MISSING, new Object[]{strategy}));
+            return this;
+        }
+        
+        public DataPreprocessor build() {
+            var preprocessor = new DataPreprocessor();
+            
+            // Build the pipeline with the configured steps
+            var allSteps = new ArrayList<PipelineStep>();
+            
+            // Add normalization first if requested
+            if (normalizeFirst) {
+                allSteps.add(new PipelineStep(PreprocessingStep.NORMALIZE, 
+                    min != null ? new Object[]{min, max} : new Object[0]));
+            }
+            
+            // Add all other steps
+            allSteps.addAll(steps);
+            
+            if (!allSteps.isEmpty()) {
+                preprocessor.pipeline = new Pipeline(allSteps);
+            }
+            
+            return preprocessor;
+        }
+    }
+    
     public PipelineBuilder createPipeline() {
         return new PipelineBuilder();
     }
@@ -244,20 +394,46 @@ public class DataPreprocessor {
     public static class Pipeline {
         private final java.util.List<PipelineStep> steps;
         private final DataPreprocessor preprocessor;
+        private NormalizedData normalizedData;
         
         Pipeline(java.util.List<PipelineStep> steps) {
             this.steps = steps;
             this.preprocessor = new DataPreprocessor();
         }
         
-        public double[][] process(double[][] data) {
+        public double[][] fit(double[][] data) {
+            // Store normalization parameters if normalization is used
+            for (var step : steps) {
+                if (step.type == PreprocessingStep.NORMALIZE) {
+                    if (step.params.length >= 2) {
+                        // Use provided min/max
+                        var min = (double[]) step.params[0];
+                        var max = (double[]) step.params[1];
+                        normalizedData = preprocessor.normalize(data, min, max);
+                    } else {
+                        // Compute min/max from data
+                        normalizedData = preprocessor.normalize(data);
+                    }
+                    break;
+                }
+            }
+            return data;
+        }
+        
+        public double[][] transform(double[][] data) {
             var result = data;
             
             for (var step : steps) {
                 result = switch (step.type) {
                     case NORMALIZE -> {
-                        var normalized = preprocessor.normalize(result);
-                        yield normalized.normalized();
+                        if (normalizedData != null) {
+                            var normalized = preprocessor.normalize(result, 
+                                normalizedData.min(), normalizedData.max());
+                            yield normalized.normalized();
+                        } else {
+                            var normalized = preprocessor.normalize(result);
+                            yield normalized.normalized();
+                        }
                     }
                     case COMPLEMENT_CODE -> preprocessor.complementCode(result);
                     case L1_NORMALIZE -> preprocessor.l1Normalize(result);
@@ -272,9 +448,14 @@ public class DataPreprocessor {
             
             return result;
         }
+        
+        public double[][] process(double[][] data) {
+            fit(data);
+            return transform(data);
+        }
     }
     
-    private record PipelineStep(PreprocessingStep type, Object[] params) {}
+    static record PipelineStep(PreprocessingStep type, Object[] params) {}
 }
 
 enum MissingValueStrategy {

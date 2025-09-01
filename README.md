@@ -123,6 +123,7 @@ var vectorizedNetwork = new VectorizedFuzzyART(parameters);
 | Algorithm | Use Case | Key Feature |
 |-----------|----------|-------------|
 | ARTMAP | Classification | Match tracking |
+| FuzzyARTMAP | Fuzzy classification | Fuzzy match tracking |
 | DeepARTMAP | Hierarchical learning | Multi-layer processing |
 
 ## Performance

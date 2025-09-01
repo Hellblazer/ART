@@ -1,12 +1,17 @@
 package com.hellblazer.art.core.algorithms;
 
 import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.parameters.MutableFuzzyParameters;
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.WeightVector;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.results.MatchResult;
-import com.hellblazer.art.core.weights.FuzzyWeight;import com.hellblazer.art.core.weights.FuzzyWeight;import java.util.Objects;
+import com.hellblazer.art.core.weights.FuzzyWeight;
+import com.hellblazer.art.core.ActivationCache;
+import com.hellblazer.art.core.MatchTrackingMode;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * FuzzyART implementation using the BaseART template framework.
@@ -58,8 +63,14 @@ public final class FuzzyART extends BaseART {
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof FuzzyParameters fuzzyParams)) {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters, got: " + 
+        // Support both mutable and immutable parameters
+        double alpha;
+        if (parameters instanceof FuzzyParameters fuzzyParams) {
+            alpha = fuzzyParams.alpha();
+        } else if (parameters instanceof MutableFuzzyParameters mutableParams) {
+            alpha = mutableParams.alpha();
+        } else {
+            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
                 parameters.getClass().getSimpleName());
         }
         
@@ -78,7 +89,7 @@ public final class FuzzyART extends BaseART {
         var intersectionNorm = intersection.l1Norm();
         
         // Choice function: T_j = |I ∧ w_j| / (α + |w_j|)
-        var denominator = fuzzyParams.alpha() + weightVector.l1Norm();
+        var denominator = alpha + weightVector.l1Norm();
         
         // Avoid division by zero (shouldn't happen with valid parameters)
         if (denominator == 0.0) {
@@ -112,8 +123,14 @@ public final class FuzzyART extends BaseART {
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof FuzzyParameters fuzzyParams)) {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters, got: " + 
+        // Support both mutable and immutable parameters
+        double vigilance;
+        if (parameters instanceof FuzzyParameters fuzzyParams) {
+            vigilance = fuzzyParams.vigilance();
+        } else if (parameters instanceof MutableFuzzyParameters mutableParams) {
+            vigilance = mutableParams.vigilance();
+        } else {
+            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
                 parameters.getClass().getSimpleName());
         }
         
@@ -143,10 +160,10 @@ public final class FuzzyART extends BaseART {
         var matchRatio = intersectionNorm / inputNorm;
         
         // Test against vigilance parameter
-        if (matchRatio >= fuzzyParams.vigilance()) {
-            return new MatchResult.Accepted(matchRatio, fuzzyParams.vigilance());
+        if (matchRatio >= vigilance) {
+            return new MatchResult.Accepted(matchRatio, vigilance);
         } else {
-            return new MatchResult.Rejected(matchRatio, fuzzyParams.vigilance());
+            return new MatchResult.Rejected(matchRatio, vigilance);
         }
     }
     
@@ -175,8 +192,9 @@ public final class FuzzyART extends BaseART {
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof FuzzyParameters)) {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters, got: " + 
+        // Accept both mutable and immutable parameters for update
+        if (!(parameters instanceof FuzzyParameters) && !(parameters instanceof MutableFuzzyParameters)) {
+            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
                 parameters.getClass().getSimpleName());
         }
         
@@ -223,5 +241,134 @@ public final class FuzzyART extends BaseART {
     @Override
     public String toString() {
         return "FuzzyART{categories=" + getCategoryCount() + "}";
+    }
+    
+    /**
+     * Override checkVigilance to store match ratio in cache for match tracking.
+     */
+    @Override
+    protected VigilanceWithCache checkVigilanceWithCache(
+            Pattern input, WeightVector weight, Object parameters, 
+            ActivationCache cache, java.util.function.BinaryOperator<Double> mtOperator) {
+        
+        var result = checkVigilance(input, weight, parameters);
+        
+        // Create or update cache data with match ratio
+        var cacheData = new java.util.HashMap<String, Object>();
+        cache.getData().ifPresent(data -> {
+            if (data instanceof Map<?, ?> map) {
+                @SuppressWarnings("unchecked")
+                var mapTyped = (Map<String, Object>) map;
+                cacheData.putAll(mapTyped);
+            }
+        });
+        
+        // Store match ratio in cache for match tracking
+        if (result instanceof MatchResult.Accepted accepted) {
+            cacheData.put("matchRatio", accepted.matchValue());
+        } else if (result instanceof MatchResult.Rejected rejected) {
+            cacheData.put("matchRatio", rejected.matchValue());
+        }
+        
+        // Create new cache with the data
+        var newCache = cache.withData(cacheData);
+        
+        return new VigilanceWithCache(result, newCache);
+    }
+    
+    
+    /**
+     * Create a deep copy of parameters for match tracking.
+     */
+    @Override
+    protected Object deepCopyParams(Object parameters) {
+        if (parameters instanceof FuzzyParameters fuzzyParams) {
+            // Create mutable copy for match tracking
+            return new MutableFuzzyParameters(fuzzyParams);
+        } else if (parameters instanceof MutableFuzzyParameters mutableParams) {
+            // Already mutable, create a copy
+            return new MutableFuzzyParameters(mutableParams.toImmutable());
+        }
+        return parameters;
+    }
+    
+    /**
+     * Restore parameters from saved copy.
+     */
+    @Override
+    protected void restoreParams(Object savedParams, Object currentParams) {
+        // Restore mutable parameters from saved copy
+        if (currentParams instanceof MutableFuzzyParameters current && 
+            savedParams instanceof MutableFuzzyParameters saved) {
+            current.setVigilance(saved.vigilance());
+        }
+    }
+    
+    /**
+     * Apply match tracking logic for FuzzyART.
+     * Adjusts the vigilance parameter based on the match tracking mode.
+     * 
+     * @param cache the activation cache containing match criterion value
+     * @param epsilon the epsilon value for adjustment
+     * @param parameters the algorithm parameters (must be FuzzyParameters)
+     * @param mode the match tracking mode
+     * @return true to continue searching, false to stop
+     */
+    @Override
+    protected boolean applyMatchTracking(
+            ActivationCache cache, double epsilon, Object parameters, MatchTrackingMode mode) {
+        
+        // Support both mutable and immutable parameters
+        if (parameters instanceof MutableFuzzyParameters mutableParams) {
+            // Already mutable, just update it directly
+            Double matchCriterion = cache.getData()
+                .map(map -> {
+                    @SuppressWarnings("unchecked")
+                    var mapTyped = (Map<String, Object>) map;
+                    return (Double) mapTyped.get("matchRatio");
+                })
+                .orElse(null);
+            if (matchCriterion == null) {
+                return true;
+            }
+            
+            switch (mode) {
+                case MT_PLUS:
+                    double newVigilance = Math.min(1.0, matchCriterion + epsilon);
+                    mutableParams.setVigilance(newVigilance);
+                    return true;
+                case MT_MINUS:
+                    mutableParams.setVigilance(Math.max(0.0, matchCriterion - epsilon));
+                    return true;
+                case MT_ZERO:
+                    mutableParams.setVigilance(matchCriterion);
+                    return true;
+                case MT_ONE:
+                    mutableParams.setVigilance(1.0);
+                    return false;
+                case MT_COMPLEMENT:
+                    return true;
+                default:
+                    return true;
+            }
+        } else if (!(parameters instanceof FuzzyParameters)) {
+            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters");
+        }
+        
+        // Get the match criterion value from cache
+        Double matchCriterion = cache.getData()
+            .map(map -> {
+                @SuppressWarnings("unchecked")
+                var mapTyped = (Map<String, Object>) map;
+                return (Double) mapTyped.get("matchRatio");
+            })
+            .orElse(null);
+        if (matchCriterion == null) {
+            // If no match ratio in cache, continue searching
+            return true;
+        }
+        
+        // Should not reach here - immutable parameters should have been converted to mutable
+        return true;
     }
 }

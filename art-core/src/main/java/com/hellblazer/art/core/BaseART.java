@@ -83,12 +83,17 @@ public abstract class BaseART {
         
         // Step 1: Handle empty categories - create first category
         if (categories.isEmpty()) {
-            var newWeight = createInitialWeight(input, parameters);
-            categories.add(newWeight);
-            categoryUsageCount.add(1L);
-            categoryLastUsedTimestamp.add(System.currentTimeMillis());
-            totalActivations++;
-            return new ActivationResult.Success(0, 1.0, newWeight);
+            synchronized (categories) {
+                // Double-check after acquiring lock
+                if (categories.isEmpty()) {
+                    var newWeight = createInitialWeight(input, parameters);
+                    categories.add(newWeight);
+                    categoryUsageCount.add(1L);
+                    categoryLastUsedTimestamp.add(System.currentTimeMillis());
+                    totalActivations++;
+                    return new ActivationResult.Success(0, 1.0, newWeight);
+                }
+            }
         }
         
         // Step 2: Calculate activations, applying match reset filtering if specified
@@ -163,14 +168,16 @@ public abstract class BaseART {
         }
         
         // Step 4: All categories failed - create new category
-        var newWeight = createInitialWeight(input, parameters);
-        categories.add(newWeight);
-        categoryUsageCount.add(1L);
-        categoryLastUsedTimestamp.add(System.currentTimeMillis());
-        totalActivations++;
-        var newIndex = categories.size() - 1;
-        restoreParams(baseParams, parameters);
-        return new ActivationResult.Success(newIndex, 1.0, newWeight);
+        synchronized (categories) {
+            var newWeight = createInitialWeight(input, parameters);
+            categories.add(newWeight);
+            categoryUsageCount.add(1L);
+            categoryLastUsedTimestamp.add(System.currentTimeMillis());
+            totalActivations++;
+            var newIndex = categories.size() - 1;
+            restoreParams(baseParams, parameters);
+            return new ActivationResult.Success(newIndex, 1.0, newWeight);
+        }
     }
     
     // ==================== PYTHON-COMPATIBLE HELPER METHODS ====================

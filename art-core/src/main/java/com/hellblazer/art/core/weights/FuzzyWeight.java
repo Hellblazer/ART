@@ -108,8 +108,14 @@ public record FuzzyWeight(double[] data, int originalDimension) implements Weigh
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof FuzzyParameters fuzzyParams)) {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters, got: " + 
+        // Support both FuzzyParameters and MutableFuzzyParameters
+        double beta;
+        if (parameters instanceof FuzzyParameters fuzzyParams) {
+            beta = fuzzyParams.beta();
+        } else if (parameters instanceof com.hellblazer.art.core.parameters.MutableFuzzyParameters mutableParams) {
+            beta = mutableParams.beta();
+        } else {
+            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
                 parameters.getClass().getSimpleName());
         }
         
@@ -117,8 +123,6 @@ public record FuzzyWeight(double[] data, int originalDimension) implements Weigh
             throw new IllegalArgumentException("Input dimension " + input.dimension() + 
                 " must match weight dimension " + data.length);
         }
-        
-        var beta = fuzzyParams.beta();
         var newData = new double[data.length];
         
         // Apply fuzzy learning rule: β * min(input, weight) + (1-β) * weight

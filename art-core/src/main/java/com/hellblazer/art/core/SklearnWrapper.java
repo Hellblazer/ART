@@ -524,4 +524,20 @@ public class SklearnWrapper {
         );
         return new SklearnWrapper(new EllipsoidART(params), params);
     }
+    
+    /**
+     * Create a FuzzyARTMAP supervised learning wrapper.
+     * Note: FuzzyARTMAP is supervised, so use fit(X, y) instead of fit(X).
+     */
+    public static SklearnWrapper fuzzyARTMAP(double vigilance, double alpha, double beta, double epsilon) {
+        var params = new com.hellblazer.art.core.parameters.FuzzyARTMAPParameters(
+            vigilance, alpha, beta, epsilon
+        );
+        // FuzzyARTMAP doesn't extend BaseART, so we need a different approach
+        // For now, return null as FuzzyARTMAP needs different wrapper
+        throw new UnsupportedOperationException(
+            "FuzzyARTMAP is a supervised algorithm and requires labels. " +
+            "Use FuzzyARTMAP class directly with fit(X, y) and predict(X)."
+        );
+    }
 }
