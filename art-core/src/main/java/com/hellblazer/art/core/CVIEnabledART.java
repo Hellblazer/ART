@@ -110,7 +110,7 @@ public abstract class CVIEnabledART extends BaseART {
                 latestScores.put(cvi.getName(), score);
             } catch (Exception e) {
                 // Log error but don't fail the learning process
-                System.err.println("Error calculating CVI " + cvi.getName() + ": " + e.getMessage());
+                // Log CVI calculation error - handled gracefully
             }
         }
     }

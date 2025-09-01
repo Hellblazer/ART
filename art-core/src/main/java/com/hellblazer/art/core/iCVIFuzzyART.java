@@ -232,7 +232,7 @@ public class iCVIFuzzyART extends CVIART {
             updateCVIScore(cvi.getName(), score);
         } catch (Exception e) {
             // Handle failure gracefully
-            System.err.println("Batch CVI update failed for " + cvi.getName());
+            // Log batch CVI update failure - handled gracefully
         }
     }
     

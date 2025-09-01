@@ -3,6 +3,7 @@ package com.hellblazer.art.core;
 import com.hellblazer.art.core.algorithms.FusionART;
 import com.hellblazer.art.core.algorithms.FuzzyART;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.results.ActivationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -188,12 +189,15 @@ class FusionARTReferenceTest {
         
         // Predict with the same pattern
         var prediction = fusionART.stepPredict(trainPattern, params);
-        assertEquals(0, prediction); // Should predict the first category
+        assertNotNull(prediction);
+        assertTrue(prediction instanceof ActivationResult.Success);
+        assertEquals(0, ((ActivationResult.Success) prediction).categoryIndex()); // Should predict the first category
         
         // Predict with a slightly different pattern
         var testPattern = generateSimilarPattern(trainPattern, 0.05, random);
         var testPrediction = fusionART.stepPredict(testPattern, params);
         assertNotNull(testPrediction);
+        assertTrue(testPrediction instanceof ActivationResult.Success);
     }
     
     @Test

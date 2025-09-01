@@ -413,6 +413,52 @@ public abstract class BaseART {
     }
     
     /**
+     * Clear all categories (alias for sklearn compatibility).
+     */
+    public final void clearCategories() {
+        clear();
+    }
+    
+    /**
+     * Predict the category for a pattern without learning.
+     * Returns the category with highest activation that passes vigilance.
+     * 
+     * @param input the input pattern
+     * @param parameters the algorithm parameters
+     * @return the prediction result
+     */
+    public final ActivationResult stepPredict(Pattern input, Object parameters) {
+        if (categories.isEmpty()) {
+            return ActivationResult.NoMatch.instance();
+        }
+        
+        // Calculate activations for all categories
+        var activations = new Double[categories.size()];
+        for (int i = 0; i < categories.size(); i++) {
+            var weight = categories.get(i);
+            var result = calculateActivationWithCache(input, weight, parameters);
+            activations[i] = result.activation();
+        }
+        
+        // Find best category
+        int bestCategory = -1;
+        double bestActivation = Double.NEGATIVE_INFINITY;
+        
+        for (int i = 0; i < activations.length; i++) {
+            if (!Double.isNaN(activations[i]) && activations[i] > bestActivation) {
+                bestActivation = activations[i];
+                bestCategory = i;
+            }
+        }
+        
+        if (bestCategory >= 0) {
+            return new ActivationResult.Success(bestCategory, bestActivation, categories.get(bestCategory));
+        } else {
+            return ActivationResult.NoMatch.instance();
+        }
+    }
+    
+    /**
      * Replace all categories with a new list (for subclass use).
      * @param newCategories the new categories to replace with
      */

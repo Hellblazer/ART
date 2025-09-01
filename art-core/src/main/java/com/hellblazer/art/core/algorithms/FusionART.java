@@ -335,9 +335,10 @@ public class FusionART extends BaseART {
     
     /**
      * Step predict - returns category index.
+     * Renamed to avoid conflict with final method in BaseART.
      */
-    public int stepPredict(Pattern input, Object parameters) {
-        var result = stepFit(input, parameters);
+    public int predictCategoryIndex(Pattern input, Object parameters) {
+        var result = stepPredict(input, parameters);
         if (result instanceof ActivationResult.Success success) {
             return success.categoryIndex();
         }

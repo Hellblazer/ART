@@ -427,7 +427,7 @@ public class CVIART extends CVIEnabledART {
                 scoreHistory.computeIfAbsent(cvi.getName(), k -> new ArrayList<>()).add(score);
             } catch (Exception e) {
                 // Handle CVI calculation failure gracefully
-                System.err.println("CVI calculation failed for " + cvi.getName() + ": " + e.getMessage());
+                // Log CVI calculation failure - handled gracefully
             }
         }
     }

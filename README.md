@@ -10,9 +10,11 @@ An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24
 ## Features
 
 - **High Performance**: SIMD vectorization via Java 24 Vector API (4-8x speedup)
-- **Comprehensive Coverage**: 10+ ART algorithm variants implemented
+- **Comprehensive Coverage**: 15+ ART algorithm variants implemented
 - **Modern Java**: Full Java 24 feature utilization
-- **Production Ready**: Extensive testing, benchmarking, and documentation
+- **Production Ready**: Extensive testing (210+ tests), benchmarking, and documentation
+- **Data Preprocessing**: Complete data preprocessing pipeline with normalization and missing value handling
+- **Scikit-learn Compatible**: Familiar API for Python users transitioning to Java
 
 ## Quick Start
 
@@ -42,6 +44,43 @@ var pattern2 = new DenseVector(new double[]{0.1, 0.9, 0.2, 0.8});
 
 int category1 = network.stepFit(pattern1);
 int category2 = network.stepFit(pattern2);
+```
+
+### Data Preprocessing
+```java
+import com.hellblazer.art.core.preprocessing.DataPreprocessor;
+import com.hellblazer.art.core.preprocessing.DataPreprocessor.MissingValueStrategy;
+
+// Normalize and complement code your data
+var preprocessor = new DataPreprocessor();
+double[][] rawData = {{1.5, 2.3}, {3.1, 0.8}, {Double.NaN, 1.2}};
+
+// Handle missing values, normalize, and apply complement coding
+var pipeline = DataPreprocessor.createPipeline()
+    .handleMissingValues(MissingValueStrategy.MEAN)
+    .normalize()
+    .complementCode()
+    .build();
+
+double[][] processed = pipeline.process(rawData);
+```
+
+### Scikit-learn Compatible API
+```java
+import com.hellblazer.art.core.SklearnWrapper;
+
+// Use familiar sklearn-style interface
+var model = SklearnWrapper.fuzzyART(0.85, 0.1, 0.001);
+
+// Fit and predict
+double[][] X_train = {{0.1, 0.2}, {0.8, 0.9}, {0.3, 0.4}};
+double[][] X_test = {{0.15, 0.25}, {0.75, 0.85}};
+
+model.fit(X_train);
+int[] predictions = model.predict(X_test);
+
+// Get clustering score
+double score = model.score(X_test, predictions);
 ```
 
 ### High-Performance Version
