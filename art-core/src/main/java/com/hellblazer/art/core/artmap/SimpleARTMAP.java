@@ -20,55 +20,73 @@ package com.hellblazer.art.core.artmap;
 
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.BaseARTMAP;
+import com.hellblazer.art.core.MatchResetFunction;
+import com.hellblazer.art.core.MatchTrackingMethod;
+import com.hellblazer.art.core.MatchTrackingMode;
 import com.hellblazer.art.core.Pattern;
-import com.hellblazer.art.core.algorithms.FuzzyART;
-import com.hellblazer.art.core.algorithms.BayesianART;
-import com.hellblazer.art.core.algorithms.ART2;
-import com.hellblazer.art.core.parameters.FuzzyParameters;
-import com.hellblazer.art.core.parameters.BayesianParameters;
-import com.hellblazer.art.core.parameters.ART2Parameters;
+import com.hellblazer.art.core.parameters.SimpleARTMAPParameters;
 import com.hellblazer.art.core.results.ActivationResult;
-import com.hellblazer.art.core.utils.Matrix;
+import com.hellblazer.art.core.results.MatchResult;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
- * SimpleARTMAP implementation for supervised hierarchical learning.
+ * SimpleARTMAP implementation for supervised classification.
  * 
- * SimpleARTMAP is a simplified version of ARTMAP that uses a single ART module
- * to learn direct mappings between input patterns and class labels. It is used
- * in DeepARTMAP for supervised learning layers where each layer maps input data
- * to categorical outputs.
+ * SimpleARTMAP is a simplified version of ARTMAP that uses:
+ * - A single ART module (module_a) for clustering input patterns
+ * - A map field that maintains many-to-one mappings from clusters to labels
+ * - Match tracking to handle label conflicts by adjusting vigilance
  * 
- * This implementation provides complete ARTMAP functionality for supervised learning.
+ * When a pattern activates a cluster that maps to a different label,
+ * match tracking increases the vigilance to force the search for a new cluster.
  * 
  * @author Hal Hildebrand
  */
-public final class SimpleARTMAP implements BaseARTMAP {
+public class SimpleARTMAP implements BaseARTMAP {
     
-    private final BaseART artModule;
-    private boolean trained;
-    private int categoryCount;
+    private final BaseART moduleA;
+    private final SimpleARTMAPParameters mapParameters;
+    private final Map<Integer, Integer> mapField;  // cluster_id -> class_label
+    private boolean matchTrackingOccurred;
+    private double adjustedVigilance;
+    private boolean trained = false;
     
     /**
-     * Create a new SimpleARTMAP with the specified ART module.
+     * Create a new SimpleARTMAP with the specified ART module and parameters.
      * 
-     * @param artModule the ART module to use for pattern processing
-     * @throws IllegalArgumentException if artModule is null
+     * @param moduleA the ART module to use for clustering
+     * @param mapParameters the SimpleARTMAP parameters
      */
-    public SimpleARTMAP(BaseART artModule) {
-        this.artModule = Objects.requireNonNull(artModule, "artModule cannot be null");
-        this.trained = false;
-        this.categoryCount = 0;
+    public SimpleARTMAP(BaseART moduleA, SimpleARTMAPParameters mapParameters) {
+        this.moduleA = Objects.requireNonNull(moduleA, "moduleA cannot be null");
+        this.mapParameters = Objects.requireNonNull(mapParameters, "mapParameters cannot be null");
+        this.mapField = new HashMap<>();
+        this.matchTrackingOccurred = false;
+        this.adjustedVigilance = 0.0;
     }
     
     /**
-     * Get the underlying ART module.
+     * Get the underlying ART module A.
      * 
      * @return the ART module
      */
-    public BaseART getArtModule() {
-        return artModule;
+    public BaseART getModuleA() {
+        return moduleA;
     }
+    
+    /**
+     * Get the size of the map field.
+     * 
+     * @return number of cluster-to-label mappings
+     */
+    public int getMapFieldSize() {
+        return mapField.size();
+    }
+    
+    // BaseARTMAP interface implementation
     
     @Override
     public boolean isTrained() {
@@ -77,232 +95,168 @@ public final class SimpleARTMAP implements BaseARTMAP {
     
     @Override
     public int getCategoryCount() {
-        return categoryCount;
+        return moduleA.getCategoryCount();
     }
     
     @Override
     public void clear() {
-        artModule.clear();
+        mapField.clear();
+        moduleA.clear();
         trained = false;
-        categoryCount = 0;
+        matchTrackingOccurred = false;
+        adjustedVigilance = 0.0;
     }
     
     /**
-     * Fit SimpleARTMAP with input patterns and corresponding labels.
-     * For unsupervised learning, labels can be null.
-     * 
-     * @param data the input patterns
-     * @param labels the class labels (can be null for unsupervised learning)
-     * @return this SimpleARTMAP instance for method chaining
+     * Result of a training step.
      */
-    public SimpleARTMAP fit(Pattern[] data, int[] labels) {
-        if (data == null) {
-            throw new IllegalArgumentException("data cannot be null");
-        }
-        if (labels != null && data.length != labels.length) {
-            throw new IllegalArgumentException("data and labels must have same length");
-        }
-        
-        // Train the underlying ART module with the patterns using stepFit
-        for (int i = 0; i < data.length; i++) {
-            // Use default parameters - we'll need to determine the correct parameter type
-            artModule.stepFit(data[i], createDefaultParameters());
-        }
-        
-        // Update state
-        trained = true;
-        categoryCount = artModule.getCategoryCount();
-        
-        return this;
-    }
-
-    /**
-     * Fit SimpleARTMAP with input patterns and corresponding labels using provided parameters.
-     * For unsupervised learning, labels can be null.
-     * 
-     * @param data the input patterns
-     * @param labels the class labels (can be null for unsupervised learning)
-     * @param parameters the parameters to use for training
-     * @return this SimpleARTMAP instance for method chaining
-     */
-    public SimpleARTMAP fit(Pattern[] data, int[] labels, Object parameters) {
-        if (data == null) {
-            throw new IllegalArgumentException("data cannot be null");
-        }
-        if (labels != null && data.length != labels.length) {
-            throw new IllegalArgumentException("data and labels must have same length");
-        }
-        if (parameters == null) {
-            throw new IllegalArgumentException("parameters cannot be null");
-        }
-        
-        // Train the underlying ART module with the patterns using stepFit
-        for (int i = 0; i < data.length; i++) {
-            artModule.stepFit(data[i], parameters);
-        }
-        
-        // Update state
-        trained = true;
-        categoryCount = artModule.getCategoryCount();
-        
-        return this;
-    }
+    public record TrainResult(
+        int categoryA,
+        int predictedLabel,
+        boolean matchTrackingOccurred,
+        double adjustedVigilance
+    ) {}
     
     /**
-     * Partially fit SimpleARTMAP with additional data.
-     * For unsupervised learning, labels can be null.
+     * Train on a single input pattern with its label.
      * 
-     * @param data the input patterns
-     * @param labels the class labels (can be null for unsupervised learning)
-     * @return this SimpleARTMAP instance for method chaining
+     * @param input the input pattern
+     * @param label the class label
+     * @param artParams parameters for the ART module
+     * @return the training result
      */
-    public SimpleARTMAP partialFit(Pattern[] data, int[] labels) {
-        if (data == null) {
-            throw new IllegalArgumentException("data cannot be null");
-        }
-        if (labels != null && data.length != labels.length) {
-            throw new IllegalArgumentException("data and labels must have same length");
-        }
+    public TrainResult train(Pattern input, int label, Object artParams) {
+        Objects.requireNonNull(input, "input cannot be null");
+        Objects.requireNonNull(artParams, "artParams cannot be null");
         
-        // Continue training the underlying ART module using stepFit
-        for (int i = 0; i < data.length; i++) {
-            artModule.stepFit(data[i], createDefaultParameters());
-        }
+        matchTrackingOccurred = false;
+        adjustedVigilance = 0.0;
         
-        // Update state
-        trained = true;
-        categoryCount = artModule.getCategoryCount();
+        // Use match reset function to handle label conflicts
+        MatchResetFunction matchResetFunc = (inputPattern, weight, categoryIndex, params, cache) -> {
+            // Check if this category has a conflicting label
+            if (mapField.containsKey(categoryIndex)) {
+                int existingLabel = mapField.get(categoryIndex);
+                if (existingLabel != label) {
+                    // Reject this category - it has a different label
+                    matchTrackingOccurred = true;
+                    return false;
+                }
+            }
+            // Accept this category
+            return true;
+        };
         
-        return this;
-    }
-
-    /**
-     * Partially fit SimpleARTMAP with additional data using provided parameters.
-     * For unsupervised learning, labels can be null.
-     * 
-     * @param data the input patterns
-     * @param labels the class labels (can be null for unsupervised learning)
-     * @param parameters the parameters to use for training
-     * @return this SimpleARTMAP instance for method chaining
-     */
-    public SimpleARTMAP partialFit(Pattern[] data, int[] labels, Object parameters) {
-        if (data == null) {
-            throw new IllegalArgumentException("data cannot be null");
-        }
-        if (labels != null && data.length != labels.length) {
-            throw new IllegalArgumentException("data and labels must have same length");
-        }
-        if (parameters == null) {
-            throw new IllegalArgumentException("parameters cannot be null");
-        }
+        // Use stepFit with match reset function and match tracking
+        var result = moduleA.stepFit(
+            input, 
+            artParams, 
+            matchResetFunc,
+            MatchTrackingMode.MT_PLUS,
+            mapParameters.epsilon()
+        );
         
-        // Continue training the underlying ART module using stepFit
-        for (int i = 0; i < data.length; i++) {
-            artModule.stepFit(data[i], parameters);
-        }
-        
-        // Update state
-        trained = true;
-        categoryCount = artModule.getCategoryCount();
-        
-        return this;
-    }
-    
-    /**
-     * Predict class labels for new input patterns.
-     * 
-     * @param data the input patterns for prediction
-     * @return array of predicted class labels
-     */
-    public int[] predict(Pattern[] data) {
-        if (!trained) {
-            throw new IllegalStateException("SimpleARTMAP must be trained before prediction");
-        }
-        if (data == null) {
-            throw new IllegalArgumentException("data cannot be null");
-        }
-        
-        var predictions = new int[data.length];
-        for (int i = 0; i < data.length; i++) {
-            // Use stepFit for prediction (no learning) - this returns the activated category
-            var result = artModule.stepFit(data[i], createDefaultParameters());
-            if (result instanceof ActivationResult.Success success) {
-                predictions[i] = success.categoryIndex();
+        if (result instanceof ActivationResult.Success success) {
+            int categoryA = success.categoryIndex();
+            
+            // Create or verify the mapping
+            if (!mapField.containsKey(categoryA)) {
+                mapField.put(categoryA, label);
             } else {
-                // If no successful activation, return 0 as default
-                predictions[i] = 0;
+                // Verify the mapping is correct (should always be true due to match reset func)
+                assert mapField.get(categoryA) == label : "Label mismatch after match tracking";
             }
-        }
-        
-        return predictions;
-    }
-
-    /**
-     * Predict class labels for new input patterns using provided parameters.
-     * 
-     * @param data the input patterns for prediction
-     * @param parameters the parameters to use for prediction
-     * @return array of predicted class labels
-     */
-    public int[] predict(Pattern[] data, Object parameters) {
-        if (!trained) {
-            throw new IllegalStateException("SimpleARTMAP must be trained before prediction");
-        }
-        if (data == null) {
-            throw new IllegalArgumentException("data cannot be null");
-        }
-        if (parameters == null) {
-            throw new IllegalArgumentException("parameters cannot be null");
-        }
-        
-        var predictions = new int[data.length];
-        for (int i = 0; i < data.length; i++) {
-            // Use stepFit for prediction (no learning) - this returns the activated category
-            var result = artModule.stepFit(data[i], parameters);
-            if (result instanceof ActivationResult.Success success) {
-                predictions[i] = success.categoryIndex();
-            } else {
-                // If no successful activation, return 0 as default
-                predictions[i] = 0;
+            
+            trained = true;
+            
+            // If match tracking occurred, adjust the vigilance
+            if (matchTrackingOccurred) {
+                adjustedVigilance = mapParameters.mapFieldVigilance() + mapParameters.epsilon();
             }
-        }
-        
-        return predictions;
-    }
-    
-    /**
-     * Create default parameters for the underlying ART module.
-     * Since SimpleARTMAP can work with different ART types, we need to 
-     * determine the appropriate parameter type dynamically.
-     * 
-     * @return appropriate default parameters for the ART module
-     */
-    private Object createDefaultParameters() {
-        // Check the type of the underlying ART module and return appropriate parameters
-        var className = artModule.getClass().getSimpleName();
-        
-        if (className.startsWith("Vectorized")) {
-            // For any vectorized ART module, use VectorizedParameters
-            try {
-                // Use reflection to get VectorizedParameters.createDefault()
-                var vectorizedParamsClass = Class.forName("com.hellblazer.art.algorithms.VectorizedParameters");
-                var createDefaultMethod = vectorizedParamsClass.getMethod("createDefault");
-                return createDefaultMethod.invoke(null);
-            } catch (Exception e) {
-                // Fallback if VectorizedParameters is not available
-                return FuzzyParameters.defaults();
-            }
-        } else if (artModule instanceof FuzzyART) {
-            return FuzzyParameters.defaults();
-        } else if (artModule instanceof BayesianART) {
-            // Create default BayesianParameters - simple 1D case
-            return new BayesianParameters(0.9, new double[]{0.0}, Matrix.eye(1), 1.0, 1.0, 100);
-        } else if (artModule instanceof ART2) {
-            // Create default ART2Parameters
-            return new ART2Parameters(0.9, 0.1, 100);
+            
+            return new TrainResult(categoryA, label, matchTrackingOccurred, adjustedVigilance);
         } else {
-            // For unknown types, try FuzzyParameters as fallback
-            return FuzzyParameters.defaults();
+            // This shouldn't happen with FuzzyART - it should always create a category
+            throw new IllegalStateException("Unable to create category for input");
         }
+    }
+    
+    /**
+     * Fit the model to training data.
+     * 
+     * @param data array of input patterns
+     * @param labels array of class labels
+     * @param artParams parameters for the ART module
+     */
+    public void fit(Pattern[] data, int[] labels, Object artParams) {
+        Objects.requireNonNull(data, "data cannot be null");
+        Objects.requireNonNull(labels, "labels cannot be null");
+        Objects.requireNonNull(artParams, "artParams cannot be null");
+        
+        if (data.length != labels.length) {
+            throw new IllegalArgumentException("data and labels must have same length");
+        }
+        
+        for (int i = 0; i < data.length; i++) {
+            train(data[i], labels[i], artParams);
+        }
+        trained = true;
+    }
+    
+    /**
+     * Predict the class label for a single input pattern.
+     * 
+     * Note: This method uses stepPredict which does not check vigilance.
+     * For applications requiring vigilance-based rejection of novel patterns,
+     * consider using a higher-level wrapper or custom prediction logic.
+     * 
+     * @param input the input pattern
+     * @param artParams parameters for the ART module (only used for activation calculation)
+     * @return the predicted class label, or -1 if no match
+     */
+    public int predict(Pattern input, Object artParams) {
+        Objects.requireNonNull(input, "input cannot be null");
+        Objects.requireNonNull(artParams, "artParams cannot be null");
+        
+        // If no categories exist, return -1
+        if (moduleA.getCategoryCount() == 0) {
+            return -1;
+        }
+        
+        // Use stepPredict for non-learning prediction
+        var result = moduleA.stepPredict(input, artParams);
+        
+        if (result instanceof ActivationResult.Success success) {
+            int categoryA = success.categoryIndex();
+            
+            // Look up the label mapping
+            if (mapField.containsKey(categoryA)) {
+                return mapField.get(categoryA);
+            } else {
+                // No mapping found - unknown pattern
+                return -1;
+            }
+        } else {
+            // No category activated
+            return -1;
+        }
+    }
+    
+    /**
+     * Predict class labels for multiple input patterns.
+     * 
+     * @param data array of input patterns
+     * @param artParams parameters for the ART module
+     * @return array of predicted class labels
+     */
+    public int[] predict(Pattern[] data, Object artParams) {
+        Objects.requireNonNull(data, "data cannot be null");
+        Objects.requireNonNull(artParams, "artParams cannot be null");
+        
+        var predictions = new int[data.length];
+        for (int i = 0; i < data.length; i++) {
+            predictions[i] = predict(data[i], artParams);
+        }
+        return predictions;
     }
 }

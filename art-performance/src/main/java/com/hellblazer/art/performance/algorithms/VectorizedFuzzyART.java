@@ -41,6 +41,9 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
     private long totalVectorOperations = 0;
     private long totalParallelTasks = 0;
     private double avgComputeTime = 0.0;
+    private long activationCalls = 0;
+    private long matchCalls = 0;
+    private long learningCalls = 0;
     
     public VectorizedFuzzyART(VectorizedParameters defaultParams) {
         super();
@@ -83,6 +86,7 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         VectorizedFuzzyWeight vWeight = convertToVectorizedFuzzyWeight(weight);
         
         totalVectorOperations++;
+        activationCalls++;
         return computeVectorizedActivation(input, vWeight, vParams);
     }
     
@@ -99,6 +103,7 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         // Convert WeightVector to VectorizedFuzzyWeight
         VectorizedFuzzyWeight vWeight = convertToVectorizedFuzzyWeight(weight);
         
+        matchCalls++;
         double similarity = vWeight.computeVigilance(input, vParams);
         return similarity >= vParams.vigilanceThreshold() ? 
                new MatchResult.Accepted(similarity, vParams.vigilanceThreshold()) : 
@@ -117,6 +122,7 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         
         // Convert and update
         VectorizedFuzzyWeight vWeight = convertToVectorizedFuzzyWeight(currentWeight);
+        learningCalls++;
         return vWeight.updateFuzzy(input, vParams);
     }
     
@@ -347,7 +353,10 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
             avgComputeTime,
             computePool.getActiveThreadCount(),
             inputCache.size(),
-            getCategoryCount()
+            getCategoryCount(),
+            activationCalls,
+            matchCalls,
+            learningCalls
         );
     }
     
@@ -359,6 +368,9 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         totalVectorOperations = 0;
         totalParallelTasks = 0;
         avgComputeTime = 0.0;
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;
         log.info("Performance tracking reset");
     }
     
@@ -381,7 +393,7 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
     
     @Override
     public Object predict(Pattern input, VectorizedParameters parameters) {
-        return stepFit(input, parameters);
+        return stepPredict(input, parameters);
     }
     
     @Override

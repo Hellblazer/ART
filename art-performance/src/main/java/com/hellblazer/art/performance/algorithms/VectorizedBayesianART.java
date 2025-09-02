@@ -69,6 +69,9 @@ public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgor
     private long totalVectorOperations = 0;
     private long totalParallelTasks = 0;
     private double avgComputeTime = 0.0;
+    private long activationCalls = 0;
+    private long matchCalls = 0;
+    private long learningCalls = 0;
     private long uncertaintyCalculations = 0;
     
     public VectorizedBayesianART(VectorizedParameters defaultParams) {
@@ -568,7 +571,10 @@ public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgor
             avgComputeTime,
             computePool.getActiveThreadCount(),
             inputCache.size(),
-            getCategoryCount()
+            getCategoryCount(),
+            activationCalls,
+            matchCalls,
+            learningCalls
         );
     }
     
@@ -581,7 +587,9 @@ public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgor
         totalVectorOperations = 0;
         totalParallelTasks = 0;
         avgComputeTime = 0.0;
-        uncertaintyCalculations = 0;
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;        uncertaintyCalculations = 0;
         log.info("VectorizedBayesianART performance tracking reset");
     }
     

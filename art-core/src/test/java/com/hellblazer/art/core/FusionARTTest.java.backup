@@ -1,0 +1,287 @@
+package com.hellblazer.art.core;
+
+import com.hellblazer.art.core.algorithms.FusionART;
+import com.hellblazer.art.core.algorithms.FuzzyART;
+import com.hellblazer.art.core.parameters.FusionARTParameters;
+import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.weights.FusionARTWeight;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Test cases for FusionART multi-modal learning algorithm.
+ */
+class FusionARTTest {
+    
+    private FusionART fusionART;
+    private FusionARTParameters params;
+    private static final int NUM_CHANNELS = 2;
+    private static final int CHANNEL_SIZE = 4;
+    
+    @BeforeEach
+    void setUp() {
+        // Create FuzzyART modules for each channel
+        var channelModules = new ArrayList<BaseART>();
+        var channelParams = new ArrayList<Object>();
+        
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            channelModules.add(new FuzzyART());
+            
+            var fuzzyParams = FuzzyParameters.builder()
+                .vigilance(0.7)
+                .alpha(0.1)
+                .beta(0.5)
+                .build();
+            channelParams.add(fuzzyParams);
+        }
+        
+        // Create FusionART with two channels
+        fusionART = new FusionART(NUM_CHANNELS, channelModules);
+        
+        // Set up parameters with equal channel weights
+        params = FusionARTParameters.builder(NUM_CHANNELS)
+            .allChannelParameters(channelParams)
+            .channelSizes(CHANNEL_SIZE, CHANNEL_SIZE)
+            .channelWeights(0.5, 0.5)
+            .uniformVigilance(0.7)
+            .build();
+    }
+    
+    @Test
+    void testInitialization() {
+        assertNotNull(fusionART);
+        assertEquals(NUM_CHANNELS, fusionART.getNumChannels());
+        assertEquals(0, fusionART.getCategoryCount());
+        
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            assertNotNull(fusionART.getChannelModule(i));
+        }
+    }
+    
+    @Test
+    void testSinglePatternLearning() {
+        // Create a multi-channel pattern
+        var pattern = createMultiChannelPattern(0.5, 0.8);
+        
+        // Learn the pattern
+        var result = fusionART.stepFit(pattern, params);
+        
+        assertNotNull(result);
+        assertTrue(result instanceof ActivationResult.Success);
+        assertEquals(0, ((ActivationResult.Success) result).categoryIndex());
+        assertEquals(1, fusionART.getCategoryCount());
+    }
+    
+    @Test
+    void testMultiplePatternLearning() {
+        var patterns = new ArrayList<Pattern>();
+        
+        // Create diverse patterns
+        patterns.add(createMultiChannelPattern(0.2, 0.3));
+        patterns.add(createMultiChannelPattern(0.8, 0.9));
+        patterns.add(createMultiChannelPattern(0.5, 0.5));
+        patterns.add(createMultiChannelPattern(0.1, 0.9));
+        
+        // Learn all patterns
+        for (var pattern : patterns) {
+            var result = fusionART.stepFit(pattern, params);
+            assertNotNull(result);
+            assertTrue(result instanceof ActivationResult.Success);
+        }
+        
+        // Should create multiple categories due to diversity
+        assertTrue(fusionART.getCategoryCount() > 1);
+        assertTrue(fusionART.getCategoryCount() <= patterns.size());
+    }
+    
+    @Test
+    void testChannelWeightInfluence() {
+        // Create patterns with strong signal in different channels
+        var pattern1 = createAsymmetricPattern(0.9, 0.1); // Strong in channel 1
+        var pattern2 = createAsymmetricPattern(0.1, 0.9); // Strong in channel 2
+        
+        // Test with equal weights
+        var equalParams = FusionARTParameters.builder(NUM_CHANNELS)
+            .allChannelParameters(createChannelParams())
+            .channelSizes(CHANNEL_SIZE, CHANNEL_SIZE)
+            .channelWeights(0.5, 0.5)
+            .uniformVigilance(0.7)
+            .build();
+        
+        var result1 = fusionART.stepFit(pattern1, equalParams);
+        var result2 = fusionART.stepFit(pattern2, equalParams);
+        
+        // Both should create categories
+        assertNotNull(result1);
+        assertNotNull(result2);
+        
+        // Test with biased weights favoring channel 1
+        fusionART = new FusionART(NUM_CHANNELS, createChannelModules());
+        var biasedParams = FusionARTParameters.builder(NUM_CHANNELS)
+            .allChannelParameters(createChannelParams())
+            .channelSizes(CHANNEL_SIZE, CHANNEL_SIZE)
+            .channelWeights(0.8, 0.2) // Favor channel 1
+            .uniformVigilance(0.7)
+            .build();
+        
+        result1 = fusionART.stepFit(pattern1, biasedParams);
+        result2 = fusionART.stepFit(pattern2, biasedParams);
+        
+        // Pattern 1 should have stronger activation due to weight bias
+        assertTrue(result1 instanceof ActivationResult.Success);
+        assertTrue(result2 instanceof ActivationResult.Success);
+    }
+    
+    @Test
+    void testChannelSpecificVigilance() {
+        // Test with different vigilance levels per channel
+        var mixedParams = FusionARTParameters.builder(NUM_CHANNELS)
+            .allChannelParameters(createChannelParams())
+            .channelSizes(CHANNEL_SIZE, CHANNEL_SIZE)
+            .channelWeights(0.5, 0.5)
+            .channelVigilance(0.9, 0.3) // High vigilance ch1, low ch2
+            .build();
+        
+        // Create similar patterns
+        var pattern1 = createMultiChannelPattern(0.5, 0.5);
+        var pattern2 = createMultiChannelPattern(0.52, 0.48);
+        
+        fusionART.stepFit(pattern1, mixedParams);
+        var result = fusionART.stepFit(pattern2, mixedParams);
+        
+        // Channel 1's high vigilance may cause new category creation
+        assertNotNull(result);
+    }
+    
+    @Test
+    void testFusionARTWeight() {
+        var pattern = createMultiChannelPattern(0.6, 0.7);
+        
+        var result = fusionART.stepFit(pattern, params);
+        assertTrue(result instanceof ActivationResult.Success);
+        
+        var weight = ((ActivationResult.Success) result).weight();
+        assertTrue(weight instanceof FusionARTWeight);
+        
+        var fusionWeight = (FusionARTWeight) weight;
+        assertEquals(NUM_CHANNELS, fusionWeight.getNumChannels());
+        
+        // Check each channel has a weight
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            assertNotNull(fusionWeight.getChannelWeight(i));
+        }
+    }
+    
+    @Test
+    void testInvalidChannelCount() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            new FusionART(1, List.of(new FuzzyART())); // Need at least 2 channels
+        });
+    }
+    
+    @Test
+    void testParameterValidation() {
+        // Test invalid channel weights (don't sum to 1.0)
+        assertThrows(IllegalArgumentException.class, () -> {
+            FusionARTParameters.builder(NUM_CHANNELS)
+                .allChannelParameters(createChannelParams())
+                .channelSizes(CHANNEL_SIZE, CHANNEL_SIZE)
+                .channelWeights(0.3, 0.3) // Sum is 0.6, not 1.0
+                .build();
+        });
+        
+        // Test invalid vigilance
+        assertThrows(IllegalArgumentException.class, () -> {
+            FusionARTParameters.builder(NUM_CHANNELS)
+                .allChannelParameters(createChannelParams())
+                .channelSizes(CHANNEL_SIZE, CHANNEL_SIZE)
+                .channelWeights(0.5, 0.5)
+                .channelVigilance(1.5, 0.5) // Invalid vigilance > 1.0
+                .build();
+        });
+    }
+    
+    @Test
+    void testLargeScaleLearning() {
+        var random = new Random(42);
+        var patterns = new ArrayList<Pattern>();
+        
+        // Create many random patterns
+        for (int i = 0; i < 100; i++) {
+            var ch1Value = random.nextDouble();
+            var ch2Value = random.nextDouble();
+            patterns.add(createMultiChannelPattern(ch1Value, ch2Value));
+        }
+        
+        // Learn all patterns
+        for (var pattern : patterns) {
+            var result = fusionART.stepFit(pattern, params);
+            assertNotNull(result);
+        }
+        
+        // Should create reasonable number of categories
+        assertTrue(fusionART.getCategoryCount() > 5);
+        assertTrue(fusionART.getCategoryCount() < 50);
+    }
+    
+    // Helper methods
+    
+    private Pattern createMultiChannelPattern(double ch1Value, double ch2Value) {
+        var features = new double[CHANNEL_SIZE * NUM_CHANNELS];
+        
+        // Channel 1 features
+        for (int i = 0; i < CHANNEL_SIZE; i++) {
+            features[i] = ch1Value * (1.0 - i * 0.1);
+        }
+        
+        // Channel 2 features
+        for (int i = 0; i < CHANNEL_SIZE; i++) {
+            features[CHANNEL_SIZE + i] = ch2Value * (1.0 - i * 0.1);
+        }
+        
+        return Pattern.of(features);
+    }
+    
+    private Pattern createAsymmetricPattern(double ch1Strength, double ch2Strength) {
+        var features = new double[CHANNEL_SIZE * NUM_CHANNELS];
+        
+        // Channel 1 - strong or weak signal
+        for (int i = 0; i < CHANNEL_SIZE; i++) {
+            features[i] = ch1Strength;
+        }
+        
+        // Channel 2 - opposite strength
+        for (int i = 0; i < CHANNEL_SIZE; i++) {
+            features[CHANNEL_SIZE + i] = ch2Strength;
+        }
+        
+        return Pattern.of(features);
+    }
+    
+    private List<BaseART> createChannelModules() {
+        var modules = new ArrayList<BaseART>();
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            modules.add(new FuzzyART());
+        }
+        return modules;
+    }
+    
+    private List<Object> createChannelParams() {
+        var params = new ArrayList<Object>();
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            params.add(FuzzyParameters.builder()
+                .vigilance(0.7)
+                .alpha(0.1)
+                .beta(0.5)
+                .build());
+        }
+        return params;
+    }
+}

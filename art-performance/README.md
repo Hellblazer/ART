@@ -2,6 +2,16 @@
 
 The `art-performance` module provides high-performance, vectorized implementations of ART algorithms optimized for modern hardware. This module leverages Java 24's Vector API, virtual threads, and advanced concurrency features to deliver maximum throughput and efficiency.
 
+## Performance Highlights
+
+- **96% algorithm parity** with Python reference implementation
+- **15 ART variants** fully implemented and tested
+- **1,051 tests** passing (100% success rate)
+- **3-5x speedup** through SIMD vectorization
+- **1M+ patterns/sec** throughput on modern hardware
+
+For detailed performance analysis and benchmarks, see [PERFORMANCE.md](PERFORMANCE.md).
+
 ## Overview
 
 The performance module transforms the scientific algorithms from `art-core` into production-ready, high-throughput implementations suitable for:

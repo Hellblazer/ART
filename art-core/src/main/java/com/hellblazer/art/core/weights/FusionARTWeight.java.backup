@@ -1,0 +1,251 @@
+package com.hellblazer.art.core.weights;
+
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.WeightVector;
+import com.hellblazer.art.core.parameters.FusionARTParameters;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Weight vector for FusionART that maintains separate weights for each channel.
+ * 
+ * FusionARTWeight encapsulates the weight vectors for all channels in a
+ * multi-modal FusionART network. Each channel has its own weight representation
+ * that is maintained and updated independently.
+ */
+public class FusionARTWeight implements WeightVector {
+    
+    private final List<WeightVector> channelWeights;
+    private final int numChannels;
+    
+    /**
+     * Create a new FusionARTWeight with weights for each channel.
+     * 
+     * @param channelWeights list of weight vectors for each channel
+     */
+    public FusionARTWeight(List<WeightVector> channelWeights) {
+        Objects.requireNonNull(channelWeights, "Channel weights cannot be null");
+        if (channelWeights.isEmpty()) {
+            throw new IllegalArgumentException("Must have at least one channel");
+        }
+        if (channelWeights.contains(null)) {
+            throw new IllegalArgumentException("Channel weights cannot contain null");
+        }
+        
+        this.channelWeights = new ArrayList<>(channelWeights);
+        this.numChannels = channelWeights.size();
+    }
+    
+    /**
+     * Get the weight vector for a specific channel.
+     * 
+     * @param channel the channel index
+     * @return the weight vector for the specified channel
+     */
+    public WeightVector getChannelWeight(int channel) {
+        if (channel < 0 || channel >= numChannels) {
+            throw new IndexOutOfBoundsException("Invalid channel index: " + channel);
+        }
+        return channelWeights.get(channel);
+    }
+    
+    /**
+     * Get all channel weights.
+     * 
+     * @return unmodifiable list of all channel weights
+     */
+    public List<WeightVector> getAllChannelWeights() {
+        return List.copyOf(channelWeights);
+    }
+    
+    /**
+     * Get the number of channels.
+     * 
+     * @return the number of channels
+     */
+    public int getNumChannels() {
+        return numChannels;
+    }
+    
+    /**
+     * Get value at specified index across all channels.
+     * 
+     * @param index the global index across all channels
+     * @return the value at that index
+     */
+    @Override
+    public double get(int index) {
+        if (index < 0 || index >= dimension()) {
+            throw new IndexOutOfBoundsException("Index out of bounds: " + index);
+        }
+        
+        // Find which channel and local index
+        int currentOffset = 0;
+        for (var weight : channelWeights) {
+            int channelDim = weight.dimension();
+            if (index < currentOffset + channelDim) {
+                return weight.get(index - currentOffset);
+            }
+            currentOffset += channelDim;
+        }
+        
+        throw new IndexOutOfBoundsException("Index out of bounds: " + index);
+    }
+    
+    /**
+     * Get the dimension of the combined weight vector.
+     * 
+     * @return total dimension across all channels
+     */
+    @Override
+    public int dimension() {
+        int totalDim = 0;
+        for (var weight : channelWeights) {
+            totalDim += weight.dimension();
+        }
+        return totalDim;
+    }
+    
+    /**
+     * Calculate the L1 norm (sum of absolute values) of all channel weights.
+     * 
+     * @return the L1 norm of the combined weight vector
+     */
+    @Override
+    public double l1Norm() {
+        double totalNorm = 0.0;
+        for (var weight : channelWeights) {
+            totalNorm += weight.l1Norm();
+        }
+        return totalNorm;
+    }
+    
+    /**
+     * Update this weight vector with new input.
+     * Updates each channel independently.
+     * 
+     * @param input the input pattern
+     * @param parameters the fusion parameters
+     * @return updated weight vector
+     */
+    @Override
+    public WeightVector update(Pattern input, Object parameters) {
+        if (!(parameters instanceof FusionARTParameters params)) {
+            throw new IllegalArgumentException("Parameters must be FusionARTParameters");
+        }
+        
+        var updatedChannelWeights = new ArrayList<WeightVector>();
+        var inputFeatures = input.vector();
+        int offset = 0;
+        
+        for (int i = 0; i < numChannels; i++) {
+            int channelSize = params.getChannelSize(i);
+            var channelFeatures = new double[channelSize];
+            System.arraycopy(inputFeatures, offset, channelFeatures, 0, channelSize);
+            
+            var channelInput = Pattern.of(channelFeatures);
+            var channelParams = params.getChannelParameters(i);
+            var updatedWeight = channelWeights.get(i).update(channelInput, channelParams);
+            updatedChannelWeights.add(updatedWeight);
+            
+            offset += channelSize;
+        }
+        
+        return new FusionARTWeight(updatedChannelWeights);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof FusionARTWeight other)) return false;
+        
+        if (numChannels != other.numChannels) return false;
+        return channelWeights.equals(other.channelWeights);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(numChannels, channelWeights);
+    }
+    
+    @Override
+    public String toString() {
+        var sb = new StringBuilder("FusionARTWeight{");
+        sb.append("numChannels=").append(numChannels);
+        sb.append(", channels=[");
+        
+        for (int i = 0; i < numChannels; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append("Ch").append(i).append(":");
+            var weight = channelWeights.get(i);
+            sb.append("dim=").append(weight.dimension());
+            sb.append(",l1=").append(String.format("%.3f", weight.l1Norm()));
+        }
+        
+        sb.append("]}");
+        return sb.toString();
+    }
+    
+    /**
+     * Create a FusionARTWeight by splitting a combined feature vector.
+     * 
+     * @param features the combined feature vector
+     * @param channelSizes the size of each channel
+     * @param weightFactory factory to create channel-specific weights
+     * @return a new FusionARTWeight
+     */
+    public static FusionARTWeight fromFeatures(
+            double[] features, 
+            int[] channelSizes,
+            ChannelWeightFactory weightFactory) {
+        
+        Objects.requireNonNull(features, "Features cannot be null");
+        Objects.requireNonNull(channelSizes, "Channel sizes cannot be null");
+        Objects.requireNonNull(weightFactory, "Weight factory cannot be null");
+        
+        // Validate total size
+        int totalSize = 0;
+        for (int size : channelSizes) {
+            totalSize += size;
+        }
+        if (totalSize != features.length) {
+            throw new IllegalArgumentException(
+                "Feature size mismatch: expected " + totalSize + " but got " + features.length
+            );
+        }
+        
+        // Split features and create channel weights
+        var channelWeights = new ArrayList<WeightVector>();
+        int offset = 0;
+        
+        for (int i = 0; i < channelSizes.length; i++) {
+            int size = channelSizes[i];
+            var channelFeatures = new double[size];
+            System.arraycopy(features, offset, channelFeatures, 0, size);
+            
+            var channelWeight = weightFactory.createWeight(i, channelFeatures);
+            channelWeights.add(channelWeight);
+            
+            offset += size;
+        }
+        
+        return new FusionARTWeight(channelWeights);
+    }
+    
+    /**
+     * Factory interface for creating channel-specific weight types.
+     */
+    @FunctionalInterface
+    public interface ChannelWeightFactory {
+        /**
+         * Create a weight vector for a specific channel.
+         * 
+         * @param channel the channel index
+         * @param features the feature vector for this channel
+         * @return a channel-specific weight vector
+         */
+        WeightVector createWeight(int channel, double[] features);
+    }
+}

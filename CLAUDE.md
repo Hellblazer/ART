@@ -31,6 +31,20 @@ This is an **Adaptive Resonance Theory (ART)** implementation in Java 24. ART is
 - **JOOQ** for type-safe database operations
 - **H2 Database** for embedded data storage
 
+### Data Preprocessing & Integration
+- **DataPreprocessor** - Comprehensive data preprocessing pipeline
+  - Auto-detection of data ranges with normalization to [0,1]
+  - Missing value handling with multiple strategies (mean, median, zero)
+  - Complement coding for ART algorithms [x, 1-x]
+  - L1/L2 normalization options
+  - Pipeline builder pattern for composable preprocessing steps
+  - Batch processing support
+- **SklearnWrapper** - Scikit-learn compatible API wrapper
+  - Methods: fit(), predict(), fit_predict(), score(), transform()
+  - Parameter management: get_params(), set_params()
+  - Incremental learning: partialFit()
+  - Factory methods for all ART variants
+
 ### Graphics & Visualization
 - **JavaFX 24** for GUI applications (use Launcher inner class pattern)
 - **LWJGL 3.3.6** for OpenGL graphics and native integration
