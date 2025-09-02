@@ -13,63 +13,69 @@ import jdk.incubator.vector.VectorSpecies;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.RecursiveTask;
 
 /**
- * High-performance vectorized FuzzyART implementation using Java Vector API.
+ * High-performance vectorized ART2 implementation using Java Vector API.
+ * 
+ * ART2 is designed for continuous analog input patterns with preprocessing:
+ * - Contrast enhancement using theta parameter
+ * - Noise suppression using epsilon parameter  
+ * - Normalized weight vectors (unit length)
+ * - Dot product activation function
+ * - Distance-based vigilance criterion
+ * - Convex combination learning
  * 
  * Features:
- * - SIMD-optimized fuzzy operations (min, max, element-wise arithmetic)
- * - Vectorized complement coding operations
+ * - SIMD-optimized vector operations (dot products, distances, updates)
+ * - ART2-specific preprocessing with contrast enhancement and noise suppression
  * - Parallel processing for large category sets
  * - Cache-optimized data structures
  * - Performance monitoring and metrics
  * 
- * This implementation maintains full compatibility with FuzzyART semantics
+ * This implementation maintains full compatibility with ART2 semantics
  * while providing significant performance improvements through vectorization.
  */
-public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedParameters> {
+public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedART2Parameters> {
     
-    private static final Logger log = LoggerFactory.getLogger(VectorizedFuzzyART.class);
+    private static final Logger log = LoggerFactory.getLogger(VectorizedART2.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
     
     private final ForkJoinPool computePool;
     private final Map<Integer, float[]> inputCache = new ConcurrentHashMap<>();
-    private final VectorizedParameters defaultParams;
+    private final VectorizedART2Parameters defaultParams;
     
     // Performance metrics
     private long totalVectorOperations = 0;
     private long totalParallelTasks = 0;
-    private double avgComputeTime = 0.0;
     private long activationCalls = 0;
     private long matchCalls = 0;
     private long learningCalls = 0;
-    
-    public VectorizedFuzzyART(VectorizedParameters defaultParams) {
+    private double avgComputeTime = 0.0;    
+    public VectorizedART2(VectorizedART2Parameters defaultParams) {
         super();
         this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
         this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        log.info("Initialized VectorizedFuzzyART with {} parallel threads, vector species: {}", 
-                 defaultParams.parallelismLevel(), SPECIES.toString());
+        log.info("Initialized VectorizedART2 with {} parallel threads, vector species: {}, theta={}, epsilon={}", 
+                 defaultParams.parallelismLevel(), SPECIES.toString(), defaultParams.theta(), defaultParams.epsilon());
     }
     
     /**
-     * Convert WeightVector to VectorizedFuzzyWeight for compatibility with BaseART.
+     * Convert WeightVector to VectorizedART2Weight for compatibility with BaseART.
      */
-    private VectorizedFuzzyWeight convertToVectorizedFuzzyWeight(WeightVector weight) {
-        if (weight instanceof VectorizedFuzzyWeight vWeight) {
-            return vWeight;
+    private VectorizedART2Weight convertToVectorizedART2Weight(WeightVector weight) {
+        if (weight instanceof VectorizedART2Weight art2Weight) {
+            return art2Weight;
         }
         
-        // Create VectorizedFuzzyWeight from any WeightVector
+        // Create VectorizedART2Weight from any WeightVector
         var weights = new double[weight.dimension()];
         for (int i = 0; i < weight.dimension(); i++) {
             weights[i] = weight.get(i);
         }
         
-        // Assume it's complement-coded if dimension is even
-        int originalDim = weight.dimension() % 2 == 0 ? weight.dimension() / 2 : weight.dimension();
-        return new VectorizedFuzzyWeight(weights, originalDim, System.currentTimeMillis(), 0);
+        return new VectorizedART2Weight(weights, System.currentTimeMillis(), 0);
     }
     
     @Override
@@ -78,16 +84,16 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
         }
         
-        // Convert WeightVector to VectorizedFuzzyWeight
-        VectorizedFuzzyWeight vWeight = convertToVectorizedFuzzyWeight(weight);
+        // Convert WeightVector to VectorizedART2Weight
+        VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(weight);
         
-        totalVectorOperations++;
         activationCalls++;
-        return computeVectorizedActivation(input, vWeight, vParams);
+        totalVectorOperations++;
+        return art2Weight.computeActivation(input, art2Params);
     }
     
     @Override
@@ -96,18 +102,19 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
         }
         
-        // Convert WeightVector to VectorizedFuzzyWeight
-        VectorizedFuzzyWeight vWeight = convertToVectorizedFuzzyWeight(weight);
+        // Convert WeightVector to VectorizedART2Weight
+        VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(weight);
         
         matchCalls++;
-        double similarity = vWeight.computeVigilance(input, vParams);
-        return similarity >= vParams.vigilanceThreshold() ? 
-               new MatchResult.Accepted(similarity, vParams.vigilanceThreshold()) : 
-               new MatchResult.Rejected(similarity, vParams.vigilanceThreshold());
+        totalVectorOperations++; // Track vector operations for vigilance check
+        double similarity = art2Weight.computeVigilance(input, art2Params);
+        return similarity >= art2Params.vigilance() ? 
+               new MatchResult.Accepted(similarity, art2Params.vigilance()) : 
+               new MatchResult.Rejected(similarity, art2Params.vigilance());
     }
     
     @Override
@@ -116,14 +123,15 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
         }
         
         // Convert and update
-        VectorizedFuzzyWeight vWeight = convertToVectorizedFuzzyWeight(currentWeight);
+        VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(currentWeight);
         learningCalls++;
-        return vWeight.updateFuzzy(input, vParams);
+        totalVectorOperations++; // Track vector operations for weight update
+        return art2Weight.updateART2(input, art2Params);
     }
     
     @Override
@@ -131,102 +139,19 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
+        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
+            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
         }
         
-        return VectorizedFuzzyWeight.fromInput(input, vParams);
+        // Track vector operations for initial weight creation
+        totalVectorOperations++;
+        return VectorizedART2Weight.fromInput(input, art2Params);
     }
-    
-    /**
-     * Vectorized activation computation using SIMD operations for FuzzyART choice function.
-     * Choice function: T_j = |I ∧ w_j| / (α + |w_j|)
-     */
-    private double computeVectorizedActivation(Pattern input, VectorizedFuzzyWeight weight, VectorizedParameters params) {
-        // Get complement-coded input
-        var complementCoded = VectorizedFuzzyWeight.getComplementCoded(input);
-        var inputArray = convertToFloatArray(complementCoded);
-        var weightArray = weight.getCategoryWeights();
-        
-        if (params.enableSIMD() && inputArray.length >= SPECIES.length()) {
-            return computeSIMDActivation(inputArray, weightArray, params);
-        } else {
-            return computeStandardActivation(complementCoded, Pattern.of(weight.getWeights()), params);
-        }
-    }
-    
-    /**
-     * SIMD-optimized activation computation.
-     */
-    private double computeSIMDActivation(float[] inputArray, float[] weightArray, VectorizedParameters params) {
-        int dimension = inputArray.length;
-        
-        double intersectionSum = 0.0;
-        double weightSum = 0.0;
-        
-        int vectorLength = SPECIES.length();
-        int upperBound = SPECIES.loopBound(dimension);
-        
-        // Vectorized loop for fuzzy intersection and weight norm
-        for (int i = 0; i < upperBound; i += vectorLength) {
-            var inputVec = FloatVector.fromArray(SPECIES, inputArray, i);
-            var weightVec = FloatVector.fromArray(SPECIES, weightArray, i);
-            
-            // Compute fuzzy minimum (intersection): I ∧ w_j
-            var intersection = inputVec.min(weightVec);
-            intersectionSum += intersection.reduceLanes(VectorOperators.ADD);
-            
-            // Sum weight values for normalization
-            weightSum += weightVec.reduceLanes(VectorOperators.ADD);
-        }
-        
-        // Handle remaining elements
-        for (int i = upperBound; i < dimension; i++) {
-            double inputVal = inputArray[i];
-            double weightVal = weightArray[i];
-            intersectionSum += Math.min(inputVal, weightVal);
-            weightSum += weightVal;
-        }
-        
-        // FuzzyART choice function: T_j = |I ∧ w_j| / (α + |w_j|)
-        return intersectionSum / (params.alpha() + weightSum);
-    }
-    
-    /**
-     * Standard activation computation fallback.
-     */
-    private double computeStandardActivation(Pattern input, Pattern weight, VectorizedParameters params) {
-        double intersection = 0.0;
-        double weightNorm = 0.0;
-        
-        for (int i = 0; i < input.dimension(); i++) {
-            double inputVal = input.get(i);
-            double weightVal = weight.get(i);
-            intersection += Math.min(inputVal, weightVal);
-            weightNorm += weightVal;
-        }
-        
-        return intersection / (params.alpha() + weightNorm);
-    }
-    
-    /**
-     * Convert Pattern to float array with caching to avoid repeated conversions.
-     */
-    private float[] convertToFloatArray(Pattern pattern) {
-        int hash = pattern.hashCode();
-        return inputCache.computeIfAbsent(hash, k -> {
-            var array = new float[pattern.dimension()];
-            for (int i = 0; i < pattern.dimension(); i++) {
-                array[i] = (float) pattern.get(i);
-            }
-            return array;
-        });
-    }
-    
+
     /**
      * Enhanced stepFit with performance optimizations and parallel processing.
      */
-    public ActivationResult stepFitEnhanced(Pattern input, VectorizedParameters params) {
+    public ActivationResult stepFitEnhanced(Pattern input, VectorizedART2Parameters params) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(params, "Parameters cannot be null");
         
@@ -234,7 +159,7 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         
         try {
             // Use parallel processing for large category sets
-            if (getCategoryCount() > params.parallelThreshold()) {
+            if (getCategoryCount() > 50) { // Threshold for parallel processing
                 return parallelStepFit(input, params);
             } else {
                 return stepFit(input, (Object) params);
@@ -247,7 +172,7 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
     /**
      * High-performance parallel step fit using ForkJoinPool.
      */
-    private ActivationResult parallelStepFit(Pattern input, VectorizedParameters params) {
+    private ActivationResult parallelStepFit(Pattern input, VectorizedART2Parameters params) {
         if (getCategoryCount() == 0) {
             return stepFit(input, (Object) params);
         }
@@ -259,16 +184,16 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
     }
     
     /**
-     * Parallel activation computation task.
+     * Parallel activation computation task for ART2.
      */
     private class ParallelActivationTask extends RecursiveTask<ActivationResult> {
         private final Pattern input;
-        private final VectorizedParameters params;
+        private final VectorizedART2Parameters params;
         private final int startIndex;
         private final int endIndex;
         private static final int THRESHOLD = 100;
         
-        ParallelActivationTask(Pattern input, VectorizedParameters params, int startIndex, int endIndex) {
+        ParallelActivationTask(Pattern input, VectorizedART2Parameters params, int startIndex, int endIndex) {
             this.input = input;
             this.params = params;
             this.startIndex = startIndex;
@@ -367,18 +292,20 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         inputCache.clear();
         totalVectorOperations = 0;
         totalParallelTasks = 0;
-        avgComputeTime = 0.0;
         activationCalls = 0;
         matchCalls = 0;
         learningCalls = 0;
-        log.info("Performance tracking reset");
+        avgComputeTime = 0.0;
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;        log.info("Performance tracking reset");
     }
     
     /**
      * Optimize memory usage by trimming caches.
      */
     public void optimizeMemory() {
-        if (inputCache.size() > defaultParams.maxCacheSize()) {
+        if (inputCache.size() > 1000) { // Default cache limit
             inputCache.clear();
             log.info("Input cache cleared to optimize memory usage");
         }
@@ -387,17 +314,17 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
     // VectorizedARTAlgorithm interface implementation
     
     @Override
-    public Object learn(Pattern input, VectorizedParameters parameters) {
+    public Object learn(Pattern input, VectorizedART2Parameters parameters) {
         return stepFitEnhanced(input, parameters);
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedParameters parameters) {
-        return stepPredict(input, parameters);
+    public Object predict(Pattern input, VectorizedART2Parameters parameters) {
+        return stepFit(input, parameters);
     }
     
     @Override
-    public VectorizedParameters getParameters() {
+    public VectorizedART2Parameters getParameters() {
         return defaultParams;
     }
     
@@ -406,19 +333,113 @@ public class VectorizedFuzzyART extends BaseART implements VectorizedARTAlgorith
         return SPECIES.length();
     }
     
+    @Override
+    public boolean isVectorized() {
+        return defaultParams.enableSIMD();
+    }
+    
+    @Override
+    public String getAlgorithmType() {
+        return "VectorizedART2";
+    }
+    
+    /**
+     * ART2-specific preprocessing method for external use.
+     */
+    public Pattern preprocessInput(Pattern input) {
+        return VectorizedART2Weight.preprocessART2Input(input, defaultParams);
+    }
+    
+    /**
+     * Normalize input to unit length (ART2 requirement).
+     */
+    public Pattern normalizeInput(Pattern input) {
+        return VectorizedART2Weight.normalizeToUnitLength(input);
+    }
+    
+    /**
+     * Get contrast enhancement effectiveness for current parameters.
+     */
+    public double getContrastEnhancement() {
+        return defaultParams.theta();
+    }
+    
+    /**
+     * Get noise suppression level for current parameters.
+     */
+    public double getNoiseSupression() {
+        return defaultParams.epsilon();
+    }
+    
+    /**
+     * Batch processing with ART2 preprocessing.
+     */
+    @Override
+    public Object[] learnBatch(Pattern[] patterns, VectorizedART2Parameters parameters) {
+        Objects.requireNonNull(patterns, "Patterns cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (patterns.length == 0) {
+            return new Object[0];
+        }
+        
+        // For small batches, use sequential processing
+        if (patterns.length < parameters.parallelismLevel() * 10) {
+            return VectorizedARTAlgorithm.super.learnBatch(patterns, parameters);
+        }
+        
+        // For large batches, use parallel processing
+        return Arrays.stream(patterns)
+                .parallel()
+                .map(pattern -> learn(pattern, parameters))
+                .toArray();
+    }
+    
+    @Override
+    public Object[] predictBatch(Pattern[] patterns, VectorizedART2Parameters parameters) {
+        Objects.requireNonNull(patterns, "Patterns cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        if (patterns.length == 0) {
+            return new Object[0];
+        }
+        
+        // For small batches, use sequential processing
+        if (patterns.length < parameters.parallelismLevel() * 10) {
+            return VectorizedARTAlgorithm.super.predictBatch(patterns, parameters);
+        }
+        
+        // For large batches, use parallel processing
+        return Arrays.stream(patterns)
+                .parallel()
+                .map(pattern -> predict(pattern, parameters))
+                .toArray();
+    }
+    
     /**
      * Close and cleanup resources.
      */
     @Override
     public void close() {
         computePool.shutdown();
+        try {
+            if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
+                computePool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            computePool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
         inputCache.clear();
-        log.info("VectorizedFuzzyART closed and resources cleaned up");
+        log.info("VectorizedART2 closed and resources cleaned up");
     }
     
     @Override
     public String toString() {
-        return String.format("VectorizedFuzzyART{categories=%d, vectorOps=%d, parallelTasks=%d, avgComputeMs=%.3f}",
-                           getCategoryCount(), totalVectorOperations, totalParallelTasks, avgComputeTime);
+        return String.format("VectorizedART2{categories=%d, vectorOps=%d, parallelTasks=%d, " +
+                           "avgComputeMs=%.3f, theta=%.3f, epsilon=%.3f, simd=%s}",
+                           getCategoryCount(), totalVectorOperations, totalParallelTasks, 
+                           avgComputeTime, defaultParams.theta(), defaultParams.epsilon(), 
+                           defaultParams.enableSIMD());
     }
 }

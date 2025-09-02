@@ -36,6 +36,9 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     private long totalVectorOperations = 0;
     private long totalTopologicalUpdates = 0;
     private long totalClusterAnalyses = 0;
+    private long activationCalls = 0;
+    private long matchCalls = 0;
+    private long learningCalls = 0;
     
     /**
      * Create a new vectorized TopoART network with the given parameters.
@@ -277,7 +280,10 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
             0.0, // Average processing time not tracked
             (int) totalTopologicalUpdates,
             (int) totalClusterAnalyses,
-            getCategoryCount()
+            getCategoryCount(),
+            activationCalls,
+            matchCalls,
+            learningCalls
         );
     }
     
@@ -286,6 +292,9 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
         totalVectorOperations = 0;
         totalTopologicalUpdates = 0;
         totalClusterAnalyses = 0;
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;
     }
     
     // clear() is not required by VectorizedARTAlgorithm interface anymore

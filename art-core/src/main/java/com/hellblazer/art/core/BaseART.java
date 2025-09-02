@@ -63,6 +63,18 @@ public abstract class BaseART {
     }
 
     /**
+     * Enhanced stepFit method for vectorized algorithms that need additional processing.
+     * This is a convenience method that delegates to the standard stepFit method.
+     * 
+     * @param input the input vector
+     * @param parameters the algorithm parameters
+     * @return the result of the activation process
+     */
+    public final ActivationResult stepFitEnhanced(Pattern input, Object parameters) {
+        return stepFit(input, parameters);
+    }
+
+    /**
      * Complete step_fit implementation matching reference parity exactly.
      * 
      * @param input the input vector

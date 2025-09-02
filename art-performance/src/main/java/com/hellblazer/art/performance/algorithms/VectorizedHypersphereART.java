@@ -62,7 +62,9 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
     private long totalVectorOperations = 0;
     private long totalScalarOperations = 0;
     private double avgComputeTime = 0.0;
-    
+    private long activationCalls = 0;
+    private long matchCalls = 0;
+    private long learningCalls = 0;    
     public VectorizedHypersphereART(VectorizedHypersphereParameters parameters) {
         this.parameters = Objects.requireNonNull(parameters, "Parameters cannot be null");
         log.info("Initialized VectorizedHypersphereART with SIMD enabled: {}, vector species: {}", 
@@ -271,7 +273,10 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
             avgComputeTime,
             0, // activeThreadCount - not used
             inputCache.size(),
-            categories.size()
+            categories.size(),
+            0, // activationCalls - not tracked in this version
+            0, // matchCalls - not tracked in this version
+            0  // learningCalls - not tracked in this version
         );
     }
     
@@ -317,7 +322,9 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
         totalVectorOperations = 0;
         totalScalarOperations = 0;
         avgComputeTime = 0.0;
-        inputCache.clear();
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;        inputCache.clear();
     }
     
     public void clearCache() {

@@ -12,7 +12,10 @@ public record VectorizedPerformanceStats(
     double avgComputeTimeMs,
     int activeThreads,
     int cacheSize,
-    int categoryCount
+    int categoryCount,
+    long activationCalls,
+    long matchCalls,
+    long learningCalls
 ) {
     
     /**

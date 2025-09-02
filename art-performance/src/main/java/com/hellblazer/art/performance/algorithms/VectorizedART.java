@@ -43,7 +43,9 @@ public class VectorizedART extends BaseART implements VectorizedARTAlgorithm<Vec
     private long totalVectorOperations = 0;
     private long totalParallelTasks = 0;
     private double avgComputeTime = 0.0;
-    
+    private long activationCalls = 0;
+    private long matchCalls = 0;
+    private long learningCalls = 0;    
     public VectorizedART(VectorizedParameters defaultParams) {
         super();
         this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
@@ -427,7 +429,10 @@ public class VectorizedART extends BaseART implements VectorizedARTAlgorithm<Vec
             avgComputeTime,
             computePool.getActiveThreadCount(),
             vectorCache.size(),
-            getCategoryCount()
+            getCategoryCount(),
+            activationCalls,
+            matchCalls,
+            learningCalls
         );
     }
     
@@ -439,7 +444,9 @@ public class VectorizedART extends BaseART implements VectorizedARTAlgorithm<Vec
         totalVectorOperations = 0;
         totalParallelTasks = 0;
         avgComputeTime = 0.0;
-        log.info("Performance tracking reset");
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;        log.info("Performance tracking reset");
     }
     
     /**
