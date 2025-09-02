@@ -176,7 +176,7 @@ class VectorizedARTMAPAdvancedTest {
         }
         
         // Train on imbalanced data
-        Collections.shuffle(imbalancedData);
+        Collections.shuffle(imbalancedData, new Random(42));
         for (var sample : imbalancedData) {
             artmap.train(sample.input(), sample.target());
         }
@@ -473,7 +473,7 @@ class VectorizedARTMAPAdvancedTest {
     @DisplayName("Large dataset stress test")
     void testLargeDatasetStress() {
         var largeDataset = generateMultiClassData(20, STRESS_TEST_SIZE / 20);
-        Collections.shuffle(largeDataset);
+        Collections.shuffle(largeDataset, new Random(42));
         
         // Measure memory before the test (after cleanup from previous tests)
         var runtime = Runtime.getRuntime();
@@ -525,7 +525,7 @@ class VectorizedARTMAPAdvancedTest {
     @DisplayName("Learning curve convergence analysis")
     void testLearningCurveConvergence() {
         var dataset = generateMultiClassData(5, 500);
-        Collections.shuffle(dataset);
+        Collections.shuffle(dataset, new Random(42));
         
         var validationSet = dataset.subList(0, 100);
         var trainingSet = dataset.subList(100, dataset.size());
