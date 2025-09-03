@@ -60,7 +60,15 @@ art-performance/
 │   │   ├── VectorizedHypersphereWeight.java
 │   │   ├── VectorizedParameters.java       # Performance parameter base
 │   │   ├── VectorizedPerformanceStats.java
+│   │   ├── VectorizedSalienceART.java      # Salience-aware pattern recognition
+│   │   ├── VectorizedSalienceARTMAP.java   # Supervised salience learning
+│   │   ├── VectorizedSalienceARTMAPParameters.java
+│   │   ├── VectorizedSalienceARTMAPResult.java
+│   │   ├── VectorizedSalienceParameters.java
+│   │   ├── VectorizedSaliencePerformanceStats.java
 │   │   └── VectorizedWeight.java
+│   ├── VectorizedARTAlgorithm.java        # Base interface for vectorized algorithms
+│   ├── VectorizedARTMAPAlgorithm.java      # Interface for supervised algorithms
 │   └── supervised/              # Vectorized supervised learning
 │       ├── VectorizedARTMAP.java          # High-performance ARTMAP
 │       ├── VectorizedARTMAPParameters.java
@@ -183,6 +191,62 @@ public class VectorizedARTMAP extends ARTMAP {
     public void setSearchStrategy(SearchStrategy strategy);
 }
 ```
+
+### VectorizedSalienceART - Feature Importance with SIMD
+
+Salience-aware pattern recognition with feature importance tracking:
+
+```java
+public class VectorizedSalienceART 
+    implements VectorizedARTAlgorithm<VectorizedSaliencePerformanceStats, VectorizedSalienceParameters> {
+    
+    public VectorizedSalienceART(VectorizedSalienceParameters parameters);
+    
+    // Core learning with salience tracking
+    public Object learn(Pattern input, VectorizedSalienceParameters parameters);
+    public Object predict(Pattern input, VectorizedSalienceParameters parameters);
+    
+    // Enhanced SIMD processing
+    public ActivationResult stepFitEnhanced(Pattern input, VectorizedSalienceParameters params);
+    
+    // Performance monitoring
+    public VectorizedSaliencePerformanceStats getPerformanceStats();
+    public void resetPerformanceTracking();
+}
+```
+
+**Salience Features:**
+- **Feature Importance Tracking**: Automatic detection of discriminative features
+- **Adaptive Learning**: Dynamic adjustment of learning based on salience
+- **Sparse Optimization**: Efficient handling of sparse patterns
+- **Statistical Analysis**: Information gain, variance-based, and frequency metrics
+- **SIMD Acceleration**: Vectorized salience calculations
+
+### VectorizedSalienceARTMAP - Supervised Salience Learning
+
+Combines supervised learning with salience awareness:
+
+```java
+public class VectorizedSalienceARTMAP 
+    implements VectorizedARTMAPAlgorithm<VectorizedSalienceARTMAPResult, VectorizedSalienceARTMAPParameters> {
+    
+    public VectorizedSalienceARTMAP(VectorizedSalienceARTMAPParameters parameters);
+    
+    // Supervised learning with salience
+    public VectorizedSalienceARTMAPResult learn(Pattern input, Pattern target, 
+                                                VectorizedSalienceARTMAPParameters parameters);
+    
+    // Cross-module salience adaptation
+    public void enableCrossSalienceAdaptation(boolean enabled);
+    public void setSalienceMappingStrategy(SalienceMappingStrategy strategy);
+}
+```
+
+**Cross-Module Features:**
+- **Salience Transfer**: Share feature importance between ART modules
+- **Mapping Strategies**: Weighted average, max, or min salience
+- **Match Tracking Enhancement**: Salience-guided vigilance adjustment
+- **Dual Network Optimization**: Coordinated learning across modules
 
 ## Performance Parameters
 

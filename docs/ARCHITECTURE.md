@@ -38,6 +38,9 @@ art-core/
 │   ├── ARTMAP.java       # Basic ARTMAP
 │   ├── DeepARTMAP.java   # Deep hierarchical ARTMAP
 │   └── ...
+├── salience/             # Salience-aware learning
+│   ├── SalienceAwareART.java  # Base salience ART
+│   └── SalienceStatistics.java # Statistical salience
 ├── parameters/           # Algorithm configuration
 ├── results/              # Algorithm output structures
 ├── utils/                # Mathematical utilities
@@ -60,6 +63,8 @@ art-performance/
 │   ├── VectorizedART.java
 │   ├── VectorizedFuzzyART.java
 │   ├── VectorizedHypersphereART.java
+│   ├── VectorizedSalienceART.java      # Salience-aware ART
+│   ├── VectorizedSalienceARTMAP.java   # Salience ARTMAP
 │   └── ...
 ├── supervised/           # Vectorized supervised learning
 │   └── VectorizedARTMAP.java

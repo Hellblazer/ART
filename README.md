@@ -10,24 +10,26 @@ An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24
 ## Features
 
 - **High Performance**: SIMD vectorization via Java 24 Vector API (4-8x speedup)
-- **Comprehensive Coverage**: 15+ ART algorithm variants implemented
+- **Comprehensive Coverage**: 15+ ART algorithm variants implemented including Salience-Aware ART
 - **Modern Java**: Full Java 24 feature utilization
-- **Production Ready**: Extensive testing (210+ tests), benchmarking, and documentation
+- **Production Ready**: Extensive testing (250+ tests), benchmarking, and documentation
 - **Data Preprocessing**: Complete data preprocessing pipeline with normalization and missing value handling
 - **Scikit-learn Compatible**: Familiar API for Python users transitioning to Java
+- **Salience-Aware Learning**: Advanced feature weighting for improved pattern recognition
 
 ## Quick Start
 
 ### Prerequisites
 - Java 24+ ([Download](https://jdk.java.net/24/))
-- Maven 3.9.1+
 
 ### Installation
 ```bash
 git clone https://github.com/Hellblazer/ART.git
 cd ART
-mvn clean install
+./mvnw clean install
 ```
+
+> **Note**: The project includes the Maven wrapper (`mvnw`), so you don't need to install Maven separately. Just Java 24 is required.
 
 ### Basic Usage
 ```java
@@ -118,6 +120,7 @@ var vectorizedNetwork = new VectorizedFuzzyART(parameters);
 | GaussianART | Statistical clustering | Gaussian distributions |
 | HypersphereART | Geometric clustering | Rotation invariant |
 | ART-2 | Preprocessing integration | Noise filtering |
+| SalienceART | Feature-weighted learning | Dynamic salience weighting |
 
 ### Supervised Learning
 | Algorithm | Use Case | Key Feature |
@@ -125,6 +128,7 @@ var vectorizedNetwork = new VectorizedFuzzyART(parameters);
 | ARTMAP | Classification | Match tracking |
 | FuzzyARTMAP | Fuzzy classification | Fuzzy match tracking |
 | DeepARTMAP | Hierarchical learning | Multi-layer processing |
+| SalienceARTMAP | Weighted classification | Cross-module salience adaptation |
 
 ## Performance
 
@@ -135,7 +139,7 @@ All algorithms have vectorized implementations with:
 
 Run benchmarks:
 ```bash
-mvn test -pl art-performance -Dtest=*Benchmark
+./mvnw test -pl art-performance -Dtest=*Benchmark
 ```
 
 ## Project Structure
@@ -151,13 +155,13 @@ docs/              # Documentation
 
 ```bash
 # Run all tests
-mvn test
+./mvnw test
 
 # Run specific algorithm tests
-mvn test -Dtest=FuzzyARTTest
+./mvnw test -Dtest=FuzzyARTTest
 
 # Generate coverage report
-mvn jacoco:report
+./mvnw jacoco:report
 ```
 
 ## Contributing
