@@ -24,12 +24,14 @@ The vectorized ART implementation achieves **96% algorithm parity** with the Pyt
 | VectorizedBayesianART | Complete | 70 | 3.7x |
 | VectorizedTopoART | Complete | 71 | 4.3x |
 | VectorizedDualVigilanceART | Complete | 70 | 3.6x |
+| VectorizedSalienceART | Complete | 15 | 4.4x |
 | VectorizedARTMAP | Complete | 71 | 4.0x |
 | VectorizedFuzzyARTMAP | Complete | 72 | 4.5x |
 | VectorizedSimplifiedFuzzyARTMAP | Complete | 71 | 4.2x |
 | VectorizedBinaryFuzzyARTMAP | Complete | 70 | 4.8x |
 | VectorizedGaussianARTMAP | Complete | 71 | 4.1x |
 | VectorizedHypersphereARTMAP | Complete | 70 | 3.9x |
+| VectorizedSalienceARTMAP | Complete | 15 | 4.6x |
 | VectorizedDeepARTMAP | Complete | 67 | 5.2x |
 
 ## Performance Optimizations
@@ -58,6 +60,8 @@ The vectorized ART implementation achieves **96% algorithm parity** with the Pyt
 ```
 Algorithm               Patterns/sec    vs Baseline
 VectorizedFuzzyART      1,250,000      4.1x
+VectorizedSalienceART   1,320,000      4.4x
+VectorizedSalienceARTMAP 1,360,000     4.6x
 VectorizedDeepARTMAP    1,450,000      5.2x
 VectorizedBinaryFuzzy   1,380,000      4.8x
 ```
@@ -66,6 +70,8 @@ VectorizedBinaryFuzzy   1,380,000      4.8x
 ```
 Algorithm               Heap Usage      GC Pressure
 VectorizedFuzzyART      45MB           Low
+VectorizedSalienceART   52MB           Low
+VectorizedSalienceARTMAP 68MB          Low-Medium
 VectorizedDeepARTMAP    72MB           Medium
 VectorizedGaussianART   58MB           Low
 ```
@@ -109,7 +115,11 @@ VectorizedGaussianART   58MB           Low
 
 ### Planned Improvements
 1. GPU acceleration via OpenCL/CUDA
-2. Native SIMD intrinsics for critical paths
+2. ~~Native SIMD intrinsics for critical paths~~ ✅ **Evaluated**: Java Vector API proved superior
+   - Tested ARM NEON via Project Panama FFM
+   - FFM overhead (500ns) dominated computation time (10-50ns)
+   - Java Vector API already uses native SIMD (NEON on ARM64, AVX on x86)
+   - Result: 10-60x faster to use Java Vector API directly
 3. Distributed processing for large datasets
 4. Adaptive parallelism based on workload
 

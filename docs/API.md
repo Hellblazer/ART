@@ -260,6 +260,51 @@ public class BayesianActivationResult extends ActivationResult {
 }
 ```
 
+### SalienceAwareART
+
+Feature importance tracking and adaptive learning:
+
+```java
+public class SalienceAwareART extends BaseART<SalienceParameters> {
+    public SalienceAwareART(SalienceParameters parameters)
+    
+    // Core learning with salience tracking
+    public ActivationResult stepFit(Pattern input)
+    public CategoryResult predict(Pattern input)
+    
+    // Salience management
+    public double[] getSalienceWeights()
+    public void updateSalience(Pattern input, int category)
+    public double getFeatureSalience(int featureIndex)
+    
+    // Statistical tracking
+    public FeatureStatistics getFeatureStatistics(int featureIndex)
+    public CategoryStatistics getCategoryStatistics(int categoryIndex)
+    
+    // Adaptive learning
+    public void adaptSalienceWeights(double adaptationRate)
+    public void normalizeSalience()
+}
+```
+
+**Salience Parameters:**
+
+```java
+public class SalienceParameters implements Parameters {
+    public static SalienceParameters of(double vigilance, double learningRate, double salienceUpdateRate)
+    
+    public static class Builder {
+        public Builder vigilance(double vigilance)
+        public Builder learningRate(double learningRate)
+        public Builder salienceUpdateRate(double rate)      // Salience adaptation rate
+        public Builder useSparseMode(boolean sparse)         // Sparse feature handling
+        public Builder sparsityThreshold(double threshold)   // Feature sparsity cutoff
+        public Builder enableAdaptiveSalience(boolean enable) // Dynamic adaptation
+        public SalienceParameters build()
+    }
+}
+```
+
 ### ARTMAP (Supervised Learning)
 
 Supervised learning with input-output mapping:
@@ -461,6 +506,147 @@ public class VectorizedARTMAP extends ARTMAP {
     // Parallel processing
     public CompletableFuture<ARTMAPResult> learnAsync(Pattern input, Pattern target)
     public Stream<ARTMAPResult> learnStream(Stream<Pair<Pattern, Pattern>> data)
+}
+```
+
+### VectorizedSalienceART
+
+High-performance salience-aware pattern recognition with SIMD optimization:
+
+```java
+public class VectorizedSalienceART 
+    implements VectorizedARTAlgorithm<VectorizedSaliencePerformanceStats, VectorizedSalienceParameters> {
+    
+    public VectorizedSalienceART(VectorizedSalienceParameters parameters)
+    
+    // Core learning methods
+    public Object learn(Pattern input, VectorizedSalienceParameters parameters)
+    public Object predict(Pattern input, VectorizedSalienceParameters parameters)
+    
+    // Enhanced SIMD processing
+    public ActivationResult stepFitEnhanced(Pattern input, VectorizedSalienceParameters params)
+    
+    // Network state
+    public int getCategoryCount()
+    public boolean isTrained()
+    
+    // Performance tracking
+    public VectorizedSaliencePerformanceStats getPerformanceStats()
+    public void resetPerformanceTracking()
+    
+    // Algorithm metadata
+    public String getAlgorithmType()  // Returns "VectorizedSalienceART"
+    public boolean isVectorized()     // Returns true
+}
+```
+
+**VectorizedSalienceParameters:**
+
+```java
+public record VectorizedSalienceParameters(
+    double vigilance,
+    double learningRate,
+    double alpha,
+    boolean enableSIMD,
+    boolean useSparseMode,
+    double sparsityThreshold,
+    double salienceUpdateRate,
+    SalienceCalculationType calculationType,
+    boolean adaptiveSalience,
+    double minimumSalience,
+    double maximumSalience,
+    int simdThreshold
+) {
+    // Factory methods
+    public static VectorizedSalienceParameters createDefault()
+    public static VectorizedSalienceParameters createHighPerformance()
+    public static VectorizedSalienceParameters createMemoryOptimized()
+    
+    // Builder pattern
+    public static Builder builder()
+    
+    // Immutable update methods
+    public VectorizedSalienceParameters withVigilance(double newVigilance)
+    public VectorizedSalienceParameters withLearningRate(double newLearningRate)
+    public VectorizedSalienceParameters withSalienceUpdateRate(double newRate)
+    public VectorizedSalienceParameters withUseSparseMode(boolean newUseSparseMode)
+    public VectorizedSalienceParameters withEnableSIMD(boolean newEnableSIMD)
+}
+
+public enum SalienceCalculationType {
+    FREQUENCY,          // Frequency-based salience
+    STATISTICAL,        // Combined statistical measures
+    INFORMATION_GAIN,   // Information-theoretic approach
+    VARIANCE_BASED      // Variance reduction approach
+}
+```
+
+### VectorizedSalienceARTMAP
+
+Supervised salience-aware learning with cross-module adaptation:
+
+```java
+public class VectorizedSalienceARTMAP 
+    implements VectorizedARTMAPAlgorithm<VectorizedSalienceARTMAPResult, VectorizedSalienceARTMAPParameters> {
+    
+    public VectorizedSalienceARTMAP(VectorizedSalienceARTMAPParameters parameters)
+    
+    // Supervised learning
+    public VectorizedSalienceARTMAPResult learn(Pattern input, Pattern target, 
+                                                VectorizedSalienceARTMAPParameters parameters)
+    public VectorizedSalienceARTMAPResult predict(Pattern input, 
+                                                  VectorizedSalienceARTMAPParameters parameters)
+    
+    // Batch processing
+    public VectorizedSalienceARTMAPResult[] learnBatch(Pattern[] inputs, Pattern[] targets,
+                                                       VectorizedSalienceARTMAPParameters parameters)
+    public VectorizedSalienceARTMAPResult[] predictBatch(Pattern[] inputs,
+                                                         VectorizedSalienceARTMAPParameters parameters)
+    
+    // Network components
+    public int getInputCategoryCount()   // ART-A categories
+    public int getOutputCategoryCount()  // ART-B categories
+    public Map<Integer, Integer> getMapping()  // Category associations
+    
+    // Performance tracking
+    public VectorizedSalienceARTMAPResult getPerformanceStats()
+    public void resetPerformanceTracking()
+}
+```
+
+**VectorizedSalienceARTMAPParameters:**
+
+```java
+public record VectorizedSalienceARTMAPParameters(
+    double mapVigilance,
+    double baselineVigilance,
+    double vigilanceIncrement,
+    double maxVigilance,
+    boolean enableMatchTracking,
+    boolean enableParallelSearch,
+    int maxSearchAttempts,
+    VectorizedSalienceParameters artAParams,
+    VectorizedSalienceParameters artBParams,
+    boolean enableCrossSalienceAdaptation,
+    double salienceTransferRate,
+    SalienceMappingStrategy mappingStrategy
+) {
+    // Factory methods
+    public static VectorizedSalienceARTMAPParameters defaults()
+    
+    // Builder pattern
+    public static Builder builder()
+    
+    // Immutable update methods
+    public VectorizedSalienceARTMAPParameters withMapVigilance(double newMapVigilance)
+    public VectorizedSalienceARTMAPParameters withEnableMatchTracking(boolean enable)
+    public VectorizedSalienceARTMAPParameters withEnableCrossSalienceAdaptation(boolean enable)
+}
+
+public enum SalienceMappingStrategy {
+    WEIGHTED_AVERAGE,   // Average salience between modules
+    MAX_SALIENCE,       // Use maximum salience
+    MIN_SALIENCE        // Use minimum salience
 }
 ```
 
