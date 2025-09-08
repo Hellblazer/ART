@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1000" viewBox="0 0 1200 1000">
+  <!-- Background -->
+  <rect width="1200" height="1000" fill="#fafafa" stroke="none"/>
+  
+  <!-- Title -->
+  <text x="600" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#1a202c">
+    ART-NLP Multi-Channel Architecture
+  </text>
+  
+  <!-- Input Text -->
+  <g>
+    <rect x="550" y="60" width="100" height="30" rx="4" fill="#e3f2fd" stroke="#1976d2" stroke-width="1"/>
+    <text x="600" y="79" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#1976d2">
+      Input Text
+    </text>
+  </g>
+  
+  <!-- Tokenizer Pipeline -->
+  <g>
+    <rect x="520" y="130" width="160" height="40" rx="4" fill="#fff8e1" stroke="#ff8f00" stroke-width="1"/>
+    <text x="600" y="147" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#ff8f00">
+      TokenizerPipeline
+    </text>
+    <text x="600" y="161" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#e65100">
+      OpenNLP • Normalization
+    </text>
+  </g>
+  
+  <!-- MultiChannelProcessor -->
+  <g>
+    <rect x="480" y="210" width="240" height="50" rx="4" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+    <text x="600" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#7b1fa2">
+      MultiChannelProcessor
+    </text>
+    <text x="600" y="244" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6a1b9a">
+      Parallel Dispatch • Thread-Safe
+    </text>
+    <text x="600" y="254" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#8e24aa">
+      ExecutorService • ReadWriteLock
+    </text>
+  </g>
+  
+  <!-- Vertical spacing arrows -->
+  <path d="M600 90 L600 130" stroke="#666" stroke-width="1" fill="none" marker-end="url(#smallarrow)"/>
+  <path d="M600 170 L600 210" stroke="#666" stroke-width="1" fill="none" marker-end="url(#smallarrow)"/>
+  
+  <!-- Orthogonal arrows to channels -->
+  <g stroke="#666" stroke-width="1" fill="none" marker-end="url(#smallarrow)">
+    <!-- Down from processor -->
+    <path d="M600 260 L600 300"/>
+    <!-- Horizontal distribution -->
+    <path d="M150 300 L720 300"/>
+    <!-- Down to each channel -->
+    <path d="M150 300 L150 350"/>
+    <path d="M300 300 L300 350"/>
+    <path d="M440 300 L440 350"/>
+    <path d="M580 300 L580 350"/>
+    <path d="M720 300 L720 350"/>
+  </g>
+  
+  <!-- Channel 1: Semantic -->
+  <g>
+    <rect x="80" y="350" width="140" height="80" rx="4" fill="#e8f5e8" stroke="#2e7d2e" stroke-width="1"/>
+    <text x="150" y="368" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#1b5e20">
+      Semantic
+    </text>
+    <text x="150" y="383" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2e7d2e">
+      FastText 300D
+    </text>
+    <text x="150" y="397" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2e7d2e">
+      FuzzyART
+    </text>
+    <text x="150" y="411" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">
+      V: 0.85
+    </text>
+    <text x="150" y="422" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#666">
+      4.7GB model
+    </text>
+  </g>
+  
+  <!-- Channel 2: Syntactic -->
+  <g>
+    <rect x="240" y="350" width="120" height="80" rx="4" fill="#fff3e0" stroke="#f57c00" stroke-width="1"/>
+    <text x="300" y="368" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#e65100">
+      Syntactic
+    </text>
+    <text x="300" y="383" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#f57c00">
+      OpenNLP POS
+    </text>
+    <text x="300" y="397" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#f57c00">
+      SalienceART
+    </text>
+    <text x="300" y="411" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">
+      V: 0.75
+    </text>
+  </g>
+  
+  <!-- Channel 3: Entity -->
+  <g>
+    <rect x="380" y="350" width="120" height="80" rx="4" fill="#ffebee" stroke="#d32f2f" stroke-width="1"/>
+    <text x="440" y="368" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#c62828">
+      Entity
+    </text>
+    <text x="440" y="383" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#d32f2f">
+      OpenNLP NER
+    </text>
+    <text x="440" y="397" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#d32f2f">
+      FuzzyARTMAP
+    </text>
+    <text x="440" y="411" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">
+      Supervised
+    </text>
+  </g>
+  
+  <!-- Channel 4: Context -->
+  <g>
+    <rect x="520" y="350" width="120" height="80" rx="4" fill="#e1f5fe" stroke="#0288d1" stroke-width="1"/>
+    <text x="580" y="368" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0277bd">
+      Context
+    </text>
+    <text x="580" y="383" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#0288d1">
+      Discourse
+    </text>
+    <text x="580" y="397" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#0288d1">
+      TopoART
+    </text>
+    <text x="580" y="411" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">
+      V: 0.70
+    </text>
+  </g>
+  
+  <!-- Channel 5: Sentiment -->
+  <g>
+    <rect x="660" y="350" width="120" height="80" rx="4" fill="#fce4ec" stroke="#c2185b" stroke-width="1"/>
+    <text x="720" y="368" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#ad1457">
+      Sentiment
+    </text>
+    <text x="720" y="383" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#c2185b">
+      Emotion Lex
+    </text>
+    <text x="720" y="397" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#c2185b">
+      FuzzyART
+    </text>
+    <text x="720" y="411" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">
+      V: 0.60
+    </text>
+  </g>
+  
+  <!-- Orthogonal arrows from channels to fusion -->
+  <g stroke="#666" stroke-width="1" fill="none" marker-end="url(#smallarrow)">
+    <!-- Up from channels to horizontal line -->
+    <path d="M150 430 L150 480"/>
+    <path d="M300 430 L300 480"/>
+    <path d="M440 430 L440 480"/>
+    <path d="M580 430 L580 480"/>
+    <path d="M720 430 L720 480"/>
+    <!-- Horizontal collection line -->
+    <path d="M150 480 L720 480"/>
+    <!-- Down to fusion -->
+    <path d="M435 480 L435 520"/>
+  </g>
+  
+  <!-- Feature Fusion -->
+  <g>
+    <rect x="350" y="520" width="170" height="40" rx="4" fill="#f9fbe7" stroke="#827717" stroke-width="1"/>
+    <text x="435" y="537" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#689f38">
+      Feature Fusion
+    </text>
+    <text x="435" y="551" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#558b2f">
+      Concatenation • L2 Norm
+    </text>
+  </g>
+  
+  <!-- Consensus Engine -->
+  <g>
+    <rect x="350" y="600" width="170" height="40" rx="4" fill="#fff8e1" stroke="#ff8f00" stroke-width="1"/>
+    <text x="435" y="617" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#f57c00">
+      Consensus Engine
+    </text>
+    <text x="435" y="631" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ef6c00">
+      Weighted Voting
+    </text>
+  </g>
+  
+  <!-- Processing Result -->
+  <g>
+    <rect x="300" y="680" width="270" height="60" rx="4" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1"/>
+    <text x="435" y="697" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#4a148c">
+      ProcessingResult
+    </text>
+    <text x="435" y="711" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6a1b9a">
+      Category: 42 • Confidence: 0.87 • 89ms
+    </text>
+    <text x="435" y="723" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#7b1fa2">
+      Entities: [John(PERSON), Google(ORG)]
+    </text>
+    <text x="435" y="733" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#8e24aa">
+      {semantic:15, syntactic:8, entity:23, context:12, sentiment:5}
+    </text>
+  </g>
+  
+  <!-- Vertical flow arrows -->
+  <path d="M435 560 L435 600" stroke="#666" stroke-width="1" fill="none" marker-end="url(#smallarrow)"/>
+  <path d="M435 640 L435 680" stroke="#666" stroke-width="1" fill="none" marker-end="url(#smallarrow)"/>
+  
+  <!-- Performance box -->
+  <g>
+    <rect x="900" y="60" width="280" height="120" rx="4" fill="#e8f5e8" stroke="#2e7d2e" stroke-width="1"/>
+    <text x="1040" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1b5e20">
+      Performance Metrics
+    </text>
+    <text x="920" y="100" font-family="Arial, sans-serif" font-size="11" fill="#2e7d2e">
+      Throughput: 12,347 tokens/sec
+    </text>
+    <text x="920" y="115" font-family="Arial, sans-serif" font-size="11" fill="#2e7d2e">
+      Latency P95: 87ms
+    </text>
+    <text x="920" y="130" font-family="Arial, sans-serif" font-size="11" fill="#2e7d2e">
+      Memory: 3.2GB
+    </text>
+    <text x="920" y="145" font-family="Arial, sans-serif" font-size="11" fill="#2e7d2e">
+      Accuracy: 87.3%
+    </text>
+    <text x="920" y="160" font-family="Arial, sans-serif" font-size="11" fill="#2e7d2e">
+      No Catastrophic Forgetting
+    </text>
+  </g>
+  
+  <!-- Models box -->
+  <g>
+    <rect x="900" y="200" width="280" height="80" rx="4" fill="#fff3e0" stroke="#f57c00" stroke-width="1"/>
+    <text x="1040" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#e65100">
+      Models
+    </text>
+    <text x="920" y="240" font-family="Arial, sans-serif" font-size="11" fill="#f57c00">
+      FastText: cc.en.300.vec.gz (4.7GB)
+    </text>
+    <text x="920" y="255" font-family="Arial, sans-serif" font-size="11" fill="#f57c00">
+      OpenNLP: Tokenizer, POS, NER (200MB)
+    </text>
+    <text x="920" y="270" font-family="Arial, sans-serif" font-size="11" fill="#f57c00">
+      Runtime Memory: 1.2GB
+    </text>
+  </g>
+  
+  <!-- ART Algorithms box -->
+  <g>
+    <rect x="900" y="300" width="280" height="100" rx="4" fill="#e1f5fe" stroke="#0288d1" stroke-width="1"/>
+    <text x="1040" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0277bd">
+      ART Algorithms
+    </text>
+    <text x="920" y="340" font-family="Arial, sans-serif" font-size="11" fill="#0288d1">
+      FuzzyART: Semantic, Sentiment
+    </text>
+    <text x="920" y="355" font-family="Arial, sans-serif" font-size="11" fill="#0288d1">
+      SalienceART: Syntactic
+    </text>
+    <text x="920" y="370" font-family="Arial, sans-serif" font-size="11" fill="#0288d1">
+      FuzzyARTMAP: Entity (supervised)
+    </text>
+    <text x="920" y="385" font-family="Arial, sans-serif" font-size="11" fill="#0288d1">
+      TopoART: Context topology
+    </text>
+  </g>
+  
+  <!-- Compact legend -->
+  <g>
+    <rect x="900" y="420" width="280" height="140" rx="4" fill="#ffffff" stroke="#bdbdbd" stroke-width="1"/>
+    <text x="1040" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333">
+      Legend
+    </text>
+    
+    <circle cx="920" cy="460" r="6" fill="#2e7d2e"/>
+    <text x="935" y="465" font-family="Arial, sans-serif" font-size="10" fill="#333">Semantic</text>
+    
+    <circle cx="1020" cy="460" r="6" fill="#f57c00"/>
+    <text x="1035" y="465" font-family="Arial, sans-serif" font-size="10" fill="#333">Syntactic</text>
+    
+    <circle cx="1120" cy="460" r="6" fill="#d32f2f"/>
+    <text x="1135" y="465" font-family="Arial, sans-serif" font-size="10" fill="#333">Entity</text>
+    
+    <circle cx="920" cy="480" r="6" fill="#0288d1"/>
+    <text x="935" y="485" font-family="Arial, sans-serif" font-size="10" fill="#333">Context</text>
+    
+    <circle cx="1020" cy="480" r="6" fill="#c2185b"/>
+    <text x="1035" y="485" font-family="Arial, sans-serif" font-size="10" fill="#333">Sentiment</text>
+    
+    <circle cx="920" cy="500" r="6" fill="#827717"/>
+    <text x="935" y="505" font-family="Arial, sans-serif" font-size="10" fill="#333">Fusion</text>
+    
+    <circle cx="1020" cy="500" r="6" fill="#ff8f00"/>
+    <text x="1035" y="505" font-family="Arial, sans-serif" font-size="10" fill="#333">Consensus</text>
+    
+    <circle cx="1120" cy="500" r="6" fill="#6a1b9a"/>
+    <text x="1135" y="505" font-family="Arial, sans-serif" font-size="10" fill="#333">Output</text>
+    
+    <path d="M920 520 L960 520" stroke="#666" stroke-width="1" marker-end="url(#smallarrow)"/>
+    <text x="970" y="525" font-family="Arial, sans-serif" font-size="10" fill="#333">Data Flow</text>
+  </g>
+  
+  <!-- Small arrow marker definition -->
+  <defs>
+    <marker id="smallarrow" markerWidth="6" markerHeight="4" 
+            refX="6" refY="2" orient="auto" fill="#666">
+      <polygon points="0 0, 6 2, 0 4"/>
+    </marker>
+  </defs>
+</svg>

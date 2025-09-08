@@ -40,6 +40,7 @@
         <module>art-performance</module>
         <module>gpu-test-framework</module>
         <module>art-nlp</module>
+        <module>text-generation</module>
     </modules>
 
     <dependencyManagement>

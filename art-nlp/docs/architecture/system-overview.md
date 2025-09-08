@@ -23,99 +23,32 @@ The ART-NLP module is a sophisticated multi-channel natural language processing 
 
 ## System Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              ART-NLP PROCESSING PIPELINE                                │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+<div align="center">
+  <img src="art-nlp-architecture.svg" alt="ART-NLP Multi-Channel Processing Architecture" width="100%" style="max-width: 1400px; height: auto;" />
+</div>
 
-                                    📝 INPUT TEXT
-                                         │
-                                         ▼
-                              ┌──────────────────────┐
-                              │   TokenizerPipeline  │ ◄── OpenNLP Models
-                              │   • Sentence split   │
-                              │   • Tokenization     │
-                              │   • Normalization    │
-                              └──────────┬───────────┘
-                                         │
-                                         ▼
-                              ┌──────────────────────┐
-                              │ MultiChannelProcessor│
-                              │   Thread Pool (8)    │
-                              │   Parallel Dispatch  │
-                              └──────────┬───────────┘
-                                         │
-                    ┌────────────────────┼────────────────────┐
-                    │                    │                    │
-                    ▼                    ▼                    ▼
-          ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-          │ SEMANTIC CHANNEL│  │SYNTACTIC CHANNEL│  │ ENTITY CHANNEL  │
-          │ ┌─────────────┐ │  │ ┌─────────────┐ │  │ ┌─────────────┐ │
-          │ │ FastText    │ │  │ │ OpenNLP POS │ │  │ │ OpenNLP NER │ │
-          │ │ 4.7GB Model │ │  │ │ Tagging     │ │  │ │ Multi-Model │ │
-          │ │ 300D Vectors│ │  │ │ Grammar     │ │  │ │ PERSON/ORG  │ │
-          │ └─────────────┘ │  │ └─────────────┘ │  │ │ LOCATION    │ │
-          │       │         │  │       │         │  │ └─────────────┘ │
-          │       ▼         │  │       ▼         │  │       │         │
-          │ ┌─────────────┐ │  │ ┌─────────────┐ │  │ ┌─────────────┐ │
-          │ │  FuzzyART   │ │  │ │SalienceART  │ │  │ │FuzzyARTMAP  │ │
-          │ │ Vigilance:  │ │  │ │ Vigilance:  │ │  │ │ Supervised  │ │
-          │ │   0.85      │ │  │ │   0.75      │ │  │ │ Learning    │ │
-          │ └─────────────┘ │  │ └─────────────┘ │  │ └─────────────┘ │
-          └─────────┬───────┘  └─────────┬───────┘  └─────────┬───────┘
-                    │                    │                    │
-                    │                    │                    │
-          ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-          │ CONTEXT CHANNEL │  │SENTIMENT CHANNEL│  │                 │
-          │ ┌─────────────┐ │  │ ┌─────────────┐ │  │                 │
-          │ │ Sliding     │ │  │ │ Emotion     │ │  │                 │
-          │ │ Window      │ │  │ │ Lexicons    │ │  │                 │
-          │ │ Discourse   │ │  │ │ VAD Scores  │ │  │                 │
-          │ │ Markers     │ │  │ │ Multi-dim   │ │  │                 │
-          │ └─────────────┘ │  │ └─────────────┘ │  │                 │
-          │       │         │  │       │         │  │                 │
-          │       ▼         │  │       ▼         │  │                 │
-          │ ┌─────────────┐ │  │ ┌─────────────┐ │  │                 │
-          │ │  TopoART    │ │  │ │  FuzzyART   │ │  │                 │
-          │ │ Vigilance:  │ │  │ │ Vigilance:  │ │  │                 │
-          │ │   0.70      │ │  │ │   0.60      │ │  │                 │
-          │ └─────────────┘ │  │ └─────────────┘ │  │                 │
-          └─────────┬───────┘  └─────────┬───────┘  └─────────────────┘
-                    │                    │
-                    └────────────────────┼────────────────────┘
-                                         │
-                                         ▼
-                              ┌──────────────────────┐
-                              │   FEATURE FUSION     │ ◄── ConcatenationFusion
-                              │   • Vector concat    │     AttentionFusion
-                              │   • Normalization    │     PCAFusion
-                              │   • Dimensionality   │
-                              └──────────┬───────────┘
-                                         │
-                                         ▼
-                              ┌──────────────────────┐
-                              │   CONSENSUS ENGINE   │ ◄── WeightedVoting
-                              │   • Weight channels  │     AttentionConsensus
-                              │   • Confidence calc  │     HierarchicalConsensus
-                              │   • Final category   │
-                              └──────────┬───────────┘
-                                         │
-                                         ▼
-                              ┌──────────────────────┐
-                              │   PROCESSING RESULT  │
-                              │                      │
-                              │ • Category: 42       │
-                              │ • Confidence: 0.87   │
-                              │ • Entities: [...]    │ ◄── John Smith (PERSON)
-                              │ • Channel cats: {...}│     Google (ORGANIZATION)  
-                              │ • Metadata: {...}    │     however (DISCOURSE)
-                              │ • Processing: 89ms   │
-                              └──────────────────────┘
+> 📊 **Interactive Architecture Diagram**: The diagram above shows the complete data flow through the ART-NLP system with real performance metrics and technical specifications.
+> 
+> *If the diagram doesn't display, you can [view the SVG file directly](art-nlp-architecture.svg)*
 
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ PERFORMANCE CHARACTERISTICS: 12,347 tok/sec │ 87ms P95 │ 3.2GB RAM │ 87.3% accuracy    │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-```
+The architecture diagram above illustrates the complete data flow through the ART-NLP system:
+
+### Processing Pipeline Flow
+
+1. **Input Processing** - Text enters through the TokenizerPipeline using OpenNLP models
+2. **Parallel Dispatch** - MultiChannelProcessor distributes work across 5 specialized channels
+3. **Channel Processing** - Each channel applies domain-specific NLP models and ART algorithms
+4. **Feature Integration** - Results are fused using configurable fusion strategies  
+5. **Consensus Formation** - Weighted voting determines final classification with confidence
+6. **Result Assembly** - Comprehensive ProcessingResult with entities, categories, and metadata
+
+### Key Architecture Benefits
+
+- **Modular Design**: Each channel can be independently configured, replaced, or disabled
+- **Parallel Processing**: All channels process simultaneously for optimal performance
+- **Fault Tolerance**: System continues operating even if individual channels fail
+- **Extensibility**: New channels can be added without modifying existing components
+- **Performance**: Achieves 12,347 tokens/sec with 87ms P95 latency
 
 ## Core Components
 
@@ -274,29 +207,31 @@ public final class FastTextChannel extends BaseChannel {
 
 #### ProcessingResult
 ```java
-public final class ProcessingResult {
-    private final String text;                        // Original input
-    private final double confidence;                  // Overall confidence
-    private final int category;                       // Consensus category
-    private final long processingTimeMs;              // Processing duration
-    private final Map<String, Integer> channelCategories; // Per-channel results
-    private final List<Entity> entities;             // Extracted entities
-    private final int tokenCount;                    // Token statistics
-    private final Map<String, ChannelResult> channelResults; // Detailed results
-    // ... additional metadata and features
+public record ProcessingResult(
+    String text,                                    // Original input
+    double confidence,                              // Overall confidence  
+    int category,                                   // Consensus category
+    long processingTimeMs,                         // Processing duration
+    Map<String, Integer> channelCategories,        // Per-channel results
+    List<Entity> entities,                         // Extracted entities
+    int tokenCount,                                // Token statistics
+    Map<String, ChannelResult> channelResults,     // Detailed results
+    Map<String, Object> metadata                   // Additional metadata
+) {
+    // Factory methods and validation can be added here
 }
-```
 
 #### DocumentAnalysis
 ```java
-public final class DocumentAnalysis {
-    private final Document document;                  // Original document
-    private final ProcessingResult processingResult; // NLP analysis
-    private final List<String> sentences;           // Sentence segmentation
-    private final List<String> paragraphs;          // Paragraph structure
-    private final Map<String, Object> analysisMetadata; // Rich metadata
+public record DocumentAnalysis(
+    Document document,                              // Original document
+    ProcessingResult processingResult,              // NLP analysis
+    List<String> sentences,                         // Sentence segmentation  
+    List<String> paragraphs,                        // Paragraph structure
+    Map<String, Object> analysisMetadata           // Rich metadata
+) {
+    // Analysis methods can be added as instance methods
 }
-```
 
 ## Integration Patterns
 
@@ -307,17 +242,25 @@ public final class DocumentAnalysis {
 - **Performance Metrics**: Shared benchmarking infrastructure
 
 ### Ecosystem Integration
+
+**Text Generation Module:**
 ```java
-// Integration with text-generation module
-TextGenerationFeedback feedback = nlpProcessor.analyzeFeedback(generatedText);
+// Analyze generated text for feedback
+var feedback = nlpProcessor.analyzeFeedback(generatedText);
 textGenerator.incorporateFeedback(feedback);
+```
 
-// Integration with art-performance module
-BenchmarkSuite benchmarks = new NLPBenchmarks(nlpProcessor);
-PerformanceReport report = benchmarks.runStandardBenchmarks();
+**Performance Benchmarking:**
+```java
+// Run standard NLP benchmarks
+var benchmarks = new NLPBenchmarks(nlpProcessor);
+var report = benchmarks.runStandardBenchmarks();
+```
 
-// Integration with monitoring systems
-MeterRegistry registry = Metrics.globalRegistry;
+**Monitoring Integration:**
+```java
+// Register metrics with monitoring system
+var registry = Metrics.globalRegistry;
 nlpProcessor.registerMetrics(registry);
 ```
 
