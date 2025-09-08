@@ -1,0 +1,21 @@
+# Software Architecture Patterns
+
+Software architecture patterns are reusable solutions to commonly occurring problems in software architecture. They provide a structured approach to organizing code and managing complexity in large-scale applications.
+
+## Model-View-Controller (MVC)
+
+The Model-View-Controller pattern separates an application into three interconnected components. The Model represents the data and business logic, the View displays the data to the user, and the Controller handles user input and updates both Model and View accordingly.
+
+This separation of concerns makes applications more maintainable and testable. Changes to the user interface don't affect the business logic, and vice versa. MVC has become the foundation for many web frameworks including Ruby on Rails, Django, and Spring MVC.
+
+## Microservices Architecture
+
+Microservices architecture structures an application as a collection of loosely coupled services. Each service is independently deployable, scalable, and maintains its own data storage. Services communicate through well-defined interfaces, typically REST APIs or message queues.
+
+This pattern enables organizations to develop and deploy services independently, use different technologies for different services, and scale services based on demand. However, it also introduces complexity in terms of service coordination, data consistency, and network communication.
+
+## Event-Driven Architecture
+
+Event-driven architecture is based on the production, detection, and reaction to events. Components communicate through events rather than direct calls, creating a loosely coupled system that can easily adapt to changes and scale.
+
+Events are typically processed through message brokers or event streams. This pattern is particularly useful for real-time data processing, IoT applications, and systems that need to react to state changes across multiple components.

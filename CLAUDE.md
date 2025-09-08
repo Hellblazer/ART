@@ -148,3 +148,71 @@ Uses `repo-hell` GitHub repository for custom Maven artifacts:
 - Prime Mover plugin for advanced build features
 - May include other custom neural network utilities
 - Check repository for additional documentation
+
+## Text Generation Module
+
+### Overview
+The `text-generation` module implements a neuroscience-inspired text generation system using ART principles. Located at `/text-generation`, it demonstrates how ART can be applied to natural language processing without catastrophic forgetting.
+
+### Architecture (~65% Complete)
+- **Core Components** (`com.art.textgen.core`): Vocabulary, WorkingMemory
+- **Dynamics** (`com.art.textgen.dynamics`): Grossberg neural dynamics, resonance detection, shunting equations
+- **Memory** (`com.art.textgen.memory`): Multi-timescale memory, recursive hierarchical memory
+- **Generation** (`com.art.textgen.generation`):
+  - PatternGenerator with repetition penalty
+  - AdvancedSamplingMethods (Top-k, Top-p, adaptive temperature)
+  - ContextAwareGenerator (topic tracking, discourse coherence, style consistency)
+- **Training** (`com.art.textgen.training`):
+  - IncrementalTrainer (no catastrophic forgetting, curriculum learning)
+  - PatternExtractor, CorpusLoader
+  - EnhancedCorpusDownloader for data collection
+- **Evaluation** (`com.art.textgen.evaluation`):
+  - TextGenerationMetrics (perplexity, BLEU, diversity, coherence, fluency)
+  - ExperimentRunner (A/B testing, parameter sweeps, statistical significance)
+- **Monitoring** (`com.art.textgen.monitoring`):
+  - TrainingDashboard (real-time GUI with metrics visualization)
+
+### Key Features
+- **No Catastrophic Forgetting**: Uses resonance-based pattern tracking
+- **Context-Aware Generation**: Maintains coherence across long texts
+- **Advanced Sampling**: Multiple strategies for quality/diversity tradeoff
+- **Comprehensive Evaluation**: Full metrics suite for objective measurement
+- **Real-time Monitoring**: Swing-based dashboard for training visualization
+
+### Running the Module
+```bash
+cd text-generation
+
+# Build
+mvn clean compile
+
+# Run main application
+mvn exec:java -Dexec.mainClass="com.art.textgen.ARTTextGenerationApp"
+
+# Run dashboard
+mvn exec:java -Dexec.mainClass="com.art.textgen.monitoring.TrainingDashboard"
+
+# Run tests
+./test-integration.sh
+./test-complete.sh
+
+# Expand corpus (currently 22.64MB of 30MB target)
+./expand-corpus.sh
+```
+
+### Current Status
+- Corpus: 22.64 MB collected (75% of target)
+- Documents: 143
+- Vocabulary: 152,951 tokens
+- Components: 10 of 12 major modules implemented
+
+### Integration Tasks Pending
+- Wire IncrementalTrainer into main training pipeline
+- Connect TextGenerationMetrics to generation loop
+- Integrate ContextAwareGenerator with PatternGenerator
+- Link TrainingDashboard to training pipeline
+
+### Files of Interest
+- `EXECUTION_PLAN.md` - Detailed implementation roadmap
+- `PROGRESS_REPORT.md` - Current status (65% complete)
+- `SESSION_SUMMARY.md` - Latest development session notes

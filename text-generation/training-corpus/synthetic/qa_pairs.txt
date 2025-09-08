@@ -1,0 +1,14 @@
+Question: What is machine learning?
+Answer: Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed. It focuses on developing algorithms that can analyze data, identify patterns, and make decisions with minimal human intervention.
+
+Question: How does photosynthesis work?
+Answer: Photosynthesis is the process by which plants convert light energy into chemical energy. In the chloroplasts, chlorophyll absorbs light energy, which drives the conversion of carbon dioxide and water into glucose and oxygen. This process occurs in two stages: the light-dependent reactions and the Calvin cycle.
+
+Question: What causes seasons on Earth?
+Answer: Seasons are caused by Earth's axial tilt of approximately 23.5 degrees relative to its orbital plane around the Sun. As Earth orbits the Sun, different parts of the planet receive varying amounts of direct sunlight throughout the year, creating seasonal variations in temperature and daylight hours.
+
+Question: What is the difference between RAM and storage?
+Answer: RAM (Random Access Memory) is temporary, volatile memory that stores data currently being used by running programs. It's fast but loses its contents when power is removed. Storage (like hard drives or SSDs) is permanent, non-volatile memory that retains data even when the computer is turned off, but it's slower to access than RAM.
+
+Question: How do vaccines work?
+Answer: Vaccines work by training the immune system to recognize and fight specific pathogens. They contain weakened, killed, or partial versions of disease-causing organisms that trigger an immune response without causing the actual disease. This creates immunological memory, enabling the body to respond quickly if exposed to the real pathogen later.

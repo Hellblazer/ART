@@ -1,0 +1,442 @@
+package com.art.textgen.generation;
+
+import com.art.textgen.core.Vocabulary;
+import com.art.textgen.dynamics.ResonanceDetector;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Enhanced Pattern Generator with repetition penalty and advanced sampling
+ * This integrates all the generation improvements including top-k/top-p sampling
+ */
+public class EnhancedPatternGenerator extends PatternGenerator {
+    
+    private final RepetitionPenalty repetitionPenalty;
+    private final AdvancedSampler sampler;
+    private final SamplingStrategies samplingStrategies;
+    private final List<String> generationHistory;
+    private SamplingStrategies.SamplingConfig samplingConfig;
+    
+    // Generation modes
+    public enum GenerationMode {
+        CONSERVATIVE(0.5, 20, 0.8),  // Low temp, small top-k
+        BALANCED(0.8, 40, 0.9),       // Default settings
+        CREATIVE(1.2, 60, 0.95),      // High temp, large nucleus
+        PRECISE(0.3, 10, 0.7);        // Very low temp, strict filtering
+        
+        public final double temperature;
+        public final int topK;
+        public final double topP;
+        
+        GenerationMode(double temp, int k, double p) {
+            this.temperature = temp;
+            this.topK = k;
+            this.topP = p;
+        }
+    }
+    
+    private GenerationMode mode = GenerationMode.BALANCED;
+    
+    public EnhancedPatternGenerator(Vocabulary vocabulary, double temperature) {
+        super(vocabulary, temperature);
+        this.repetitionPenalty = new RepetitionPenalty(50);
+        this.sampler = new AdvancedSampler();
+        this.samplingStrategies = new SamplingStrategies();
+        this.generationHistory = new ArrayList<>();
+        
+        // Initialize sampling config
+        this.samplingConfig = new SamplingStrategies.SamplingConfig();
+        this.samplingConfig.temperature = temperature;
+        this.samplingConfig.repetitionPenalty = 1.2;
+        this.samplingConfig.adaptiveTemp = true;
+        
+        // Configure sampler with default settings
+        configureMode(GenerationMode.BALANCED);
+    }
+    
+    /**
+     * Enhanced generation with all improvements including top-k/top-p sampling
+     */
+    @Override
+    public String generateNext(List<String> context) {
+        // Generate multiple candidates from parent
+        Map<String, Double> candidateScores = new HashMap<>();
+        
+        // Get multiple generation attempts from parent
+        for (int i = 0; i < 20; i++) {
+            String candidate = super.generateNext(context);
+            if (candidate != null && !candidate.equals("<END>")) {
+                // Score based on novelty and context
+                double score = 1.0;
+                
+                // Penalize recent repetitions
+                if (generationHistory.size() > 0) {
+                    for (int j = Math.max(0, generationHistory.size() - 10); j < generationHistory.size(); j++) {
+                        if (generationHistory.get(j).equals(candidate)) {
+                            score *= 0.3; // Heavy penalty for recent repetition
+                        }
+                    }
+                }
+                
+                // Penalize if it appears in context
+                for (String contextToken : context) {
+                    if (contextToken.equals(candidate)) {
+                        score *= 0.5;
+                    }
+                }
+                
+                candidateScores.merge(candidate, score, Double::sum);
+            }
+        }
+        
+        // Convert to TokenProbability list for advanced sampling
+        if (!candidateScores.isEmpty()) {
+            // Normalize scores to probabilities
+            double totalScore = candidateScores.values().stream().mapToDouble(Double::doubleValue).sum();
+            
+            List<SamplingStrategies.TokenProbability> tokenProbs = candidateScores.entrySet().stream()
+                .map(e -> new SamplingStrategies.TokenProbability(e.getKey(), e.getValue() / totalScore))
+                .collect(Collectors.toList());
+            
+            // Use advanced sampling strategies
+            String selected = samplingStrategies.sample(tokenProbs, samplingConfig);
+            
+            if (selected != null) {
+                generationHistory.add(selected);
+                // Keep history size limited
+                if (generationHistory.size() > 100) {
+                    generationHistory.remove(0);
+                }
+                return selected;
+            }
+        }
+        
+        // Fallback to parent generation
+        return super.generateNext(context);
+    }
+    
+    /**
+     * Simple generate method for convenience
+     */
+    public String generate(String prompt, int maxTokens) {
+        List<String> context = new ArrayList<>(tokenize(prompt));
+        List<String> generated = new ArrayList<>();
+        
+        for (int i = 0; i < maxTokens; i++) {
+            String next = generateNext(context);
+            if (next == null || next.equals("<END>")) {
+                break;
+            }
+            generated.add(next);
+            context.add(next);
+            
+            // Keep context size manageable
+            if (context.size() > 20) {
+                context.remove(0);
+            }
+        }
+        
+        return String.join(" ", generated);
+    }
+    
+    /**
+     * Generate with beam search for better quality
+     */
+    public List<String> generateWithBeamSearch(List<String> context, 
+                                              int length, 
+                                              int beamWidth) {
+        AdvancedSampler.TokenScorer scorer = ctx -> getTokenProbabilities(ctx);
+        
+        String start = context.isEmpty() ? "<START>" : context.get(context.size() - 1);
+        List<AdvancedSampler.Beam> beams = sampler.beamSearch(scorer, start, beamWidth, length);
+        
+        if (!beams.isEmpty()) {
+            // Return best beam
+            return beams.get(0).tokens;
+        }
+        
+        // Fallback to regular generation
+        return generateSequence(context, length);
+    }
+    
+    /**
+     * Generate a sequence with quality tracking
+     */
+    public GenerationResult generateWithMetrics(String prompt, int length) {
+        List<String> context = new ArrayList<>(tokenize(prompt));
+        List<String> generated = new ArrayList<>();
+        Map<String, Object> metrics = new HashMap<>();
+        
+        // Reset for new generation
+        repetitionPenalty.reset();
+        
+        long startTime = System.currentTimeMillis();
+        
+        for (int i = 0; i < length; i++) {
+            String next = generateNext(context);
+            
+            if (next == null || next.equals("<END>")) {
+                break;
+            }
+            
+            generated.add(next);
+            context.add(next);
+            
+            // Keep context window
+            if (context.size() > 20) {
+                context.remove(0);
+            }
+        }
+        
+        long endTime = System.currentTimeMillis();
+        
+        // Calculate metrics
+        metrics.put("generation_time_ms", endTime - startTime);
+        metrics.put("tokens_generated", generated.size());
+        metrics.put("tokens_per_second", 
+            generated.size() * 1000.0 / (endTime - startTime));
+        
+        // Add repetition statistics
+        metrics.putAll(repetitionPenalty.getStatistics());
+        
+        // Add sampling statistics  
+        metrics.putAll(sampler.getStatistics());
+        
+        // Calculate diversity
+        Set<String> unique = new HashSet<>(generated);
+        metrics.put("vocabulary_diversity", 
+            unique.size() / (double) Math.max(1, generated.size()));
+        
+        // Calculate perplexity estimate
+        metrics.put("estimated_perplexity", calculatePerplexity(context, generated));
+        
+        return new GenerationResult(prompt, generated, metrics);
+    }
+    
+    /**
+     * Get token probabilities (simplified for now)
+     */
+    protected Map<String, Double> getTokenProbabilities(List<String> context) {
+        Map<String, Double> probs = new HashMap<>();
+        
+        // Generate several candidates from parent and score them
+        for (int i = 0; i < 20; i++) {
+            String candidate = super.generateNext(context);
+            if (candidate != null && !candidate.equals("<END>")) {
+                probs.merge(candidate, 1.0, Double::sum);
+            }
+        }
+        
+        // Normalize
+        double sum = probs.values().stream().mapToDouble(Double::doubleValue).sum();
+        if (sum > 0) {
+            probs.replaceAll((k, v) -> v / sum);
+        }
+        
+        return probs;
+    }
+    
+    /**
+     * Get candidate tokens based on context
+     */
+    private Set<String> getCandidateTokens(List<String> context) {
+        Set<String> candidates = new HashSet<>();
+        
+        // Add vocabulary tokens
+        // In real implementation, this would use pattern matching
+        if (!context.isEmpty()) {
+            String lastToken = context.get(context.size() - 1);
+            // Add semantic neighbors
+            candidates.addAll(getSemanticNeighbors(lastToken, 20));
+        }
+        
+        // Add common continuations
+        candidates.addAll(getCommonTokens());
+        
+        return candidates;
+    }
+    
+    /**
+     * Score a token given context
+     */
+    private double scoreToken(String token, List<String> context) {
+        // Simplified scoring - in real implementation would use:
+        // - Pattern resonance
+        // - Semantic similarity
+        // - Grammar rules
+        // - Discourse coherence
+        
+        double score = 0.1; // Base score
+        
+        // Semantic coherence
+        if (!context.isEmpty()) {
+            String lastToken = context.get(context.size() - 1);
+            score += calculateSemanticSimilarity(lastToken, token) * 0.5;
+        }
+        
+        // Grammar bonus
+        if (isGrammaticalContinuation(context, token)) {
+            score *= 1.5;
+        }
+        
+        return score;
+    }
+    
+    /**
+     * Set custom temperature
+     */
+    public void setTemperature(double temperature) {
+        samplingConfig.temperature = temperature;
+        sampler.setTemperature(temperature);
+    }
+    
+    /**
+     * Configure generation mode
+     */
+    public void configureMode(GenerationMode mode) {
+        this.mode = mode;
+        samplingConfig.temperature = mode.temperature;
+        samplingConfig.topK = mode.topK;
+        samplingConfig.topP = mode.topP;
+        
+        // Also update the legacy sampler for compatibility
+        sampler.setTemperature(mode.temperature);
+        sampler.setTopK(mode.topK);
+        sampler.setTopP(mode.topP);
+    }
+    
+    /**
+     * Set custom parameters
+     */
+    public void setCustomParameters(double temperature, int topK, double topP,
+                                   double tokenPenalty, double ngramPenalty) {
+        sampler.setTemperature(temperature);
+        sampler.setTopK(topK);
+        sampler.setTopP(topP);
+        repetitionPenalty.setParameters(tokenPenalty, ngramPenalty, 1.1);
+    }
+    
+    /**
+     * Calculate perplexity estimate
+     */
+    private double calculatePerplexity(List<String> context, List<String> generated) {
+        if (generated.isEmpty()) return Double.POSITIVE_INFINITY;
+        
+        double totalLogProb = 0;
+        List<String> fullContext = new ArrayList<>(context);
+        
+        for (String token : generated) {
+            Map<String, Double> probs = getTokenProbabilities(fullContext);
+            double prob = probs.getOrDefault(token, 1e-10);
+            totalLogProb += Math.log(prob);
+            
+            fullContext.add(token);
+            if (fullContext.size() > 20) {
+                fullContext.remove(0);
+            }
+        }
+        
+        return Math.exp(-totalLogProb / generated.size());
+    }
+    
+    // Helper methods (stubs for now)
+    
+    private List<String> tokenize(String text) {
+        return Arrays.asList(text.toLowerCase().split("\\s+"));
+    }
+    
+    private List<String> generateSequence(List<String> context, int length) {
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < length; i++) {
+            String next = generateNext(context);
+            if (next == null || next.equals("<END>")) break;
+            result.add(next);
+            context.add(next);
+        }
+        return result;
+    }
+    
+    private Set<String> getSemanticNeighbors(String token, int count) {
+        // Simplified - generate candidates from parent
+        Set<String> neighbors = new HashSet<>();
+        List<String> context = Arrays.asList(token);
+        
+        for (int i = 0; i < count * 2 && neighbors.size() < count; i++) {
+            String candidate = super.generateNext(context);
+            if (candidate != null && !candidate.equals("<END>")) {
+                neighbors.add(candidate);
+            }
+        }
+        
+        return neighbors;
+    }
+    
+    private Set<String> getCommonTokens() {
+        // Return a set of common tokens
+        return new HashSet<>(Arrays.asList(
+            "the", "a", "and", "of", "to", "in", "is", "was",
+            "that", "it", "for", "with", "as", "on", "be", "have",
+            "but", "not", "by", "at"
+        ));
+    }
+    
+    private double calculateSemanticSimilarity(String token1, String token2) {
+        // Simplified - would use embeddings
+        if (token1.equals(token2)) return 1.0;
+        if (token1.length() > 3 && token2.length() > 3 &&
+            token1.substring(0, 3).equals(token2.substring(0, 3))) {
+            return 0.5;
+        }
+        return 0.1;
+    }
+    
+    private boolean isGrammaticalContinuation(List<String> context, String token) {
+        if (context.isEmpty()) return true;
+        
+        String last = context.get(context.size() - 1);
+        
+        // Simple rules
+        if (last.equals("the") || last.equals("a")) {
+            return !token.equals("the") && !token.equals("a");
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Generation result with metrics
+     */
+    public static class GenerationResult {
+        public final String prompt;
+        public final List<String> generated;
+        public final Map<String, Object> metrics;
+        
+        public GenerationResult(String prompt, List<String> generated, 
+                               Map<String, Object> metrics) {
+            this.prompt = prompt;
+            this.generated = generated;
+            this.metrics = metrics;
+        }
+        
+        public String getFullText() {
+            return prompt + " " + String.join(" ", generated);
+        }
+        
+        @Override
+        public String toString() {
+            return String.format(
+                "Prompt: %s\n" +
+                "Generated (%d tokens): %s\n" +
+                "Diversity: %.2f\n" +
+                "Perplexity: %.2f\n" +
+                "Speed: %.1f tokens/sec",
+                prompt,
+                generated.size(),
+                String.join(" ", generated),
+                metrics.get("vocabulary_diversity"),
+                metrics.get("estimated_perplexity"),
+                metrics.get("tokens_per_second")
+            );
+        }
+    }
+}

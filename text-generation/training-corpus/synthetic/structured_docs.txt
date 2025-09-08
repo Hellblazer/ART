@@ -1,0 +1,50 @@
+Instruction Manual: Smart Home Assistant Setup
+
+1. Unboxing and Initial Setup
+ - Remove the device from packaging
+ - Connect the power adapter to the device
+ - Plug the adapter into a power outlet
+ - Wait for the LED indicator to turn blue
+
+2. Network Configuration
+ - Download the companion app on your smartphone
+ - Open the app and create an account
+ - Select "Add New Device" from the menu
+ - Follow the on-screen instructions to connect to Wi-Fi
+
+3. Voice Recognition Training
+ - Say the wake word clearly five times
+ - Complete the voice training exercises
+ - Test voice recognition with sample commands
+ - Adjust microphone sensitivity if needed
+
+4. Customization
+ - Set your preferred language and accent
+ - Configure privacy settings
+ - Link compatible smart home devices
+ - Create custom routines and automations
+
+Recipe: Classic Chocolate Chip Cookies
+
+Ingredients:
+- 2¼ cups all-purpose flour
+- 1 teaspoon baking soda
+- 1 teaspoon salt
+- 1 cup butter, softened
+- ¾ cup granulated sugar
+- ¾ cup packed brown sugar
+- 2 large eggs
+- 2 teaspoons vanilla extract
+- 2 cups chocolate chips
+
+Instructions:
+1. Preheat oven to 375°F (190°C)
+2. Combine flour, baking soda, and salt in a bowl
+3. Beat butter and sugars until creamy
+4. Add eggs and vanilla to butter mixture
+5. Gradually blend in flour mixture
+6. Stir in chocolate chips
+7. Drop rounded tablespoons onto ungreased baking sheets
+8. Bake for 9-11 minutes until golden brown
+9. Cool on baking sheets for 2 minutes
+10. Remove to wire racks to cool completely

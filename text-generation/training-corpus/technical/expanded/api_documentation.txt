@@ -1,0 +1,39 @@
+=== API Documentation ===
+
+## RESTful API Endpoints
+
+### Authentication
+
+POST /api/auth/login
+Description: Authenticates user and returns access token
+Request Body: { "username": "string", "password": "string" }
+Response: { "token": "string", "expires_in": 3600 }
+Status Codes: 200 (Success), 401 (Unauthorized), 500 (Server Error)
+
+POST /api/auth/refresh
+Description: Refreshes an expired access token
+Headers: Authorization: Bearer <refresh_token>
+Response: { "token": "string", "expires_in": 3600 }
+
+### Data Operations
+
+GET /api/data/{id}
+Description: Retrieves a specific data record by ID
+Parameters: id (required) - Unique identifier
+Response: { "id": "string", "data": {}, "metadata": {} }
+
+POST /api/data
+Description: Creates a new data record
+Request Body: { "type": "string", "content": {}, "tags": [] }
+Response: { "id": "string", "created_at": "timestamp" }
+
+PUT /api/data/{id}
+Description: Updates an existing data record
+Request Body: { "content": {}, "version": "string" }
+Response: { "id": "string", "updated_at": "timestamp" }
+
+DELETE /api/data/{id}
+Description: Deletes a data record
+Parameters: id (required) - Record to delete
+Response: { "success": true, "deleted_at": "timestamp" }
+

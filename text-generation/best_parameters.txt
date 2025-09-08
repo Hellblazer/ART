@@ -1,0 +1,8 @@
+# ART Text Generation - Optimal Parameters
+# Generated: Sun Sep 07 12:48:49 PDT 2025
+
+temperature=1.2
+topK=50
+topP=0.90
+repetitionPenalty=1.5
+qualityScore=9.630

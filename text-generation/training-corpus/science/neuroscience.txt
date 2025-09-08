@@ -1,0 +1,25 @@
+Neuroscience and Brain Function
+
+The human brain contains approximately 86 billion neurons interconnected through
+trillions of synapses. This complex network gives rise to perception, cognition,
+emotion, and consciousness through electrochemical signaling.
+
+Neurons communicate via action potentials - rapid changes in electrical charge
+that propagate along axons. When action potentials reach synaptic terminals,
+they trigger neurotransmitter release. These chemical messengers cross the
+synaptic cleft and bind to receptors on receiving neurons.
+
+Brain regions specialize for different functions. The frontal lobe handles
+executive function and motor control. The temporal lobe processes auditory
+information and memory. The parietal lobe integrates sensory information.
+The occipital lobe manages visual processing.
+
+Neuroplasticity allows the brain to reorganize throughout life. Synaptic
+plasticity strengthens or weakens connections based on use. Structural
+plasticity involves physical changes like dendritic branching and synapse
+formation. This adaptability underlies learning and recovery from injury.
+
+Memory formation involves encoding, consolidation, and retrieval. The
+hippocampus plays a crucial role in forming new memories and spatial navigation.
+Long-term potentiation strengthens synaptic connections, providing a cellular
+mechanism for learning.

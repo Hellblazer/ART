@@ -1,0 +1,28 @@
+=== Code Documentation Examples ===
+
+/**
+ * DataProcessor class handles the transformation and validation of input data.
+ * This class implements the Strategy pattern to allow different processing algorithms.
+ * 
+ * Usage Example:
+ *   DataProcessor processor = new DataProcessor(new DefaultStrategy());
+ *   Result result = processor.process(inputData);
+ * 
+ * @author Development Team
+ * @version 2.0
+ * @since 1.0
+ */
+
+/**
+ * Calculates the optimal path through a weighted graph using Dijkstra's algorithm.
+ * 
+ * Time Complexity: O(V^2) where V is the number of vertices
+ * Space Complexity: O(V) for storing distances and visited nodes
+ * 
+ * @param graph The adjacency matrix representation of the graph
+ * @param source The starting vertex
+ * @param destination The target vertex
+ * @return List of vertices representing the shortest path
+ * @throws IllegalArgumentException if source or destination is invalid
+ */
+

@@ -1,0 +1,29 @@
+# Maven
+target/
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Downloaded model cache (excluded from Git)
+lib/
+
+# Large model files (keep in source but don't copy unnecessarily)
+*.vec.bak
+*.model.bak
+temp-models/
+
+# Test outputs
+test-output/
+*.log

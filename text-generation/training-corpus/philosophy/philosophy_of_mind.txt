@@ -1,0 +1,24 @@
+Philosophy of Mind and Consciousness
+
+The philosophy of mind explores the nature of mental phenomena and their
+relationship to the physical world. Central questions include the mind-body
+problem, the nature of consciousness, and the possibility of artificial minds.
+
+Dualism posits that mind and body are distinct substances. Descartes argued
+for substance dualism, claiming mental and physical realms interact through
+the pineal gland. Property dualism suggests one substance with both mental
+and physical properties.
+
+Physicalism maintains that everything is physical or supervenes on the physical.
+Eliminative materialists argue mental states don't exist, while reductive
+physicalists believe mental states reduce to brain states. Non-reductive
+physicalists accept mental properties as real but irreducible.
+
+The hard problem of consciousness asks why subjective experience exists.
+Phenomenal consciousness involves qualia - the subjective qualities of experience.
+Access consciousness refers to information available for use in reasoning and
+behavior.
+
+Functionalism defines mental states by their causal relations. According to
+this view, what makes something a mental state is its functional role, not
+its physical substrate. This opens the possibility of artificial consciousness.

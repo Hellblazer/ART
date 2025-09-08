@@ -1,0 +1,6 @@
+Corpus Statistics
+================
+Total Files: 15
+Total Size: 8420 KB
+Total Words: 1514943
+Categories: {literature=10, technical=2, science=1, training-corpus=1, philosophy=1}
