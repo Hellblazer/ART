@@ -39,6 +39,11 @@
         <module>art-core</module>
         <module>art-performance</module>
         <module>gpu-test-framework</module>
+        <module>hart-cq-core</module>
+        <module>hart-cq-hierarchical</module>
+        <module>hart-cq-feedback</module>
+        <module>hart-cq-spatial</module>
+        <module>hart-cq-integration</module>
     </modules>
 
     <dependencyManagement>
