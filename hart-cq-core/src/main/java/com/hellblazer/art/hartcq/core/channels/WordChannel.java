@@ -62,7 +62,11 @@ public class WordChannel implements Channel {
         // Average word embeddings in the window
         for (int i = 0; i < tokens.length && i < SlidingWindow.WINDOW_SIZE; i++) {
             if (tokens[i] != null && tokens[i].getType() == Token.TokenType.WORD) {
-                var word = tokens[i].getText().toLowerCase();
+                var text = tokens[i].getText();
+                if (text == null || text.isEmpty()) {
+                    continue;
+                }
+                var word = text.toLowerCase();
                 var embedding = vocabulary.getOrDefault(word, unknownWordVector);
                 
                 for (int j = 0; j < EMBEDDING_DIM; j++) {

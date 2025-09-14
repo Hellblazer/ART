@@ -20,7 +20,9 @@ public class PhoneticChannel implements Channel {
                 continue;
             }
             
-            var word = tokens[i].getText().toLowerCase();
+            var text = tokens[i].getText();
+            if (text == null || text.isEmpty()) continue;
+            var word = text.toLowerCase();
             
             // Analyze phonetic features
             analyzePhoneticFeatures(word, output);

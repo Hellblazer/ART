@@ -51,7 +51,11 @@ public class SemanticChannel implements Channel {
                 continue;
             }
             
-            var word = tokens[i].getText().toLowerCase();
+            var text = tokens[i].getText();
+            if (text == null || text.isEmpty()) {
+                continue;
+            }
+            var word = text.toLowerCase();
             
             if (TEMPORAL_WORDS.contains(word)) {
                 temporalCount++;
@@ -97,8 +101,13 @@ public class SemanticChannel implements Channel {
             if (tokens[i].getType() != Token.TokenType.WORD || 
                 tokens[i+1].getType() != Token.TokenType.WORD) continue;
             
-            var word1 = tokens[i].getText().toLowerCase();
-            var word2 = tokens[i+1].getText().toLowerCase();
+            var text1 = tokens[i].getText();
+            var text2 = tokens[i+1].getText();
+            if (text1 == null || text1.isEmpty() || text2 == null || text2.isEmpty()) {
+                continue;
+            }
+            var word1 = text1.toLowerCase();
+            var word2 = text2.toLowerCase();
             
             // Temporal to spatial transition
             if (TEMPORAL_WORDS.contains(word1) && SPATIAL_WORDS.contains(word2)) {
@@ -124,7 +133,10 @@ public class SemanticChannel implements Channel {
         
         for (int i = 0; i < tokens.length && i < SlidingWindow.WINDOW_SIZE; i++) {
             if (tokens[i] != null && tokens[i].getType() == Token.TokenType.WORD) {
-                uniqueWords.add(tokens[i].getText().toLowerCase());
+                var text = tokens[i].getText();
+                if (text != null && !text.isEmpty()) {
+                    uniqueWords.add(text.toLowerCase());
+                }
                 totalWords++;
             }
         }

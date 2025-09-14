@@ -97,14 +97,19 @@ public class StructuralChannel implements Channel {
                 continue;
             }
             
-            var word = tokens[i].getText().toLowerCase();
+            var text = tokens[i].getText();
+            if (text == null || text.isEmpty()) {
+                continue;
+            }
+            var word = text.toLowerCase();
             totalWords++;
             
             if (DETERMINERS.contains(word)) detCount++;
             if (PREPOSITIONS.contains(word)) prepCount++;
             if (CONJUNCTIONS.contains(word)) conjCount++;
             if (AUXILIARY_VERBS.contains(word)) auxCount++;
-            if (PRONOUNS.contains(word.toLowerCase()) || PRONOUNS.contains(tokens[i].getText())) pronCount++;
+            var originalText = tokens[i].getText();
+            if (PRONOUNS.contains(word.toLowerCase()) || (originalText != null && PRONOUNS.contains(originalText))) pronCount++;
         }
         
         // Store grammatical category ratios
@@ -250,6 +255,9 @@ public class StructuralChannel implements Channel {
             }
             
             var punct = tokens[i].getText();
+            if (punct == null || punct.isEmpty()) {
+                continue;
+            }
             switch (punct) {
                 case "," -> commaCount++;
                 case "." -> periodCount++;
@@ -277,7 +285,11 @@ public class StructuralChannel implements Channel {
         if (token == null || token.getType() != Token.TokenType.WORD) {
             return null;
         }
-        return token.getText().toLowerCase();
+        var text = token.getText();
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+        return text.toLowerCase();
     }
     
     private void normalize(float[] vector) {

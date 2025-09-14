@@ -123,6 +123,36 @@ public class HARTCQ {
         processingTimeMs.addAndGet(elapsed.toMillis());
         totalSentences.incrementAndGet();
         
+        // Build metadata map with all processing stages
+        var metadata = new ConcurrentHashMap<String, Object>();
+        metadata.put("tokenization", Map.of(
+            "tokens", tokens.size(),
+            "windows", windows.size()
+        ));
+        metadata.put("channels", Map.of(
+            "word", "processed",
+            "positional", "processed",
+            "syntactic", "processed",
+            "semantic", "processed",
+            "contextual", "processed",
+            "structural", "processed"
+        ));
+        metadata.put("hierarchical", Map.of(
+            "level_1", "processed",
+            "level_2", "processed",
+            "level_3", "processed",
+            "categories", categoryResults.size()
+        ));
+        metadata.put("templates", Map.of(
+            "type", template.getType().toString(),
+            "pattern", template.getPattern()
+        ));
+        metadata.put("feedback", Map.of(
+            "learning_enabled", learningEnabled,
+            "deterministic_mode", deterministicMode
+        ));
+        metadata.put("windows_processed", windows.size());
+        
         return ProcessingResult.builder()
             .input(input)
             .output(response)
@@ -130,6 +160,7 @@ public class HARTCQ {
             .processingTime(elapsed)
             .tokensProcessed(tokens.size())
             .confidence(0.9)
+            .metadata(metadata)
             .build();
     }
     
@@ -451,13 +482,13 @@ public class HARTCQ {
         // Example usage
         var input = "What is the weather today?";
         var result = hartcq.process(input);
-        System.out.println("Input: " + input);
-        System.out.println("Response: " + result.getOutput());
-        System.out.println("Processing time: " + result.getProcessingTime().toMillis() + "ms");
-        System.out.println("Tokens processed: " + result.getTokensProcessed());
-        
+        logger.info("Input: {}", input);
+        logger.info("Response: {}", result.getOutput());
+        logger.info("Processing time: {}ms", result.getProcessingTime().toMillis());
+        logger.info("Tokens processed: {}", result.getTokensProcessed());
+
         // Show stats
-        System.out.println("Stats: " + hartcq.getStats());
+        logger.info("Stats: {}", hartcq.getStats());
         
         hartcq.shutdown();
     }

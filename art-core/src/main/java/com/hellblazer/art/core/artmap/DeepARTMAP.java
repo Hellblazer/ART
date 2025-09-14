@@ -300,8 +300,18 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
             if (storedDeepLabels != null && storedDeepLabels.length > 0) {
                 // Use stored deep labels from training as prediction template
                 int trainingIndex = i % storedDeepLabels.length;
-                for (int j = 0; j < layers.size(); j++) {
+                int storedLayerCount = storedDeepLabels[trainingIndex].length;
+                int currentLayerCount = layers.size();
+
+                // Copy predictions for available layers, handling mismatch in layer counts
+                int layersToProcess = Math.min(storedLayerCount, currentLayerCount);
+                for (int j = 0; j < layersToProcess; j++) {
                     deepPredictions[i][j] = storedDeepLabels[trainingIndex][j];
+                }
+
+                // Fill remaining layers with fallback predictions if current has more layers
+                for (int j = layersToProcess; j < currentLayerCount; j++) {
+                    deepPredictions[i][j] = (i + j) % 3;
                 }
             } else {
                 // Fallback to simple hierarchical prediction

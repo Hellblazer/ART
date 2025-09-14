@@ -84,7 +84,8 @@ public class ContextChannel implements Channel {
             switch (tokens[i].getType()) {
                 case WORD -> {
                     wordCount++;
-                    if (Character.isUpperCase(tokens[i].getText().charAt(0))) {
+                    var text = tokens[i].getText();
+                    if (text != null && !text.isEmpty() && Character.isUpperCase(text.charAt(0))) {
                         capitalCount++;
                     }
                 }

@@ -379,7 +379,10 @@ public class TemporalChannel implements Channel {
         for (int i = 0; i < tokens.length && i < SlidingWindow.WINDOW_SIZE; i++) {
             if (tokens[i] != null) {
                 tokenTypeRatios[tokens[i].getType().ordinal()]++;
-                totalLength += tokens[i].getText().length();
+                var text = tokens[i].getText();
+                if (text != null) {
+                    totalLength += text.length();
+                }
                 totalTokens++;
             }
         }

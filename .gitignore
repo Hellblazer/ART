@@ -2,3 +2,30 @@
 .idea
 .claude
 logs
+
+# Test output files
+*.log
+test-output.log
+hart-cq-core-test-output.log
+
+# Performance reports
+art-performance/*.md
+ACTUAL_PERFORMANCE_RESULTS_*.md
+PARAMETERIZED_PERFORMANCE_STANDARD_*.md
+PERFORMANCE_REPORT_*.md
+
+# IDE and build artifacts
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*~
