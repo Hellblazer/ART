@@ -264,7 +264,7 @@ public class EndToEndPipelineTest {
     class TemplateSystemTests {
         
         @Test
-        @DisplayName("Template-bounded generation prevents hallucination")
+        @DisplayName("Template-based generation ensures consistent output")
         void testTemplateBoundedGeneration() {
             // Test various inputs that should trigger templates
             var templateTriggers = Map.of(

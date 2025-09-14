@@ -23,12 +23,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * HART-CQ: Hierarchical ART with Competitive Queuing
- * 
+ *
  * Main system integrating all components for deterministic text processing
- * without hallucination through template-bounded generation.
- * 
+ * using template-based generation.
+ *
  * Key Features:
- * - NO HALLUCINATION: Output strictly bounded by templates
+ * - DETERMINISTIC: Template-based output generation
  * - DETERMINISTIC: Same input produces same output when not learning
  * - HIGH PERFORMANCE: >100 sentences/second throughput
  * - MULTI-CHANNEL: 6 parallel processing channels
