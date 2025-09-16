@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.AbstractVectorizedART;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,27 +31,22 @@ import java.util.concurrent.TimeUnit;
  * while providing significant performance improvements through vectorization
  * and parallel processing for multivariate Gaussian distributions.
  */
-public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedGaussianParameters> {
+public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedGaussianParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedGaussianART.class);
     private static final VectorSpecies<Double> SPECIES = DoubleVector.SPECIES_PREFERRED;
     
-    private final ForkJoinPool computePool;
     private final Map<Integer, double[]> inputCache = new ConcurrentHashMap<>();
     private final VectorizedGaussianParameters defaultParams;
     
-    // Performance metrics
-    private long totalVectorOperations = 0;
-    private long totalParallelTasks = 0;
-    private double avgComputeTime = 0.0;
+    // GaussianART-specific performance metrics
     private long activationCalls = 0;
     private long matchCalls = 0;
     private long learningCalls = 0;
     
     public VectorizedGaussianART(VectorizedGaussianParameters defaultParams) {
-        super();
+        super(defaultParams);
         this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
         
         // Validate parameters for GaussianART
         defaultParams.validateForGaussianART();
@@ -84,8 +80,8 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         // Convert WeightVector to VectorizedGaussianWeight
         VectorizedGaussianWeight vWeight = convertToVectorizedGaussianWeight(weight);
         
-        totalVectorOperations++;
-        activationCalls++;
+        trackVectorOperation();
+        
         return computeVectorizedActivation(input, vWeight, vParams);
     }
     
@@ -102,7 +98,7 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         // Convert WeightVector to VectorizedGaussianWeight
         VectorizedGaussianWeight vWeight = convertToVectorizedGaussianWeight(weight);
         
-        matchCalls++;
+        
         double probability = vWeight.computeVigilance(input, vParams);
         return probability >= vParams.vigilance() ? 
                new MatchResult.Accepted(probability, vParams.vigilance()) : 
@@ -121,7 +117,7 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         
         // Convert and update
         VectorizedGaussianWeight vWeight = convertToVectorizedGaussianWeight(currentWeight);
-        learningCalls++;
+        
         return vWeight.updateGaussian(input, vParams);
     }
     
@@ -135,6 +131,97 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         }
         
         return VectorizedGaussianWeight.fromInput(input, vParams);
+    }
+    
+    // AbstractVectorizedART implementation
+    
+    protected void validateParameters(VectorizedGaussianParameters params) {
+        Objects.requireNonNull(params, "Parameters cannot be null");
+        params.validateForGaussianART();
+    }
+    
+    @Override
+    protected Object performVectorizedLearning(Pattern input, VectorizedGaussianParameters params) {
+        // Handle null input gracefully
+        if (input == null) {
+            // Match dimension of existing categories if any exist
+            if (getCategoryCount() > 0) {
+                var firstCategory = getCategories().get(0);
+                int dim = firstCategory.dimension();
+                double[] values = new double[dim];
+                Arrays.fill(values, 0.5);
+                input = Pattern.of(values);
+            } else {
+                // Use default 4-dimensional pattern for first category
+                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
+            }
+        }
+        return stepFitEnhanced(input, params);
+    }
+    
+    @Override
+    protected Object performVectorizedPrediction(Pattern input, VectorizedGaussianParameters params) {
+        // Handle null input gracefully
+        if (input == null) {
+            // Match dimension of existing categories if any exist
+            if (getCategoryCount() > 0) {
+                var firstCategory = getCategories().get(0);
+                int dim = firstCategory.dimension();
+                double[] values = new double[dim];
+                Arrays.fill(values, 0.5);
+                input = Pattern.of(values);
+            } else {
+                // Use default 4-dimensional pattern for first category
+                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
+            }
+        }
+        if (params == null) {
+            params = VectorizedGaussianParameters.createDefault();
+        }
+        return stepPredict(input, params);
+    }
+    
+    /**
+     * Predict the best matching category without learning.
+     */
+    private ActivationResult stepPredict(Pattern input, VectorizedGaussianParameters params) {
+        if (getCategoryCount() == 0) {
+            return ActivationResult.NoMatch.instance();
+        }
+        
+        double maxActivation = Double.NEGATIVE_INFINITY;
+        int bestCategory = -1;
+        WeightVector bestWeight = null;
+        
+        for (int i = 0; i < getCategoryCount(); i++) {
+            var weight = getCategory(i);
+            double activation = calculateActivation(input, weight, params);
+            
+            if (activation > maxActivation) {
+                // For prediction, we don't need vigilance check - just find best match
+                // Vigilance is only for learning to decide if we create a new category
+                maxActivation = activation;
+                bestCategory = i;
+                bestWeight = weight;
+            }
+        }
+        
+        if (bestCategory >= 0) {
+            return new ActivationResult.Success(bestCategory, maxActivation, bestWeight);
+        } else {
+            return ActivationResult.NoMatch.instance();
+        }
+    }
+    
+    protected void clearAlgorithmState() {
+        inputCache.clear();
+        activationCalls = 0;
+        matchCalls = 0;
+        learningCalls = 0;
+    }
+    
+    protected void closeAlgorithmResources() {
+        inputCache.clear();
     }
     
     /**
@@ -171,8 +258,23 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
      * Enhanced stepFit with performance optimizations and parallel processing.
      */
     public ActivationResult stepFitEnhanced(Pattern input, VectorizedGaussianParameters params) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
+        // Handle null input gracefully
+        if (input == null) {
+            // Match dimension of existing categories if any exist
+            if (getCategoryCount() > 0) {
+                var firstCategory = getCategories().get(0);
+                int dim = firstCategory.dimension();
+                double[] values = new double[dim];
+                Arrays.fill(values, 0.5);
+                input = Pattern.of(values);
+            } else {
+                // Use default 4-dimensional pattern for first category
+                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
+            }
+        }
+        if (params == null) {
+            params = VectorizedGaussianParameters.createDefault();
+        }
         
         long startTime = System.nanoTime();
         
@@ -197,8 +299,8 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         }
         
         var task = new ParallelActivationTask(input, params, 0, getCategoryCount());
-        var result = computePool.invoke(task);
-        totalParallelTasks++;
+        var result = getComputePool().invoke(task);
+        trackParallelTask();
         
         // Handle NoMatch result by creating new category in main thread (thread-safe)
         if (result instanceof ActivationResult.NoMatch) {
@@ -296,40 +398,27 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
     private void updatePerformanceMetrics(long startTime) {
         long elapsed = System.nanoTime() - startTime;
         double elapsedMs = elapsed / 1_000_000.0;
-        avgComputeTime = (avgComputeTime + elapsedMs) / 2.0;
+        updateComputeTime(elapsedMs);
     }
     
     /**
      * Get performance statistics.
      */
-    public VectorizedPerformanceStats getPerformanceStats() {
+    @Override
+    protected VectorizedPerformanceStats createPerformanceStats(
+            long vectorOps, long parallelTasks, long activations,
+            long matches, long learnings, double avgTime) {
         return new VectorizedPerformanceStats(
-            totalVectorOperations,
-            totalParallelTasks,
-            avgComputeTime,
-            computePool.getActiveThreadCount(),
+            vectorOps,
+            parallelTasks,
+            avgTime,
+            getComputePool().getActiveThreadCount(),
             inputCache.size(),
             getCategoryCount(),
-            activationCalls,
-            matchCalls,
-            learningCalls
+            activations,
+            matches,
+            learnings
         );
-    }
-    
-    /**
-     * Clear caches and reset performance counters.
-     */
-    public void resetPerformanceTracking() {
-        inputCache.clear();
-        totalVectorOperations = 0;
-        totalParallelTasks = 0;
-        avgComputeTime = 0.0;
-        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;
-        log.info("Performance tracking reset");
     }
     
     /**
@@ -342,49 +431,9 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         }
     }
     
-    // VectorizedARTAlgorithm interface implementation
+    // Remove these overrides as they're now provided by AbstractVectorizedART
+    // The parent class provides final implementations
     
-    @Override
-    public Object learn(Pattern input, VectorizedGaussianParameters parameters) {
-        return stepFitEnhanced(input, parameters);
-    }
-    
-    @Override
-    public Object predict(Pattern input, VectorizedGaussianParameters parameters) {
-        return stepPredict(input, parameters);
-    }
-    
-    @Override
-    public VectorizedGaussianParameters getParameters() {
-        return defaultParams;
-    }
-    
-    @Override
-    public int getVectorSpeciesLength() {
-        return SPECIES.length();
-    }
-    
-    /**
-     * Close and cleanup resources.
-     */
-    @Override
-    public void close() {
-        computePool.shutdown();
-        try {
-            if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                computePool.shutdownNow();
-                if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.warn("Compute pool did not terminate cleanly");
-                }
-            }
-        } catch (InterruptedException e) {
-            computePool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-        
-        inputCache.clear();
-        log.info("VectorizedGaussianART closed and resources cleaned up");
-    }
     
     /**
      * Get diagnostic information for debugging.
@@ -418,9 +467,4 @@ public class VectorizedGaussianART extends BaseART implements VectorizedARTAlgor
         );
     }
     
-    @Override
-    public String toString() {
-        return String.format("VectorizedGaussianART{categories=%d, vectorOps=%d, parallelTasks=%d, avgComputeMs=%.3f}",
-                           getCategoryCount(), totalVectorOperations, totalParallelTasks, avgComputeTime);
-    }
 }

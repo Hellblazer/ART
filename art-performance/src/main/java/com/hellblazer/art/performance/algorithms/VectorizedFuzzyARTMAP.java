@@ -18,15 +18,14 @@
  */
 package com.hellblazer.art.performance.algorithms;
 
-import com.hellblazer.art.core.BaseARTMAP;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.AbstractVectorizedARTMAP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
 
@@ -60,28 +59,12 @@ import java.util.concurrent.TimeUnit;
  * 
  * @author Hal Hildebrand
  */
-public class VectorizedFuzzyARTMAP implements BaseARTMAP, AutoCloseable {
+public class VectorizedFuzzyARTMAP extends AbstractVectorizedARTMAP<VectorizedFuzzyARTMAPParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedFuzzyARTMAP.class);
     
     // Core components
     private final VectorizedFuzzyART moduleA;           // A-side: Input pattern clustering
-    private final Map<Integer, Integer> mapField;       // Map field: category -> label
-    private final Map<Integer, Set<Integer>> labelCategories; // Reverse map: label -> categories
-    
-    // Training state
-    private boolean trained = false;
-    private int[] trainingLabels;                       // Store all training labels
-    private final Set<Integer> knownLabels;             // Set of encountered labels
-    
-    // Parallel processing
-    private final ForkJoinPool computePool;
-    
-    // Performance tracking
-    private long totalSupervisedOperations = 0;
-    private long totalMatchTrackingEvents = 0;
-    private double avgSupervisedTime = 0.0;
-    private final Map<String, Long> operationCounts;
     
     /**
      * Create a new VectorizedFuzzyARTMAP with default configuration.
@@ -98,6 +81,7 @@ public class VectorizedFuzzyARTMAP implements BaseARTMAP, AutoCloseable {
      * @param defaultParams default parameters for the ARTMAP system
      */
     public VectorizedFuzzyARTMAP(VectorizedFuzzyARTMAPParameters defaultParams) {
+        super(defaultParams.parallelismLevel());
         Objects.requireNonNull(defaultParams, "Default parameters cannot be null");
         defaultParams.validate();
         
@@ -109,53 +93,17 @@ public class VectorizedFuzzyARTMAP implements BaseARTMAP, AutoCloseable {
             .withCacheSettings(1000, defaultParams.enableSIMD(), true);
         
         this.moduleA = new VectorizedFuzzyART(fuzzyParams);
-        this.mapField = new ConcurrentHashMap<>();
-        this.labelCategories = new ConcurrentHashMap<>();
-        this.knownLabels = ConcurrentHashMap.newKeySet();
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        this.operationCounts = new ConcurrentHashMap<>();
         
         log.info("Initialized VectorizedFuzzyARTMAP with parameters: {}", defaultParams);
     }
     
-    /**
-     * Train the ARTMAP on labeled data.
-     * 
-     * @param data array of input patterns (should be complement coded)
-     * @param labels array of class labels corresponding to each pattern
-     * @param params parameters for training
-     * @throws IllegalArgumentException if data and labels have different lengths
-     * @throws NullPointerException if any parameter is null
-     */
-    public void fit(Pattern[] data, int[] labels, VectorizedFuzzyARTMAPParameters params) {
-        Objects.requireNonNull(data, "Data cannot be null");
-        Objects.requireNonNull(labels, "Labels cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
-        
-        if (data.length == 0) {
-            throw new IllegalArgumentException("Cannot fit with empty data");
-        }
-        
-        if (data.length != labels.length) {
-            throw new IllegalArgumentException(
-                "Data and labels must have same length: " + data.length + " != " + labels.length);
-        }
-        
+    @Override
+    protected void validateParameters(VectorizedFuzzyARTMAPParameters params) {
         params.validate();
-        
-        long startTime = System.nanoTime();
-        
-        // Clear existing state
-        clear();
-        
-        // Store training labels
-        this.trainingLabels = labels.clone();
-        
-        // Collect unique labels
-        for (int label : labels) {
-            knownLabels.add(label);
-        }
-        
+    }
+    
+    @Override
+    protected void performSupervisedTraining(Pattern[] data, int[] labels, VectorizedFuzzyARTMAPParameters params) {
         log.debug("Training VectorizedFuzzyARTMAP with {} samples, {} unique labels", 
                  data.length, knownLabels.size());
         
@@ -163,97 +111,27 @@ public class VectorizedFuzzyARTMAP implements BaseARTMAP, AutoCloseable {
         for (int i = 0; i < data.length; i++) {
             trainSingle(data[i], labels[i], params);
         }
-        
-        trained = true;
-        totalSupervisedOperations++;
-        updatePerformanceMetrics(startTime);
-        
-        log.info("Training completed: {} categories, {} labels, {} ms", 
-                getCategoryCount(), knownLabels.size(), 
-                (System.nanoTime() - startTime) / 1_000_000);
     }
     
-    /**
-     * Incrementally train on new labeled data.
-     * 
-     * @param data array of new input patterns
-     * @param labels array of class labels for new patterns
-     * @param params parameters for incremental training
-     */
-    public void partialFit(Pattern[] data, int[] labels, VectorizedFuzzyARTMAPParameters params) {
-        Objects.requireNonNull(data, "Data cannot be null");
-        Objects.requireNonNull(labels, "Labels cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
-        
-        if (data.length != labels.length) {
-            throw new IllegalArgumentException(
-                "Data and labels must have same length: " + data.length + " != " + labels.length);
-        }
-        
-        // If not yet trained, equivalent to fit
-        if (!trained) {
-            fit(data, labels, params);
-            return;
-        }
-        
-        long startTime = System.nanoTime();
-        
-        // Extend training labels array
-        var oldLength = trainingLabels != null ? trainingLabels.length : 0;
-        var newLabels = new int[oldLength + labels.length];
-        if (trainingLabels != null) {
-            System.arraycopy(trainingLabels, 0, newLabels, 0, oldLength);
-        }
-        System.arraycopy(labels, 0, newLabels, oldLength, labels.length);
-        trainingLabels = newLabels;
-        
-        // Add new labels to known set
-        for (int label : labels) {
-            knownLabels.add(label);
-        }
-        
+    @Override
+    protected void performIncrementalLearning(Pattern[] data, int[] labels, VectorizedFuzzyARTMAPParameters params) {
         // Train on new samples
         for (int i = 0; i < data.length; i++) {
             trainSingle(data[i], labels[i], params);
         }
         
-        totalSupervisedOperations++;
-        updatePerformanceMetrics(startTime);
-        
-        log.debug("Partial fit completed: {} new samples, {} total categories", 
+        log.debug("Incremental learning completed: {} new samples, {} total categories", 
                  data.length, getCategoryCount());
     }
     
-    /**
-     * Predict class labels for input patterns.
-     * 
-     * @param data array of input patterns (should be complement coded)
-     * @param params parameters for prediction
-     * @return array of predicted class labels
-     * @throws IllegalStateException if model is not trained
-     */
-    public int[] predict(Pattern[] data, VectorizedFuzzyARTMAPParameters params) {
-        Objects.requireNonNull(data, "Data cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
-        
-        if (!trained) {
-            throw new IllegalStateException("Model must be trained before prediction");
-        }
-        
-        long startTime = System.nanoTime();
-        
+    @Override
+    protected int[] performSupervisedPrediction(Pattern[] data, VectorizedFuzzyARTMAPParameters params) {
         // Use parallel prediction for large datasets
-        int[] predictions;
         if (data.length > 100 && params.parallelismLevel() > 1) {
-            predictions = parallelPredict(data, params);
+            return parallelPredict(data, params);
         } else {
-            predictions = sequentialPredict(data, params);
+            return sequentialPredict(data, params);
         }
-        
-        totalSupervisedOperations++;
-        updatePerformanceMetrics(startTime);
-        
-        return predictions;
     }
     
     /**
@@ -377,6 +255,30 @@ public class VectorizedFuzzyARTMAP implements BaseARTMAP, AutoCloseable {
         return predictions;
     }
     
+    @Override
+    protected VectorizedFuzzyARTMAPParameters adjustVigilanceForMatchTracking(int category, int label, VectorizedFuzzyARTMAPParameters params) {
+        // Increase vigilance parameter to force new category creation
+        double newVigilance = Math.min(1.0, params.rho() + params.epsilon());
+        return params.withRho(newVigilance);
+    }
+    
+    @Override
+    protected void clearAlgorithmState() {
+        moduleA.clear();
+    }
+    
+    @Override
+    protected void closeAlgorithmResources() throws Exception {
+        if (moduleA != null) {
+            moduleA.close();
+        }
+    }
+    
+    @Override
+    public int getCategoryCount() {
+        return moduleA.getCategoryCount();
+    }
+    
     /**
      * Parallel prediction implementation for large datasets.
      */
@@ -491,114 +393,35 @@ public class VectorizedFuzzyARTMAP implements BaseARTMAP, AutoCloseable {
     }
     
     /**
-     * Get performance statistics for the ARTMAP system.
-     * 
+     * Get enhanced performance statistics for the ARTMAP system.
+     *
      * @return performance statistics
      */
-    public VectorizedFuzzyARTMAPStats getPerformanceStats() {
+    public VectorizedFuzzyARTMAPStats getEnhancedPerformanceStats() {
+        var baseStats = super.getPerformanceStats();
         var fuzzyStats = moduleA.getPerformanceStats();
         return new VectorizedFuzzyARTMAPStats(
-            totalSupervisedOperations,
-            totalMatchTrackingEvents,
-            avgSupervisedTime,
+            (Long) baseStats.get("totalSupervisedOperations"),
+            (Long) baseStats.get("totalMatchTrackingEvents"),
+            (Double) baseStats.get("avgSupervisedTime"),
             fuzzyStats.totalVectorOperations(),
             fuzzyStats.totalParallelTasks(),
             getCategoryCount(),
             knownLabels.size(),
             mapField.size(),
-            computePool.getActiveThreadCount()
+            Runtime.getRuntime().availableProcessors() // activeThreads placeholder
         );
-    }
-    
-    /**
-     * Reset performance tracking counters.
-     */
-    public void resetPerformanceTracking() {
-        totalSupervisedOperations = 0;
-        totalMatchTrackingEvents = 0;
-        avgSupervisedTime = 0.0;
-        operationCounts.clear();
-        moduleA.resetPerformanceTracking();
-        log.debug("Performance tracking reset for VectorizedFuzzyARTMAP");
-    }
-    
-    /**
-     * Update performance metrics.
-     */
-    private void updatePerformanceMetrics(long startTime) {
-        long elapsed = System.nanoTime() - startTime;
-        double elapsedMs = elapsed / 1_000_000.0;
-        avgSupervisedTime = (avgSupervisedTime + elapsedMs) / 2.0;
-    }
-    
-    // BaseARTMAP interface implementation
-    
-    @Override
-    public boolean isTrained() {
-        return trained;
-    }
-    
-    @Override
-    public int getCategoryCount() {
-        return moduleA.getCategoryCount();
-    }
-    
-    @Override
-    public void clear() {
-        moduleA.clear();
-        mapField.clear();
-        labelCategories.clear();
-        knownLabels.clear();
-        trained = false;
-        trainingLabels = null;
-        
-        // Reset performance counters
-        totalSupervisedOperations = 0;
-        totalMatchTrackingEvents = 0;
-        avgSupervisedTime = 0.0;
-        operationCounts.clear();
-        
-        log.debug("VectorizedFuzzyARTMAP cleared");
-    }
-    
-    @Override
-    public void close() {
-        // Close the underlying FuzzyART module
-        if (moduleA != null) {
-            moduleA.close();
-        }
-        
-        // Shutdown compute pool
-        if (computePool != null && !computePool.isShutdown()) {
-            computePool.shutdown();
-            try {
-                if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    computePool.shutdownNow();
-                    if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                        log.warn("Compute pool did not terminate cleanly");
-                    }
-                }
-            } catch (InterruptedException e) {
-                computePool.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        
-        // Clear data structures
-        mapField.clear();
-        labelCategories.clear();
-        knownLabels.clear();
-        operationCounts.clear();
-        
-        log.info("VectorizedFuzzyARTMAP closed and resources cleaned up");
     }
     
     @Override
     public String toString() {
+        var baseStats = super.getPerformanceStats();
         return String.format("VectorizedFuzzyARTMAP{trained=%s, categories=%d, labels=%d, " +
                            "supervisedOps=%d, matchTracking=%d, avgTimeMs=%.3f}",
-                           trained, getCategoryCount(), knownLabels.size(),
-                           totalSupervisedOperations, totalMatchTrackingEvents, avgSupervisedTime);
+                           isTrained(), getCategoryCount(), knownLabels.size(),
+                           baseStats.get("totalSupervisedOperations"), 
+                           baseStats.get("totalMatchTrackingEvents"), 
+                           baseStats.get("avgSupervisedTime"));
     }
     
     /**

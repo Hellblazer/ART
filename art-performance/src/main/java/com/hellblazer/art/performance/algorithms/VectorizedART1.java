@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.AbstractVectorizedART;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,22 +39,12 @@ import java.util.concurrent.TimeUnit;
  * - High-dimensional binary vectors (hundreds to thousands of dimensions)
  * - Real-time processing requirements with predictable performance
  */
-public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedART1Parameters>, AutoCloseable {
+public class VectorizedART1 extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedART1Parameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedART1.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
     
-    private final ForkJoinPool computePool;
     private final Map<Integer, float[]> inputCache = new ConcurrentHashMap<>();
-    private final VectorizedART1Parameters defaultParams;
-    
-    // Performance metrics (thread-safe counters)
-    private volatile long totalVectorOperations = 0;
-    private volatile long totalParallelTasks = 0;
-    private volatile double avgComputeTime = 0.0;
-    private volatile long activationCalls = 0;
-    private volatile long matchCalls = 0;
-    private volatile long learningCalls = 0;
     
     /**
      * Create a VectorizedART1 with default parameters.
@@ -70,11 +61,9 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
      * @throws NullPointerException if defaultParams is null
      */
     public VectorizedART1(VectorizedART1Parameters defaultParams) {
-        super();
-        this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        
-        log.info("Initialized VectorizedART1 with {} parallel threads, SIMD: {}, vector species: {}", 
+        super(defaultParams);
+
+        log.info("Initialized VectorizedART1 with {} parallel threads, SIMD: {}, vector species: {}",
                  defaultParams.parallelismLevel(), defaultParams.enableSIMD(), SPECIES.toString());
     }
     
@@ -149,8 +138,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         
         var vWeight = convertToVectorizedART1Weight(weight);
         
-        totalVectorOperations++;
-        activationCalls++;
+        trackVectorOperation();
         
         return vWeight.computeActivation(input, vecParams);
     }
@@ -165,7 +153,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         
         var vWeight = convertToVectorizedART1Weight(weight);
         
-        matchCalls++;
+        trackMatchOperation();
         
         return vWeight.checkVigilance(input, vecParams);
     }
@@ -180,7 +168,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         
         var vWeight = convertToVectorizedART1Weight(currentWeight);
         
-        learningCalls++;
+        trackVectorOperation();
         
         return vWeight.updateWithLearning(input, vecParams);
     }
@@ -193,6 +181,58 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         var vecParams = validateParameters(parameters);
         
         return VectorizedART1Weight.fromInput(input, vecParams);
+    }
+    
+    // AbstractVectorizedART implementation
+    
+    protected void validateParameters(VectorizedART1Parameters params) {
+        Objects.requireNonNull(params, "Parameters cannot be null");
+        // Additional ART1-specific validation could go here
+    }
+    
+    @Override
+    protected Object performVectorizedLearning(Pattern input, VectorizedART1Parameters params) {
+        return learnEnhanced(input, params);
+    }
+    
+    @Override
+    protected Object performVectorizedPrediction(Pattern input, VectorizedART1Parameters params) {
+        // Implement prediction logic directly to avoid recursion
+        if (getCategoryCount() == 0) {
+            return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+        }
+        
+        var bestCategory = -1;
+        var bestActivation = -1.0;
+        
+        // Find best matching category using ART1 choice function
+        var categories = getCategories();
+        for (int i = 0; i < categories.size(); i++) {
+            var weight = categories.get(i);
+            var activation = calculateActivation(input, weight, params);
+            
+            if (activation > bestActivation) {
+                bestActivation = activation;
+                bestCategory = i;
+            }
+        }
+        
+        if (bestCategory >= 0) {
+            var bestWeight = categories.get(bestCategory);
+            return new com.hellblazer.art.core.results.ActivationResult.Success(
+                bestCategory, bestActivation, bestWeight
+            );
+        } else {
+            return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+        }
+    }
+    
+    protected void clearAlgorithmState() {
+        inputCache.clear();
+    }
+    
+    protected void closeAlgorithmResources() {
+        inputCache.clear();
     }
     
     /**
@@ -212,7 +252,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         try {
             // Use parallel processing for large category sets
             if (getCategoryCount() >= parameters.parallelThreshold()) {
-                totalParallelTasks++;
+                trackParallelTask();
                 return parallelStepFit(input, parameters);
             } else {
                 return stepFit(input, parameters);
@@ -231,7 +271,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         }
         
         var task = new ParallelActivationTask(input, parameters, 0, getCategoryCount());
-        return computePool.invoke(task);
+        return getComputePool().invoke(task);
     }
     
     /**
@@ -322,7 +362,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         
         return inputCache.computeIfAbsent(hash, k -> {
             // Check cache size and evict if necessary
-            if (inputCache.size() >= defaultParams.maxCacheSize()) {
+            if (inputCache.size() >= getParameters().maxCacheSize()) {
                 evictLRUCacheEntry();
             }
             
@@ -354,28 +394,22 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
         double elapsedMs = elapsed / 1_000_000.0;
         
         // Simple moving average (could be enhanced with better statistics)
-        avgComputeTime = (avgComputeTime + elapsedMs) / 2.0;
+        updateComputeTime(elapsedMs);
     }
     
     /**
      * Optimize memory usage by clearing caches when they exceed thresholds.
      */
     public void optimizeMemory() {
-        if (inputCache.size() > defaultParams.maxCacheSize() * 0.8) {
+        if (inputCache.size() > getParameters().maxCacheSize() * 0.8) {
             inputCache.clear();
             log.info("Input cache cleared for memory optimization (was {} entries)", inputCache.size());
         }
     }
     
-    // VectorizedARTAlgorithm interface implementation
+    // Additional helper methods
     
-    @Override
-    public Object learn(Pattern input, VectorizedART1Parameters parameters) {
-        return learnEnhanced(input, parameters);
-    }
-    
-    @Override
-    public Object predict(Pattern input, VectorizedART1Parameters parameters) {
+    private Object predictInternal(Pattern input, VectorizedART1Parameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -412,46 +446,24 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
     }
     
     @Override
-    public VectorizedPerformanceStats getPerformanceStats() {
+    protected VectorizedPerformanceStats createPerformanceStats(
+            long vectorOps, long parallelTasks, long activations,
+            long matches, long learnings, double avgTime) {
         return new VectorizedPerformanceStats(
-            totalVectorOperations,
-            totalParallelTasks,
-            avgComputeTime,
-            computePool.getActiveThreadCount(),
+            vectorOps,
+            parallelTasks,
+            avgTime,
+            getComputePool().getActiveThreadCount(),
             inputCache.size(),
             getCategoryCount(),
-            activationCalls,
-            matchCalls,
-            learningCalls
+            activations,
+            matches,
+            learnings
         );
     }
     
-    @Override
-    public void resetPerformanceTracking() {
-        totalVectorOperations = 0;
-        totalParallelTasks = 0;
-        avgComputeTime = 0.0;
-        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;
-        inputCache.clear();
-        
-        log.info("Performance tracking reset for VectorizedART1");
-    }
     
-    @Override
-    public VectorizedART1Parameters getParameters() {
-        return defaultParams;
-    }
-    
-    /**
-     * Get the SIMD vector species length for performance analysis.
-     * 
-     * @return Vector species length
-     */
-    public int getVectorSpeciesLength() {
-        return SPECIES.length();
-    }
+    // getVectorSpeciesLength() is provided as final method by parent class
     
     /**
      * Check if SIMD optimizations are available and enabled.
@@ -459,7 +471,7 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
      * @return true if SIMD is available and enabled
      */
     public boolean isSIMDEnabled() {
-        return defaultParams.enableSIMD();
+        return getParameters().enableSIMD();
     }
     
     /**
@@ -469,41 +481,9 @@ public class VectorizedART1 extends BaseART implements VectorizedARTAlgorithm<Ve
      */
     public String getComputePoolStats() {
         return String.format("Pool[active=%d, queued=%d, steals=%d, parallelism=%d]",
-                           computePool.getActiveThreadCount(),
-                           computePool.getQueuedSubmissionCount(),
-                           computePool.getStealCount(),
-                           computePool.getParallelism());
-    }
-    
-    /**
-     * Cleanup resources and shutdown thread pool.
-     */
-    @Override
-    public void close() {
-        if (computePool != null && !computePool.isShutdown()) {
-            computePool.shutdown();
-            try {
-                if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    computePool.shutdownNow();
-                    if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                        log.warn("Compute pool did not terminate cleanly");
-                    }
-                }
-            } catch (InterruptedException e) {
-                computePool.shutdownNow();
-                Thread.currentThread().interrupt();
-                log.warn("Interrupted while shutting down compute pool", e);
-            }
-        }
-        
-        inputCache.clear();
-        log.info("VectorizedART1 closed and resources cleaned up");
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("VectorizedART1{categories=%d, vectorOps=%d, parallelTasks=%d, avgMs=%.3f, params=%s}",
-                           getCategoryCount(), totalVectorOperations, totalParallelTasks, 
-                           avgComputeTime, defaultParams.toString());
+                           getComputePool().getActiveThreadCount(),
+                           getComputePool().getQueuedSubmissionCount(),
+                           getComputePool().getStealCount(),
+                           getComputePool().getParallelism());
     }
 }

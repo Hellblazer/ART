@@ -1,7 +1,7 @@
 package com.hellblazer.art.core.algorithms;
 
 import com.hellblazer.art.core.parameters.GaussianParameters;
-import com.hellblazer.art.core.BaseART;
+import com.hellblazer.art.core.AbstractStatisticalART;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.WeightVector;
 import com.hellblazer.art.core.results.ActivationResult;
@@ -10,7 +10,7 @@ import com.hellblazer.art.core.weights.GaussianWeight;
 import java.util.Objects;
 
 /**
- * GaussianART implementation using the BaseART template framework.
+ * GaussianART implementation using the AbstractStatisticalART framework.
  * 
  * GaussianART is a neural network architecture based on Adaptive Resonance Theory (ART)
  * that performs unsupervised learning using Gaussian probability distributions to model categories.
@@ -27,11 +27,11 @@ import java.util.Objects;
  * - Vigilance: p(x | μ_j, Σ_j) ≥ ρ (probability threshold)
  * - Learning: Online updates to mean and covariance statistics
  * 
- * @see BaseART for the template method framework
+ * @see AbstractStatisticalART for the statistical template framework
  * @see GaussianWeight for Gaussian cluster representation
  * @see GaussianParameters for algorithm parameters (ρ, σ_init)
  */
-public final class GaussianART extends BaseART {
+public final class GaussianART extends AbstractStatisticalART<GaussianParameters> {
     
     // Constant for normalization in multivariate Gaussian PDF calculation
     private static final double TWO_PI = 2.0 * Math.PI;
@@ -42,9 +42,14 @@ public final class GaussianART extends BaseART {
     public GaussianART() {
         super();
     }
+
+    @Override
+    protected Class<GaussianParameters> getParameterClass() {
+        return GaussianParameters.class;
+    }
     
     /**
-     * Calculate the activation value using multivariate Gaussian probability density function.
+     * Compute statistical activation using Gaussian probability density function.
      * 
      * For a multivariate Gaussian with diagonal covariance matrix:
      * p(x | μ, Σ) = (2π)^(-k/2) |Σ|^(-1/2) exp(-1/2 (x-μ)^T Σ^(-1) (x-μ))
@@ -57,21 +62,16 @@ public final class GaussianART extends BaseART {
      * 
      * @param input the input vector
      * @param weight the category weight vector (must be GaussianWeight)
-     * @param parameters the algorithm parameters (must be GaussianParameters)
+     * @param parameters the algorithm parameters
      * @return the probability density value for this category
-     * @throws IllegalArgumentException if parameters are not GaussianParameters or weight is not GaussianWeight
+     * @throws IllegalArgumentException if weight is not GaussianWeight
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double computeStatisticalActivation(Pattern input, WeightVector weight, GaussianParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof GaussianParameters gaussianParams)) {
-            throw new IllegalArgumentException("Parameters must be GaussianParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
         
         if (!(weight instanceof GaussianWeight gaussianWeight)) {
             throw new IllegalArgumentException("Weight vector must be GaussianWeight, got: " + 
@@ -99,7 +99,7 @@ public final class GaussianART extends BaseART {
     }
     
     /**
-     * Test whether the input matches the category according to the vigilance criterion.
+     * Compute statistical vigilance using Gaussian probability density.
      * 
      * For GaussianART, the vigilance test checks if the probability density
      * exceeds the vigilance threshold:
@@ -110,40 +110,30 @@ public final class GaussianART extends BaseART {
      * 
      * @param input the input vector
      * @param weight the category weight vector (must be GaussianWeight)
-     * @param parameters the algorithm parameters (must be GaussianParameters)
+     * @param parameters the algorithm parameters
      * @return MatchResult.Accepted if vigilance test passes, MatchResult.Rejected otherwise
-     * @throws IllegalArgumentException if parameters are not GaussianParameters or weight is not GaussianWeight
+     * @throws IllegalArgumentException if weight is not GaussianWeight
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult computeStatisticalVigilance(Pattern input, WeightVector weight, GaussianParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof GaussianParameters gaussianParams)) {
-            throw new IllegalArgumentException("Parameters must be GaussianParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
-        
-        if (!(weight instanceof GaussianWeight gaussianWeight)) {
-            throw new IllegalArgumentException("Weight vector must be GaussianWeight, got: " + 
-                weight.getClass().getSimpleName());
-        }
-        
         // Calculate probability density (same as activation)
-        var probability = calculateActivation(input, weight, parameters);
+        var probability = computeStatisticalActivation(input, weight, parameters);
         
         // Test against vigilance parameter
-        if (probability >= gaussianParams.vigilance()) {
-            return new MatchResult.Accepted(probability, gaussianParams.vigilance());
+        if (probability >= parameters.vigilance()) {
+            return new MatchResult.Accepted(probability, parameters.vigilance());
         } else {
-            return new MatchResult.Rejected(probability, gaussianParams.vigilance());
+            return new MatchResult.Rejected(probability, parameters.vigilance());
         }
     }
     
     /**
-     * Update the category weight using incremental Gaussian learning.
+     * Compute statistical weight update using incremental Gaussian learning.
      * 
      * This method delegates to GaussianWeight.update() which implements
      * online algorithms for updating mean and variance:
@@ -155,26 +145,16 @@ public final class GaussianART extends BaseART {
      * 
      * @param input the input vector
      * @param currentWeight the current category weight (must be GaussianWeight)
-     * @param parameters the algorithm parameters (must be GaussianParameters)
+     * @param parameters the algorithm parameters
      * @return the updated weight vector with new statistics
-     * @throws IllegalArgumentException if parameters are not GaussianParameters or weight is not GaussianWeight
+     * @throws IllegalArgumentException if weight is not GaussianWeight
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector computeStatisticalWeightUpdate(Pattern input, WeightVector currentWeight, GaussianParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof GaussianParameters)) {
-            throw new IllegalArgumentException("Parameters must be GaussianParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
-        
-        if (!(currentWeight instanceof GaussianWeight)) {
-            throw new IllegalArgumentException("Weight vector must be GaussianWeight, got: " + 
-                currentWeight.getClass().getSimpleName());
-        }
         
         // Delegate to GaussianWeight.update() which implements incremental statistics
         return currentWeight.update(input, parameters);
@@ -182,44 +162,38 @@ public final class GaussianART extends BaseART {
     
     /**
      * Create an initial weight vector for a new category based on the input.
-     * 
+     *
      * For GaussianART, the initial weight is a Gaussian centered at the input point
      * with initial variance taken from the GaussianParameters.sigmaInit values.
      * The sample count starts at 1.
-     * 
+     *
      * This ensures that each new category begins as a tight Gaussian cluster
      * around the input that caused its creation.
-     * 
+     *
      * @param input the input vector that will become the center of this category
      * @param parameters the algorithm parameters containing initial sigma values
      * @return the initial GaussianWeight with mean=input, sigma=sigmaInit, count=1
-     * @throws IllegalArgumentException if parameters are not GaussianParameters
      * @throws NullPointerException if input or parameters are null
      */
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createStatisticalWeightVector(Pattern input, GaussianParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof GaussianParameters gaussianParams)) {
-            throw new IllegalArgumentException("Parameters must be GaussianParameters, got: " + 
-                parameters.getClass().getSimpleName());
+
+        if (input.dimension() != parameters.dimension()) {
+            throw new IllegalArgumentException("Input dimension " + input.dimension() +
+                " must match parameters dimension " + parameters.dimension());
         }
-        
-        if (input.dimension() != gaussianParams.dimension()) {
-            throw new IllegalArgumentException("Input dimension " + input.dimension() + 
-                " must match parameters dimension " + gaussianParams.dimension());
-        }
-        
+
         // Create mean vector from input
         var mean = new double[input.dimension()];
         for (int i = 0; i < input.dimension(); i++) {
             mean[i] = input.get(i);
         }
-        
+
         // Use initial sigma values from parameters
-        var sigma = gaussianParams.sigmaInit().clone();
-        
+        var sigma = parameters.sigmaInit().clone();
+
         // Create GaussianWeight with sample count = 1
         return GaussianWeight.of(mean, sigma, 1L);
     }

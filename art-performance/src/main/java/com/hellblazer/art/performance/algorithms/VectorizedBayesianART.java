@@ -24,7 +24,7 @@ import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.results.BayesianActivationResult;
 import com.hellblazer.art.core.weights.BayesianWeight;
 import com.hellblazer.art.core.utils.Matrix;
-import com.hellblazer.art.performance.VectorizedARTAlgorithm;
+import com.hellblazer.art.performance.AbstractVectorizedART;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;
@@ -55,30 +55,18 @@ import java.util.concurrent.RecursiveTask;
  * - Mahalanobis distance: d = sqrt((x-μ)ᵀ Σ⁻¹ (x-μ))
  * - Conjugate prior updates for Bayesian parameter learning
  */
-public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedParameters> {
-    
+public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedParameters> {
+
     private static final Logger log = LoggerFactory.getLogger(VectorizedBayesianART.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
-    
-    private final ForkJoinPool computePool;
+
     private final Map<Integer, float[]> inputCache = new ConcurrentHashMap<>();
     private final Map<Integer, Matrix> covarianceCache = new ConcurrentHashMap<>();
-    private final VectorizedParameters defaultParams;
-    
-    // Performance metrics
-    private long totalVectorOperations = 0;
-    private long totalParallelTasks = 0;
-    private double avgComputeTime = 0.0;
-    private long activationCalls = 0;
-    private long matchCalls = 0;
-    private long learningCalls = 0;
     private long uncertaintyCalculations = 0;
     
     public VectorizedBayesianART(VectorizedParameters defaultParams) {
-        super();
-        this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        log.info("Initialized VectorizedBayesianART with {} parallel threads, vector species: {}", 
+        super(defaultParams);
+        log.info("Initialized VectorizedBayesianART with {} parallel threads, vector species: {}",
                  defaultParams.parallelismLevel(), SPECIES.toString());
     }
     
@@ -128,7 +116,7 @@ public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgor
         // Convert WeightVector to BayesianWeight
         BayesianWeight bWeight = convertToBayesianWeight(weight);
         
-        totalVectorOperations++;
+        trackVectorOperation();
         return computeVectorizedBayesianLikelihood(inputVector, bWeight, vParams);
     }
     
@@ -469,8 +457,8 @@ public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgor
         }
         
         var task = new ParallelBayesianActivationTask(input, params, 0, getCategoryCount());
-        var result = computePool.invoke(task);
-        totalParallelTasks++;
+        var result = getComputePool().invoke(task);
+        trackParallelTask();
         return result;
     }
     
@@ -558,91 +546,87 @@ public class VectorizedBayesianART extends BaseART implements VectorizedARTAlgor
     private void updatePerformanceMetrics(long startTime) {
         long elapsed = System.nanoTime() - startTime;
         double elapsedMs = elapsed / 1_000_000.0;
-        avgComputeTime = (avgComputeTime + elapsedMs) / 2.0;
+        updateComputeTime(elapsedMs);
     }
     
     /**
      * Get performance statistics.
      */
-    public VectorizedPerformanceStats getPerformanceStats() {
-        return new VectorizedPerformanceStats(
-            totalVectorOperations,
-            totalParallelTasks,
-            avgComputeTime,
-            computePool.getActiveThreadCount(),
-            inputCache.size(),
-            getCategoryCount(),
-            activationCalls,
-            matchCalls,
-            learningCalls
-        );
-    }
+    // getPerformanceStats() is provided as final method by parent class
     
     /**
      * Clear caches and reset performance counters.
      */
-    public void resetPerformanceTracking() {
+    // resetPerformanceTracking() is provided as final method by parent class
+
+    public void clearCaches() {
         inputCache.clear();
         covarianceCache.clear();
-        totalVectorOperations = 0;
-        totalParallelTasks = 0;
-        avgComputeTime = 0.0;
-        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;        uncertaintyCalculations = 0;
-        log.info("VectorizedBayesianART performance tracking reset");
+        uncertaintyCalculations = 0;
+        log.info("VectorizedBayesianART caches cleared");
     }
     
     /**
      * Optimize memory usage by trimming caches.
      */
     public void optimizeMemory() {
-        if (inputCache.size() > defaultParams.maxCacheSize()) {
+        if (inputCache.size() > getParameters().maxCacheSize()) {
             inputCache.clear();
             log.info("Input cache cleared to optimize memory usage");
         }
-        if (covarianceCache.size() > defaultParams.maxCacheSize()) {
+        if (covarianceCache.size() > getParameters().maxCacheSize()) {
             covarianceCache.clear();
             log.info("Covariance cache cleared to optimize memory usage");
         }
     }
     
-    // VectorizedARTAlgorithm interface implementation
-    
-    @Override
-    public Object learn(Pattern input, VectorizedParameters parameters) {
-        return stepFitBayesian(input, parameters);
+    // Abstract method implementations
+
+    protected void validateParameters(VectorizedParameters params) {
+        Objects.requireNonNull(params, "Parameters cannot be null");
     }
-    
+
     @Override
-    public Object predict(Pattern input, VectorizedParameters parameters) {
-        return stepFit(input, parameters);
+    protected Object performVectorizedLearning(Pattern input, VectorizedParameters params) {
+        return stepFitBayesian(input, params);
     }
-    
+
     @Override
-    public VectorizedParameters getParameters() {
-        return defaultParams;
+    protected Object performVectorizedPrediction(Pattern input, VectorizedParameters params) {
+        return stepFit(input, params);
     }
-    
-    @Override
-    public int getVectorSpeciesLength() {
-        return SPECIES.length();
-    }
-    
-    /**
-     * Close and cleanup resources.
-     */
-    @Override
-    public void close() {
-        computePool.shutdown();
+
+    protected void clearAlgorithmState() {
         inputCache.clear();
         covarianceCache.clear();
-        log.info("VectorizedBayesianART closed and resources cleaned up");
+        uncertaintyCalculations = 0;
+    }
+
+    protected void closeAlgorithmResources() {
+        log.info("VectorizedBayesianART specific resources cleaned up");
+    }
+
+    @Override
+    protected VectorizedPerformanceStats createPerformanceStats(
+            long vectorOps, long parallelTasks, long activations,
+            long matches, long learnings, double avgTime) {
+        return new VectorizedPerformanceStats(
+            vectorOps,
+            parallelTasks,
+            avgTime,
+            getComputePool().getActiveThreadCount(),
+            inputCache.size(),
+            getCategoryCount(),
+            activations,
+            matches,
+            learnings
+        );
     }
     
     @Override
     public String toString() {
+        var stats = getPerformanceStats();
         return String.format("VectorizedBayesianART{categories=%d, vectorOps=%d, parallelTasks=%d, avgComputeMs=%.3f, uncertaintyCalcs=%d}",
-                           getCategoryCount(), totalVectorOperations, totalParallelTasks, avgComputeTime, uncertaintyCalculations);
+                           getCategoryCount(), stats.totalVectorOperations(), stats.totalParallelTasks(), stats.avgComputeTimeMs(), uncertaintyCalculations);
     }
 }

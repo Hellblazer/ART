@@ -18,15 +18,14 @@
  */
 package com.hellblazer.art.performance.algorithms;
 
-import com.hellblazer.art.core.BaseARTMAP;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.AbstractVectorizedARTMAP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
 
@@ -60,28 +59,12 @@ import java.util.concurrent.TimeUnit;
  * 
  * @author Hal Hildebrand
  */
-public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
+public class VectorizedGaussianARTMAP extends AbstractVectorizedARTMAP<VectorizedGaussianARTMAPParameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedGaussianARTMAP.class);
     
     // Core components
     private final VectorizedGaussianART moduleA;           // A-side: Input pattern clustering
-    private final Map<Integer, Integer> mapField;          // Map field: category -> label
-    private final Map<Integer, Set<Integer>> labelCategories; // Reverse map: label -> categories
-    
-    // Training state
-    private boolean trained = false;
-    private int[] trainingLabels;                          // Store all training labels
-    private final Set<Integer> knownLabels;                // Set of encountered labels
-    
-    // Parallel processing
-    private final ForkJoinPool computePool;
-    
-    // Performance tracking
-    private long totalSupervisedOperations = 0;
-    private long totalMatchTrackingEvents = 0;
-    private double avgSupervisedTime = 0.0;
-    private final Map<String, Long> operationCounts;
     
     /**
      * Create a new VectorizedGaussianARTMAP with default configuration.
@@ -98,6 +81,7 @@ public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
      * @param defaultParams default parameters for the ARTMAP system
      */
     public VectorizedGaussianARTMAP(VectorizedGaussianARTMAPParameters defaultParams) {
+        super(defaultParams.parallelismLevel());
         Objects.requireNonNull(defaultParams, "Default parameters cannot be null");
         defaultParams.validate();
         
@@ -105,53 +89,16 @@ public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
         var gaussianParams = defaultParams.toGaussianParameters();
         this.moduleA = new VectorizedGaussianART(gaussianParams);
         
-        this.mapField = new ConcurrentHashMap<>();
-        this.labelCategories = new ConcurrentHashMap<>();
-        this.knownLabels = ConcurrentHashMap.newKeySet();
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        this.operationCounts = new ConcurrentHashMap<>();
-        
         log.info("Initialized VectorizedGaussianARTMAP with parameters: {}", defaultParams);
     }
     
-    /**
-     * Train the ARTMAP on labeled data.
-     * 
-     * @param data array of input patterns
-     * @param labels array of class labels corresponding to each pattern
-     * @param params parameters for training
-     * @throws IllegalArgumentException if data and labels have different lengths
-     * @throws NullPointerException if any parameter is null
-     */
-    public void fit(Pattern[] data, int[] labels, VectorizedGaussianARTMAPParameters params) {
-        Objects.requireNonNull(data, "Data cannot be null");
-        Objects.requireNonNull(labels, "Labels cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
-        
-        if (data.length == 0) {
-            throw new IllegalArgumentException("Cannot fit with empty data");
-        }
-        
-        if (data.length != labels.length) {
-            throw new IllegalArgumentException(
-                "Data and labels must have same length: " + data.length + " != " + labels.length);
-        }
-        
+    @Override
+    protected void validateParameters(VectorizedGaussianARTMAPParameters params) {
         params.validate();
-        
-        long startTime = System.nanoTime();
-        
-        // Clear existing state
-        clear();
-        
-        // Store training labels
-        this.trainingLabels = labels.clone();
-        
-        // Collect unique labels
-        for (int label : labels) {
-            knownLabels.add(label);
-        }
-        
+    }
+    
+    @Override
+    protected void performSupervisedTraining(Pattern[] data, int[] labels, VectorizedGaussianARTMAPParameters params) {
         log.debug("Training VectorizedGaussianARTMAP with {} samples, {} unique labels", 
                  data.length, knownLabels.size());
         
@@ -159,97 +106,51 @@ public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
         for (int i = 0; i < data.length; i++) {
             trainSingle(data[i], labels[i], params);
         }
-        
-        trained = true;
-        totalSupervisedOperations++;
-        updatePerformanceMetrics(startTime);
-        
-        log.info("Training completed: {} categories, {} labels, {} ms", 
-                getCategoryCount(), knownLabels.size(), 
-                (System.nanoTime() - startTime) / 1_000_000);
     }
     
-    /**
-     * Incrementally train on new labeled data.
-     * 
-     * @param data array of new input patterns
-     * @param labels array of class labels for new patterns
-     * @param params parameters for incremental training
-     */
-    public void partialFit(Pattern[] data, int[] labels, VectorizedGaussianARTMAPParameters params) {
-        Objects.requireNonNull(data, "Data cannot be null");
-        Objects.requireNonNull(labels, "Labels cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
-        
-        if (data.length != labels.length) {
-            throw new IllegalArgumentException(
-                "Data and labels must have same length: " + data.length + " != " + labels.length);
-        }
-        
-        // If not yet trained, equivalent to fit
-        if (!trained) {
-            fit(data, labels, params);
-            return;
-        }
-        
-        long startTime = System.nanoTime();
-        
-        // Extend training labels array
-        var oldLength = trainingLabels != null ? trainingLabels.length : 0;
-        var newLabels = new int[oldLength + labels.length];
-        if (trainingLabels != null) {
-            System.arraycopy(trainingLabels, 0, newLabels, 0, oldLength);
-        }
-        System.arraycopy(labels, 0, newLabels, oldLength, labels.length);
-        trainingLabels = newLabels;
-        
-        // Add new labels to known set
-        for (int label : labels) {
-            knownLabels.add(label);
-        }
-        
+    @Override
+    protected void performIncrementalLearning(Pattern[] data, int[] labels, VectorizedGaussianARTMAPParameters params) {
         // Train on new samples
         for (int i = 0; i < data.length; i++) {
             trainSingle(data[i], labels[i], params);
         }
         
-        totalSupervisedOperations++;
-        updatePerformanceMetrics(startTime);
-        
-        log.debug("Partial fit completed: {} new samples, {} total categories", 
+        log.debug("Incremental learning completed: {} new samples, {} total categories", 
                  data.length, getCategoryCount());
     }
     
-    /**
-     * Predict class labels for input patterns.
-     * 
-     * @param data array of input patterns
-     * @param params parameters for prediction
-     * @return array of predicted class labels
-     * @throws IllegalStateException if model is not trained
-     */
-    public int[] predict(Pattern[] data, VectorizedGaussianARTMAPParameters params) {
-        Objects.requireNonNull(data, "Data cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
-        
-        if (!trained) {
-            throw new IllegalStateException("Model must be trained before prediction");
-        }
-        
-        long startTime = System.nanoTime();
-        
+    @Override
+    protected int[] performSupervisedPrediction(Pattern[] data, VectorizedGaussianARTMAPParameters params) {
         // Use parallel prediction for large datasets
-        int[] predictions;
         if (data.length > 100 && params.parallelismLevel() > 1) {
-            predictions = parallelPredict(data, params);
+            return parallelPredict(data, params);
         } else {
-            predictions = sequentialPredict(data, params);
+            return sequentialPredict(data, params);
         }
-        
-        totalSupervisedOperations++;
-        updatePerformanceMetrics(startTime);
-        
-        return predictions;
+    }
+    
+    @Override
+    protected VectorizedGaussianARTMAPParameters adjustVigilanceForMatchTracking(int category, int label, VectorizedGaussianARTMAPParameters params) {
+        // Increase vigilance parameter to force new category creation
+        double newVigilance = Math.min(1.0, params.vigilance() + params.epsilon());
+        return params.withVigilance(newVigilance);
+    }
+    
+    @Override
+    protected void clearAlgorithmState() {
+        moduleA.clear();
+    }
+    
+    @Override
+    protected void closeAlgorithmResources() throws Exception {
+        if (moduleA != null) {
+            moduleA.close();
+        }
+    }
+    
+    @Override
+    public int getCategoryCount() {
+        return moduleA.getCategoryCount();
     }
     
     /**
@@ -279,7 +180,7 @@ public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
                     if (existingLabel != label) {
                         // Conflict detected - apply match tracking
                         matchTrackingOccurred = true;
-                        totalMatchTrackingEvents++;
+                        performMatchTracking(category, label, params);
                         
                         // For match tracking to work properly, we need to ensure the conflicting
                         // category is rejected. Set vigilance to 1.0 to force new category creation
@@ -468,7 +369,7 @@ public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
      * 
      * @return performance statistics
      */
-    public VectorizedGaussianARTMAPStats getPerformanceStats() {
+    public VectorizedGaussianARTMAPStats getDetailedPerformanceStats() {
         var gaussianStats = moduleA.getPerformanceStats();
         return new VectorizedGaussianARTMAPStats(
             totalSupervisedOperations,
@@ -483,95 +384,12 @@ public class VectorizedGaussianARTMAP implements BaseARTMAP, AutoCloseable {
         );
     }
     
-    /**
-     * Reset performance tracking counters.
-     */
-    public void resetPerformanceTracking() {
-        totalSupervisedOperations = 0;
-        totalMatchTrackingEvents = 0;
-        avgSupervisedTime = 0.0;
-        operationCounts.clear();
-        moduleA.resetPerformanceTracking();
-        log.debug("Performance tracking reset for VectorizedGaussianARTMAP");
-    }
-    
-    /**
-     * Update performance metrics.
-     */
-    private void updatePerformanceMetrics(long startTime) {
-        long elapsed = System.nanoTime() - startTime;
-        double elapsedMs = elapsed / 1_000_000.0;
-        avgSupervisedTime = (avgSupervisedTime + elapsedMs) / 2.0;
-    }
     
     // BaseARTMAP interface implementation
     
     @Override
     public boolean isTrained() {
         return trained;
-    }
-    
-    @Override
-    public int getCategoryCount() {
-        return moduleA.getCategoryCount();
-    }
-    
-    @Override
-    public void clear() {
-        moduleA.clear();
-        mapField.clear();
-        labelCategories.clear();
-        knownLabels.clear();
-        trained = false;
-        trainingLabels = null;
-        
-        // Reset performance counters
-        totalSupervisedOperations = 0;
-        totalMatchTrackingEvents = 0;
-        avgSupervisedTime = 0.0;
-        operationCounts.clear();
-        
-        log.debug("VectorizedGaussianARTMAP cleared");
-    }
-    
-    @Override
-    public void close() {
-        // Close the underlying GaussianART module
-        if (moduleA != null) {
-            moduleA.close();
-        }
-        
-        // Shutdown compute pool
-        if (computePool != null && !computePool.isShutdown()) {
-            computePool.shutdown();
-            try {
-                if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    computePool.shutdownNow();
-                    if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                        log.warn("Compute pool did not terminate cleanly");
-                    }
-                }
-            } catch (InterruptedException e) {
-                computePool.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        
-        // Clear data structures
-        mapField.clear();
-        labelCategories.clear();
-        knownLabels.clear();
-        operationCounts.clear();
-        
-        log.info("VectorizedGaussianARTMAP closed and resources cleaned up");
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("VectorizedGaussianARTMAP{trained=%s, categories=%d, labels=%d, " +
-                           "supervisedOps=%d, matchTracking=%d, avgTimeMs=%.3f}",
-                           trained, getCategoryCount(), knownLabels.size(),
-                           totalSupervisedOperations, totalMatchTrackingEvents, avgSupervisedTime);
     }
     
     /**

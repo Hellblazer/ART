@@ -5,12 +5,11 @@ import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import com.hellblazer.art.performance.algorithms.VectorizedPerformanceStats;
+import com.hellblazer.art.performance.AbstractVectorizedART;
 
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Vectorized implementation of Dual Vigilance ART algorithm.
@@ -35,121 +34,60 @@ import java.util.Map;
  * @author Claude (Anthropic AI)
  * @version 1.0
  */
-public final class VectorizedDualVigilanceART extends BaseART 
-    implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedDualVigilanceParameters> {
-    
-    private final AtomicLong vectorOperations = new AtomicLong(0);
-    private final AtomicLong parallelTasks = new AtomicLong(0);
-    private final AtomicLong computeTimeNs = new AtomicLong(0);
-    private final AtomicLong activationCalls = new AtomicLong(0);
-    private final AtomicLong matchCalls = new AtomicLong(0);
-    private final AtomicLong learningCalls = new AtomicLong(0);
+public final class VectorizedDualVigilanceART extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedDualVigilanceParameters> {
+
     private final Map<Pattern, VectorizedDualVigilanceWeight> inputCache = new ConcurrentHashMap<>();
-    
-    private ForkJoinPool computePool;
-    private VectorizedDualVigilanceParameters currentParameters;
     
     /**
      * Creates a new VectorizedDualVigilanceART instance.
      */
-    public VectorizedDualVigilanceART() {
-        super();
+    public VectorizedDualVigilanceART(VectorizedDualVigilanceParameters defaultParams) {
+        super(defaultParams);
+    }
+    
+    // Abstract method implementations
+
+    protected void validateParameters(VectorizedDualVigilanceParameters params) {
+        Objects.requireNonNull(params, "Parameters cannot be null");
+    }
+
+    @Override
+    protected Object performVectorizedLearning(Pattern input, VectorizedDualVigilanceParameters params) {
+        // Ensure input is complement coded
+        var complementCodedInput = ensureComplementCoded(input);
+        return stepFit(complementCodedInput, params);
+    }
+
+    @Override
+    protected Object performVectorizedPrediction(Pattern input, VectorizedDualVigilanceParameters params) {
+        // Ensure input is complement coded
+        var complementCodedInput = ensureComplementCoded(input);
+        return stepPredict(complementCodedInput, params);
+    }
+
+    protected void clearAlgorithmState() {
+        inputCache.clear();
+    }
+
+    protected void closeAlgorithmResources() {
+        // No algorithm-specific resources to close
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedDualVigilanceParameters parameters) {
-        if (input == null) {
-            throw new IllegalArgumentException("Input pattern cannot be null");
-        }
-        if (parameters == null) {
-            throw new IllegalArgumentException("Parameters cannot be null");
-        }
-        
-        var startTime = System.nanoTime();
-        this.currentParameters = parameters;
-        ensureComputePool();
-        
-        try {
-            // Ensure input is complement coded
-            var complementCodedInput = ensureComplementCoded(input);
-            var result = super.stepFit(complementCodedInput, parameters);
-            return result;
-        } finally {
-            computeTimeNs.addAndGet(System.nanoTime() - startTime);
-        }
-    }
-    
-    @Override
-    public Object predict(Pattern input, VectorizedDualVigilanceParameters parameters) {
-        if (input == null) {
-            throw new IllegalArgumentException("Input pattern cannot be null");
-        }
-        if (parameters == null) {
-            throw new IllegalArgumentException("Parameters cannot be null");
-        }
-        
-        var startTime = System.nanoTime();
-        this.currentParameters = parameters;
-        ensureComputePool();
-        
-        try {
-            // Ensure input is complement coded
-            var complementCodedInput = ensureComplementCoded(input);
-            var result = super.stepPredict(complementCodedInput, parameters);
-            return result;
-        } finally {
-            computeTimeNs.addAndGet(System.nanoTime() - startTime);
-        }
-    }
-    
-    @Override
-    public VectorizedPerformanceStats getPerformanceStats() {
-        var avgComputeTime = getCategoryCount() > 0 ? 
-            computeTimeNs.get() / 1_000_000.0 / getCategoryCount() : 0.0;
-            
+    protected VectorizedPerformanceStats createPerformanceStats(
+            long vectorOps, long parallelTasks, long activations,
+            long matches, long learnings, double avgTime) {
         return new VectorizedPerformanceStats(
-            vectorOperations.get(),
-            parallelTasks.get(),
-            avgComputeTime,
-            computePool != null ? computePool.getActiveThreadCount() : 0,
+            vectorOps,
+            parallelTasks,
+            avgTime,
+            getComputePool().getActiveThreadCount(),
             inputCache.size(),
             getCategoryCount(),
-            activationCalls.get(),
-            matchCalls.get(),
-            learningCalls.get()
+            activations,
+            matches,
+            learnings
         );
-    }
-    
-    @Override
-    public void resetPerformanceTracking() {
-        vectorOperations.set(0);
-        parallelTasks.set(0);
-        computeTimeNs.set(0);
-        activationCalls.set(0);
-        matchCalls.set(0);
-        learningCalls.set(0);
-        inputCache.clear();
-    }
-    
-    @Override
-    public VectorizedDualVigilanceParameters getParameters() {
-        return currentParameters;
-    }
-    
-    @Override
-    public void close() {
-        if (computePool != null) {
-            computePool.shutdown();
-            try {
-                if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    computePool.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                computePool.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        inputCache.clear();
     }
     
     // BaseART method implementations
@@ -163,8 +101,7 @@ public final class VectorizedDualVigilanceART extends BaseART
             throw new IllegalArgumentException("Weight must be VectorizedDualVigilanceWeight");
         }
         
-        vectorOperations.incrementAndGet();
-        activationCalls.incrementAndGet();
+        trackVectorOperation();
         
         // Input is already complement coded from learn/predict methods
         var inputData = convertToFloatArray(input);
@@ -184,8 +121,8 @@ public final class VectorizedDualVigilanceART extends BaseART
             throw new IllegalArgumentException("Weight must be VectorizedDualVigilanceWeight");
         }
         
-        vectorOperations.incrementAndGet();
-        matchCalls.incrementAndGet();
+        trackVectorOperation();
+        trackMatchOperation();
         
         var inputData = convertToFloatArray(input);
         
@@ -223,8 +160,7 @@ public final class VectorizedDualVigilanceART extends BaseART
             throw new IllegalArgumentException("Weight must be VectorizedDualVigilanceWeight");
         }
         
-        vectorOperations.incrementAndGet();
-        learningCalls.incrementAndGet();
+        trackVectorOperation();
         
         var inputData = convertToFloatArray(input);
         
@@ -265,8 +201,8 @@ public final class VectorizedDualVigilanceART extends BaseART
         
         // For dual vigilance ART, we need consistent dimensions
         // If we have any existing categories, use their dimension to determine if complement coding is needed
-        if (getCategoryCount() > 0) {
-            var expectedDim = getCategory(0).dimension();
+        if (getCategoryCount() > 0 && getCategories().size() > 0) {
+            var expectedDim = getCategories().get(0).dimension();
             if (dimension == expectedDim) {
                 // Already the right dimension
                 return input;
@@ -354,56 +290,8 @@ public final class VectorizedDualVigilanceART extends BaseART
         return magnitude;
     }
     
-    /**
-     * Converts LearningResult to ActivationResult.
-     */
-    private Object convertToActivationResult(LearningResult result) {
-        if (result.wasSuccessful()) {
-            var weight = result.getWeight();
-            var activation = calculateActivation(result.getInput(), weight, currentParameters);
-            return new ActivationResult.Success(result.getCategoryIndex(), activation, weight);
-        }
-        return ActivationResult.NoMatch.instance();
-    }
     
-    /**
-     * Converts PredictionResult to ActivationResult.
-     */
-    private Object convertToActivationResult(PredictionResult result) {
-        if (result.wasSuccessful()) {
-            var weight = getCategory(result.getCategoryIndex());
-            var activation = calculateActivation(result.getInput(), weight, currentParameters);
-            return new ActivationResult.Success(result.getCategoryIndex(), activation, weight);
-        }
-        return ActivationResult.NoMatch.instance();
-    }
-    
-    /**
-     * Ensures compute pool is initialized with current parameters.
-     */
-    private void ensureComputePool() {
-        if (currentParameters == null) {
-            return;
-        }
-        
-        if (computePool == null || computePool.isShutdown()) {
-            var parallelism = currentParameters.parallelismLevel();
-            if (parallelism > 1) {
-                computePool = new ForkJoinPool(parallelism);
-            }
-        }
-    }
-    
-    @Override
-    public boolean isVectorized() {
-        return true;
-    }
-    
-    @Override
-    public int getVectorSpeciesLength() {
-        // Return the SIMD vector species length for Float vectors
-        return jdk.incubator.vector.FloatVector.SPECIES_PREFERRED.length();
-    }
+    // getVectorSpeciesLength is provided by AbstractVectorizedART
     
     @Override
     public String toString() {

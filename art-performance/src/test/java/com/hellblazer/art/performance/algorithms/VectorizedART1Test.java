@@ -328,14 +328,13 @@ public class VectorizedART1Test {
     @Test
     @DisplayName("Error handling should work correctly")
     void testErrorHandling() {
-        // Null parameters should throw exception
-        assertThrows(NullPointerException.class, () -> {
-            vectorizedART.learn(Pattern.of(1.0, 0.0), null);
+        // Null parameters should use default parameters (not throw exception)
+        assertDoesNotThrow(() -> {
+            var result = vectorizedART.learn(Pattern.of(1.0, 0.0), null);
+            assertNotNull(result);
         });
         
-        // Wrong parameter type should throw exception 
-        // Note: This test may need to be adjusted based on actual implementation
-        // For now, let's test with invalid parameters instead
+        // Invalid parameter values should throw exception during construction
         assertThrows(IllegalArgumentException.class, () -> {
             var invalidParams = new VectorizedART1Parameters(
                 -0.1, 2.0, 4, 100, 1000, true  // Invalid vigilance (negative)

@@ -32,7 +32,7 @@ public class VectorizedDualVigilanceARTTest {
             1000,   // maxCacheSize
             true    // enableSIMD
         );
-        algorithm = new VectorizedDualVigilanceART();
+        algorithm = new VectorizedDualVigilanceART(params);
     }
     
     @AfterEach
@@ -107,13 +107,13 @@ public class VectorizedDualVigilanceARTTest {
         var highAlphaParams = new VectorizedDualVigilanceParameters(
             0.5, 0.9, 0.9, 0.9, 4, 50, 1000, true
         );
-        var highAlphaAlgorithm = new VectorizedDualVigilanceART();
+        var highAlphaAlgorithm = new VectorizedDualVigilanceART(highAlphaParams);
         
         // Low alpha - should emphasize relative similarity
         var lowAlphaParams = new VectorizedDualVigilanceParameters(
             0.5, 0.9, 0.001, 0.9, 4, 50, 1000, true
         );
-        var lowAlphaAlgorithm = new VectorizedDualVigilanceART();
+        var lowAlphaAlgorithm = new VectorizedDualVigilanceART(lowAlphaParams);
         
         try {
             highAlphaAlgorithm.learn(pattern1, highAlphaParams);
@@ -140,13 +140,13 @@ public class VectorizedDualVigilanceARTTest {
         var fastLearningParams = new VectorizedDualVigilanceParameters(
             0.5, 0.9, 0.1, 0.95, 4, 50, 1000, true
         );
-        var fastAlgorithm = new VectorizedDualVigilanceART();
+        var fastAlgorithm = new VectorizedDualVigilanceART(fastLearningParams);
         
         // Low beta - slow learning
         var slowLearningParams = new VectorizedDualVigilanceParameters(
             0.5, 0.9, 0.1, 0.1, 4, 50, 1000, true
         );
-        var slowAlgorithm = new VectorizedDualVigilanceART();
+        var slowAlgorithm = new VectorizedDualVigilanceART(slowLearningParams);
         
         try {
             // Train both with first pattern
@@ -249,7 +249,7 @@ public class VectorizedDualVigilanceARTTest {
         );
         
         for (var testParams : combinations) {
-            var testAlgorithm = new VectorizedDualVigilanceART();
+            var testAlgorithm = new VectorizedDualVigilanceART(testParams);
             try {
                 testAlgorithm.learn(pattern, testParams);
                 var result = testAlgorithm.predict(testPattern, testParams);
@@ -275,7 +275,7 @@ public class VectorizedDualVigilanceARTTest {
         assertNotNull(unitResult);
         
         // Single dimension - needs separate algorithm instance
-        var singleDimAlgorithm = new VectorizedDualVigilanceART();
+        var singleDimAlgorithm = new VectorizedDualVigilanceART(params);
         var singleDim = Pattern.of(0.5);
         var singleResult = singleDimAlgorithm.learn(singleDim, params);
         assertNotNull(singleResult);
@@ -285,7 +285,7 @@ public class VectorizedDualVigilanceARTTest {
     @Test
     @DisplayName("Should implement AutoCloseable correctly")
     void testResourceManagement() {
-        var tempAlgorithm = new VectorizedDualVigilanceART();
+        var tempAlgorithm = new VectorizedDualVigilanceART(params);
         
         // Use the algorithm
         var pattern = Pattern.of(0.5, 0.5);

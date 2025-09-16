@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.AbstractVectorizedART;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,9 +13,7 @@ import jdk.incubator.vector.VectorSpecies;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
-import java.util.concurrent.TimeUnit;
 
 /**
  * High-performance vectorized EllipsoidART implementation using Java Vector API.
@@ -30,32 +29,19 @@ import java.util.concurrent.TimeUnit;
  * or hyperspheres, providing more flexible category boundaries that adapt to
  * data distribution patterns.
  */
-public class VectorizedEllipsoidART extends BaseART 
-    implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedEllipsoidParameters> {
-    
+public class VectorizedEllipsoidART extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedEllipsoidParameters> {
+
     private static final Logger log = LoggerFactory.getLogger(VectorizedEllipsoidART.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
-    
-    private final ForkJoinPool computePool;
-    private final Map<Integer, float[]> inputCache = new ConcurrentHashMap<>();
-    private VectorizedEllipsoidParameters defaultParams;
-    
-    // Performance metrics
-    private long totalVectorOperations = 0;
-    private long totalParallelTasks = 0;
-    private double avgComputeTime = 0.0;
-    private long activationCalls = 0;
-    private long matchCalls = 0;
-    private long learningCalls = 0;    
+
+    private final Map<Integer, float[]> inputCache = new ConcurrentHashMap<>();    
     public VectorizedEllipsoidART() {
         this(VectorizedEllipsoidParameters.createDefault());
     }
-    
+
     public VectorizedEllipsoidART(VectorizedEllipsoidParameters defaultParams) {
-        super();
-        this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        log.info("Initialized VectorizedEllipsoidART with {} parallel threads, vector species: {}", 
+        super(defaultParams);
+        log.info("Initialized VectorizedEllipsoidART with {} parallel threads, vector species: {}",
                  defaultParams.parallelismLevel(), SPECIES.toString());
     }
     
@@ -94,7 +80,7 @@ public class VectorizedEllipsoidART extends BaseART
         // Convert WeightVector to VectorizedEllipsoidWeight
         VectorizedEllipsoidWeight ellipsoidWeight = convertToVectorizedEllipsoidWeight(weight);
         
-        totalVectorOperations++;
+        trackVectorOperation();
         return computeVectorizedActivation(input, ellipsoidWeight, ellipsoidParams);
     }
     
@@ -272,8 +258,8 @@ public class VectorizedEllipsoidART extends BaseART
         }
         
         var task = new ParallelEllipsoidTask(input, params, 0, getCategoryCount());
-        var result = computePool.invoke(task);
-        totalParallelTasks++;
+        var result = getComputePool().invoke(task);
+        trackParallelTask();
         return result;
     }
     
@@ -359,96 +345,67 @@ public class VectorizedEllipsoidART extends BaseART
     private void updatePerformanceMetrics(long startTime) {
         long elapsed = System.nanoTime() - startTime;
         double elapsedMs = elapsed / 1_000_000.0;
-        avgComputeTime = (avgComputeTime + elapsedMs) / 2.0;
+        updateComputeTime(elapsedMs);
     }
     
     /**
      * Optimize memory usage by trimming caches.
      */
     public void optimizeMemory() {
-        if (inputCache.size() > defaultParams.maxCacheSize()) {
+        if (inputCache.size() > getParameters().maxCacheSize()) {
             inputCache.clear();
             log.info("Input cache cleared to optimize memory usage");
         }
     }
     
-    // VectorizedARTAlgorithm interface implementation
-    
+    // Abstract method implementations
+
+    protected void validateParameters(VectorizedEllipsoidParameters params) {
+        Objects.requireNonNull(params, "Parameters cannot be null");
+    }
+
     @Override
-    public Object learn(Pattern input, VectorizedEllipsoidParameters parameters) {
-        return learnEnhanced(input, parameters);
+    protected Object performVectorizedLearning(Pattern input, VectorizedEllipsoidParameters params) {
+        return learnEnhanced(input, params);
+    }
+
+    @Override
+    protected Object performVectorizedPrediction(Pattern input, VectorizedEllipsoidParameters params) {
+        return stepFit(input, params);
+    }
+
+    protected void clearAlgorithmState() {
+        inputCache.clear();
+    }
+
+    protected void closeAlgorithmResources() {
+        log.info("VectorizedEllipsoidART specific resources cleaned up");
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedEllipsoidParameters parameters) {
-        return stepFit(input, parameters);
-    }
-    
-    @Override
-    public VectorizedPerformanceStats getPerformanceStats() {
+    protected VectorizedPerformanceStats createPerformanceStats(
+            long vectorOps, long parallelTasks, long activations,
+            long matches, long learnings, double avgTime) {
         return new VectorizedPerformanceStats(
-            totalVectorOperations,
-            totalParallelTasks,
-            avgComputeTime,
-            computePool.getActiveThreadCount(),
+            vectorOps,
+            parallelTasks,
+            avgTime,
+            getComputePool().getActiveThreadCount(),
             inputCache.size(),
             getCategoryCount(),
-            activationCalls,
-            matchCalls,
-            learningCalls
+            activations,
+            matches,
+            learnings
         );
     }
-    
-    @Override
-    public void resetPerformanceTracking() {
-        inputCache.clear();
-        totalVectorOperations = 0;
-        totalParallelTasks = 0;
-        avgComputeTime = 0.0;
-        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;        log.info("Performance tracking reset");
-    }
-    
-    @Override
-    public VectorizedEllipsoidParameters getParameters() {
-        return defaultParams;
-    }
-    
-    public void setParameters(VectorizedEllipsoidParameters parameters) {
-        this.defaultParams = Objects.requireNonNull(parameters, "Parameters cannot be null");
-    }
-    
-    @Override
-    public int getVectorSpeciesLength() {
-        return SPECIES.length();
-    }
-    
-    /**
-     * Close and cleanup resources.
-     */
-    @Override
-    public void close() {
-        if (computePool != null && !computePool.isShutdown()) {
-            computePool.shutdown();
-            try {
-                if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    computePool.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                computePool.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        inputCache.clear();
-        log.info("VectorizedEllipsoidART closed and resources cleaned up");
-    }
+
+    // Remove setParameters method as it's not needed - parent class handles parameters
     
     @Override
     public String toString() {
         return String.format("VectorizedEllipsoidART{categories=%d, vectorOps=%d, parallelTasks=%d, " +
                            "avgComputeMs=%.3f, mu=%.3f}",
-                           getCategoryCount(), totalVectorOperations, totalParallelTasks, 
-                           avgComputeTime, defaultParams != null ? defaultParams.mu() : 0.0);
+                           getCategoryCount(), getPerformanceStats().totalVectorOperations(), getPerformanceStats().totalParallelTasks(),
+                           getPerformanceStats().avgComputeTimeMs(), getParameters() != null ? getParameters().mu() : 0.0);
     }
 }

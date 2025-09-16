@@ -72,7 +72,11 @@ class VectorizedFuzzyARTMAPTest {
     @AfterEach
     void tearDown() {
         if (artmap != null) {
-            artmap.close();
+            try {
+                artmap.close();
+            } catch (Exception e) {
+                // Ignore cleanup exceptions
+            }
         }
     }
     
@@ -177,8 +181,16 @@ class VectorizedFuzzyARTMAPTest {
             assertTrue(scalarAccuracy > 0.6, "Scalar version should achieve good accuracy");
             
         } finally {
-            simdARTMAP.close();
-            scalarARTMAP.close();
+            try {
+                simdARTMAP.close();
+            } catch (Exception e) {
+                // Ignore cleanup exceptions
+            }
+            try {
+                scalarARTMAP.close();
+            } catch (Exception e) {
+                // Ignore cleanup exceptions
+            }
         }
     }
     
@@ -262,8 +274,16 @@ class VectorizedFuzzyARTMAPTest {
             assertTrue(sequentialAccuracy > 0.5, "Sequential processing should achieve good accuracy");
             
         } finally {
-            parallelARTMAP.close();
-            sequentialARTMAP.close();
+            try {
+                parallelARTMAP.close();
+            } catch (Exception e) {
+                // Ignore cleanup exceptions
+            }
+            try {
+                sequentialARTMAP.close();
+            } catch (Exception e) {
+                // Ignore cleanup exceptions
+            }
         }
     }
     
@@ -385,7 +405,11 @@ class VectorizedFuzzyARTMAPTest {
                 untrainedARTMAP.predict(new Pattern[] { Pattern.of(0.5, 0.5) }, params);
             }, "Should throw exception when predicting before training");
         } finally {
-            untrainedARTMAP.close();
+            try {
+                untrainedARTMAP.close();
+            } catch (Exception e) {
+                // Ignore cleanup exceptions
+            }
         }
         
         // Test with null inputs

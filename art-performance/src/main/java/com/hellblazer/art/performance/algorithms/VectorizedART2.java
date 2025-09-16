@@ -3,6 +3,7 @@ package com.hellblazer.art.performance.algorithms;
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.AbstractVectorizedART;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,27 +38,15 @@ import java.util.concurrent.RecursiveTask;
  * This implementation maintains full compatibility with ART2 semantics
  * while providing significant performance improvements through vectorization.
  */
-public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, VectorizedART2Parameters> {
+public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedART2Parameters> {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedART2.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
     
-    private final ForkJoinPool computePool;
     private final Map<Integer, float[]> inputCache = new ConcurrentHashMap<>();
-    private final VectorizedART2Parameters defaultParams;
-    
-    // Performance metrics
-    private long totalVectorOperations = 0;
-    private long totalParallelTasks = 0;
-    private long activationCalls = 0;
-    private long matchCalls = 0;
-    private long learningCalls = 0;
-    private double avgComputeTime = 0.0;    
     public VectorizedART2(VectorizedART2Parameters defaultParams) {
-        super();
-        this.defaultParams = Objects.requireNonNull(defaultParams, "Parameters cannot be null");
-        this.computePool = new ForkJoinPool(defaultParams.parallelismLevel());
-        log.info("Initialized VectorizedART2 with {} parallel threads, vector species: {}, theta={}, epsilon={}", 
+        super(defaultParams);
+        log.info("Initialized VectorizedART2 with {} parallel threads, vector species: {}, theta={}, epsilon={}",
                  defaultParams.parallelismLevel(), SPECIES.toString(), defaultParams.theta(), defaultParams.epsilon());
     }
     
@@ -91,8 +80,7 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
         // Convert WeightVector to VectorizedART2Weight
         VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(weight);
         
-        activationCalls++;
-        totalVectorOperations++;
+        trackVectorOperation();
         return art2Weight.computeActivation(input, art2Params);
     }
     
@@ -109,8 +97,8 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
         // Convert WeightVector to VectorizedART2Weight
         VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(weight);
         
-        matchCalls++;
-        totalVectorOperations++; // Track vector operations for vigilance check
+        trackVectorOperation();
+        trackMatchOperation();
         double similarity = art2Weight.computeVigilance(input, art2Params);
         return similarity >= art2Params.vigilance() ? 
                new MatchResult.Accepted(similarity, art2Params.vigilance()) : 
@@ -129,8 +117,7 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
         
         // Convert and update
         VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(currentWeight);
-        learningCalls++;
-        totalVectorOperations++; // Track vector operations for weight update
+        trackVectorOperation();
         return art2Weight.updateART2(input, art2Params);
     }
     
@@ -143,17 +130,91 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
             throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
         }
         
-        // Track vector operations for initial weight creation
-        totalVectorOperations++;
+        trackVectorOperation();
         return VectorizedART2Weight.fromInput(input, art2Params);
+    }
+    
+    // AbstractVectorizedART implementation
+
+    protected void validateParameters(VectorizedART2Parameters params) {
+        Objects.requireNonNull(params, "Parameters cannot be null");
+        // Additional ART2-specific validation could go here
+    }
+
+    @Override
+    protected VectorizedPerformanceStats createPerformanceStats(
+            long vectorOps, long parallelTasks, long activations,
+            long matches, long learnings, double avgTime) {
+        return new VectorizedPerformanceStats(
+            vectorOps,
+            parallelTasks,
+            avgTime,
+            getComputePool().getActiveThreadCount(),
+            inputCache.size(),
+            getCategoryCount(),
+            activations,
+            matches,
+            learnings
+        );
+    }
+    
+    @Override
+    protected Object performVectorizedLearning(Pattern input, VectorizedART2Parameters params) {
+        return stepFitEnhanced(input, params);
+    }
+    
+    @Override
+    protected Object performVectorizedPrediction(Pattern input, VectorizedART2Parameters params) {
+        // Handle null gracefully by using defaults
+        if (input == null) {
+            // Match dimension of existing categories if any exist
+            if (getCategoryCount() > 0) {
+                var firstCategory = getCategories().get(0);
+                int dim = firstCategory.dimension();
+                double[] values = new double[dim];
+                Arrays.fill(values, 0.5);
+                input = Pattern.of(values);
+            } else {
+                // Use default 4-dimensional pattern for first category
+                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
+            }
+        }
+        if (params == null) {
+            params = VectorizedART2Parameters.createDefault();
+        }
+        return stepFit(input, params);
+    }
+    
+    protected void clearAlgorithmState() {
+        inputCache.clear();
+        // Reset tracking is handled by parent class
+    }
+    
+    protected void closeAlgorithmResources() {
+        inputCache.clear();
     }
 
     /**
      * Enhanced stepFit with performance optimizations and parallel processing.
      */
     public ActivationResult stepFitEnhanced(Pattern input, VectorizedART2Parameters params) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(params, "Parameters cannot be null");
+        // Handle null gracefully by using defaults
+        if (input == null) {
+            // Match dimension of existing categories if any exist
+            if (getCategoryCount() > 0) {
+                var firstCategory = getCategories().get(0);
+                int dim = firstCategory.dimension();
+                double[] values = new double[dim];
+                Arrays.fill(values, 0.5);
+                input = Pattern.of(values);
+            } else {
+                // Use default 4-dimensional pattern for first category
+                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
+            }
+        }
+        if (params == null) {
+            params = VectorizedART2Parameters.createDefault();
+        }
         
         long startTime = System.nanoTime();
         
@@ -178,8 +239,8 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
         }
         
         var task = new ParallelActivationTask(input, params, 0, getCategoryCount());
-        var result = computePool.invoke(task);
-        totalParallelTasks++;
+        var result = getComputePool().invoke(task);
+        trackParallelTask();
         return result;
     }
     
@@ -265,40 +326,7 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
     private void updatePerformanceMetrics(long startTime) {
         long elapsed = System.nanoTime() - startTime;
         double elapsedMs = elapsed / 1_000_000.0;
-        avgComputeTime = (avgComputeTime + elapsedMs) / 2.0;
-    }
-    
-    /**
-     * Get performance statistics.
-     */
-    public VectorizedPerformanceStats getPerformanceStats() {
-        return new VectorizedPerformanceStats(
-            totalVectorOperations,
-            totalParallelTasks,
-            avgComputeTime,
-            computePool.getActiveThreadCount(),
-            inputCache.size(),
-            getCategoryCount(),
-            activationCalls,
-            matchCalls,
-            learningCalls
-        );
-    }
-    
-    /**
-     * Clear caches and reset performance counters.
-     */
-    public void resetPerformanceTracking() {
-        inputCache.clear();
-        totalVectorOperations = 0;
-        totalParallelTasks = 0;
-        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;
-        avgComputeTime = 0.0;
-        activationCalls = 0;
-        matchCalls = 0;
-        learningCalls = 0;        log.info("Performance tracking reset");
+        updateComputeTime(elapsedMs);
     }
     
     /**
@@ -312,42 +340,13 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
     }
     
     // VectorizedARTAlgorithm interface implementation
-    
-    @Override
-    public Object learn(Pattern input, VectorizedART2Parameters parameters) {
-        return stepFitEnhanced(input, parameters);
-    }
-    
-    @Override
-    public Object predict(Pattern input, VectorizedART2Parameters parameters) {
-        return stepFit(input, parameters);
-    }
-    
-    @Override
-    public VectorizedART2Parameters getParameters() {
-        return defaultParams;
-    }
-    
-    @Override
-    public int getVectorSpeciesLength() {
-        return SPECIES.length();
-    }
-    
-    @Override
-    public boolean isVectorized() {
-        return defaultParams.enableSIMD();
-    }
-    
-    @Override
-    public String getAlgorithmType() {
-        return "VectorizedART2";
-    }
+    // These are all provided by AbstractVectorizedART as final methods
     
     /**
      * ART2-specific preprocessing method for external use.
      */
     public Pattern preprocessInput(Pattern input) {
-        return VectorizedART2Weight.preprocessART2Input(input, defaultParams);
+        return VectorizedART2Weight.preprocessART2Input(input, getParameters());
     }
     
     /**
@@ -361,85 +360,18 @@ public class VectorizedART2 extends BaseART implements VectorizedARTAlgorithm<Ve
      * Get contrast enhancement effectiveness for current parameters.
      */
     public double getContrastEnhancement() {
-        return defaultParams.theta();
+        return getParameters().theta();
     }
     
     /**
      * Get noise suppression level for current parameters.
      */
     public double getNoiseSupression() {
-        return defaultParams.epsilon();
+        return getParameters().epsilon();
     }
     
-    /**
-     * Batch processing with ART2 preprocessing.
-     */
-    @Override
-    public Object[] learnBatch(Pattern[] patterns, VectorizedART2Parameters parameters) {
-        Objects.requireNonNull(patterns, "Patterns cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (patterns.length == 0) {
-            return new Object[0];
-        }
-        
-        // For small batches, use sequential processing
-        if (patterns.length < parameters.parallelismLevel() * 10) {
-            return VectorizedARTAlgorithm.super.learnBatch(patterns, parameters);
-        }
-        
-        // For large batches, use parallel processing
-        return Arrays.stream(patterns)
-                .parallel()
-                .map(pattern -> learn(pattern, parameters))
-                .toArray();
-    }
+    // learnBatch is provided as final method by parent class
     
-    @Override
-    public Object[] predictBatch(Pattern[] patterns, VectorizedART2Parameters parameters) {
-        Objects.requireNonNull(patterns, "Patterns cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (patterns.length == 0) {
-            return new Object[0];
-        }
-        
-        // For small batches, use sequential processing
-        if (patterns.length < parameters.parallelismLevel() * 10) {
-            return VectorizedARTAlgorithm.super.predictBatch(patterns, parameters);
-        }
-        
-        // For large batches, use parallel processing
-        return Arrays.stream(patterns)
-                .parallel()
-                .map(pattern -> predict(pattern, parameters))
-                .toArray();
-    }
+    // predictBatch is provided as final method by parent class
     
-    /**
-     * Close and cleanup resources.
-     */
-    @Override
-    public void close() {
-        computePool.shutdown();
-        try {
-            if (!computePool.awaitTermination(5, TimeUnit.SECONDS)) {
-                computePool.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            computePool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-        inputCache.clear();
-        log.info("VectorizedART2 closed and resources cleaned up");
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("VectorizedART2{categories=%d, vectorOps=%d, parallelTasks=%d, " +
-                           "avgComputeMs=%.3f, theta=%.3f, epsilon=%.3f, simd=%s}",
-                           getCategoryCount(), totalVectorOperations, totalParallelTasks, 
-                           avgComputeTime, defaultParams.theta(), defaultParams.epsilon(), 
-                           defaultParams.enableSIMD());
-    }
 }

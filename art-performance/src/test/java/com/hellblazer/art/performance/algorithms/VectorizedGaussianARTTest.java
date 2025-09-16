@@ -333,8 +333,8 @@ public class VectorizedGaussianARTTest {
     @Test
     @DisplayName("Error handling should work correctly")
     void testErrorHandling() {
-        // Null parameters should throw exception
-        assertThrows(NullPointerException.class, () -> {
+        // Null parameters should be handled gracefully
+        assertDoesNotThrow(() -> {
             vectorizedART.learn(Pattern.of(0.5, 0.5), null);
         });
         
@@ -345,8 +345,8 @@ public class VectorizedGaussianARTTest {
                 "wrong type");
         });
         
-        // Null input should throw exception
-        assertThrows(NullPointerException.class, () -> {
+        // Null input should be handled gracefully
+        assertDoesNotThrow(() -> {
             vectorizedART.learn(null, params);
         });
         

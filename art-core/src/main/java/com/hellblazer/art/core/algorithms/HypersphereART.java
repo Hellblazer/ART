@@ -1,7 +1,7 @@
 package com.hellblazer.art.core.algorithms;
 
 import com.hellblazer.art.core.parameters.HypersphereParameters;
-import com.hellblazer.art.core.BaseART;
+import com.hellblazer.art.core.AbstractGeometricART;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.WeightVector;
 import com.hellblazer.art.core.results.ActivationResult;
@@ -10,7 +10,7 @@ import com.hellblazer.art.core.weights.HypersphereWeight;
 import java.util.Objects;
 
 /**
- * HypersphereART implementation using the BaseART template framework.
+ * HypersphereART implementation using the AbstractGeometricART framework.
  * 
  * HypersphereART is a neural network architecture based on Adaptive Resonance Theory (ART)
  * that performs unsupervised learning using hyperspheres to model categories.
@@ -27,11 +27,11 @@ import java.util.Objects;
  * - Vigilance: d(x, c_j) ≤ r_j (point within hypersphere)
  * - Learning: r_j = max(r_j, d(x, c_j)) (expand radius if needed)
  * 
- * @see BaseART for the template method framework
+ * @see AbstractGeometricART for the geometric template framework
  * @see HypersphereWeight for hypersphere representation
  * @see HypersphereParameters for algorithm parameters (ρ, defaultRadius, adaptiveRadius)
  */
-public final class HypersphereART extends BaseART {
+public final class HypersphereART extends AbstractGeometricART<HypersphereParameters> {
     
     /**
      * Create a new HypersphereART network with no initial categories.
@@ -39,9 +39,14 @@ public final class HypersphereART extends BaseART {
     public HypersphereART() {
         super();
     }
+
+    @Override
+    protected Class<HypersphereParameters> getParameterClass() {
+        return HypersphereParameters.class;
+    }
     
     /**
-     * Calculate the activation value using distance-based function.
+     * Compute geometric activation using distance-based function.
      * 
      * The activation is computed as:
      * A_j = 1 / (1 + d(x, c_j))
@@ -56,21 +61,16 @@ public final class HypersphereART extends BaseART {
      * 
      * @param input the input vector
      * @param weight the category weight vector (must be HypersphereWeight)
-     * @param parameters the algorithm parameters (must be HypersphereParameters)
+     * @param parameters the algorithm parameters
      * @return the activation value for this category (in range (0, 1])
-     * @throws IllegalArgumentException if parameters are not HypersphereParameters or weight is not HypersphereWeight
+     * @throws IllegalArgumentException if weight is not HypersphereWeight
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double computeGeometricActivation(Pattern input, WeightVector weight, HypersphereParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof HypersphereParameters hypersphereParams)) {
-            throw new IllegalArgumentException("Parameters must be HypersphereParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
         
         if (!(weight instanceof HypersphereWeight hypersphereWeight)) {
             throw new IllegalArgumentException("Weight vector must be HypersphereWeight, got: " + 
@@ -109,15 +109,10 @@ public final class HypersphereART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult computeGeometricVigilance(Pattern input, WeightVector weight, HypersphereParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof HypersphereParameters hypersphereParams)) {
-            throw new IllegalArgumentException("Parameters must be HypersphereParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
         
         if (!(weight instanceof HypersphereWeight hypersphereWeight)) {
             throw new IllegalArgumentException("Weight vector must be HypersphereWeight, got: " + 
@@ -136,17 +131,17 @@ public final class HypersphereART extends BaseART {
             // For zero radius, use vigilance as expansion threshold
             // Accept points within reasonable distance based on vigilance 
             // Lower vigilance = more restrictive, higher vigilance = more permissive
-            var maxAcceptableDistance = 1.0 - hypersphereParams.vigilance(); // vigilance 0.5 -> max distance 0.5
+            var maxAcceptableDistance = 1.0 - parameters.vigilance(); // vigilance 0.5 -> max distance 0.5
             matchRatio = (distance <= maxAcceptableDistance) ? 1.0 : 0.0;
         } else {
             matchRatio = Math.max(0.0, 1.0 - distance / radius);
         }
-        
+
         // Test against vigilance parameter
-        if (matchRatio >= hypersphereParams.vigilance()) {
-            return new MatchResult.Accepted(matchRatio, hypersphereParams.vigilance());
+        if (matchRatio >= parameters.vigilance()) {
+            return new MatchResult.Accepted(matchRatio, parameters.vigilance());
         } else {
-            return new MatchResult.Rejected(matchRatio, hypersphereParams.vigilance());
+            return new MatchResult.Rejected(matchRatio, parameters.vigilance());
         }
     }
     
@@ -171,16 +166,11 @@ public final class HypersphereART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector computeGeometricWeightUpdate(Pattern input, WeightVector currentWeight, HypersphereParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof HypersphereParameters)) {
-            throw new IllegalArgumentException("Parameters must be HypersphereParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
-        
+
         if (!(currentWeight instanceof HypersphereWeight)) {
             throw new IllegalArgumentException("Weight vector must be HypersphereWeight, got: " + 
                 currentWeight.getClass().getSimpleName());
@@ -208,23 +198,18 @@ public final class HypersphereART extends BaseART {
      * @throws NullPointerException if input or parameters are null
      */
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createGeometricWeightVector(Pattern input, HypersphereParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof HypersphereParameters hypersphereParams)) {
-            throw new IllegalArgumentException("Parameters must be HypersphereParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
-        
+
         // Create center vector from input
         var center = new double[input.dimension()];
         for (int i = 0; i < input.dimension(); i++) {
             center[i] = input.get(i);
         }
-        
+
         // Use default radius from parameters
-        return HypersphereWeight.of(center, hypersphereParams.defaultRadius());
+        return HypersphereWeight.of(center, parameters.defaultRadius());
     }
     
     /**
