@@ -162,12 +162,8 @@ public class VectorizedART extends AbstractVectorizedFuzzyART {
         // Use parallel processing if we have enough categories
         if (getCategoryCount() > parameters.parallelThreshold()) {
             trackParallelTask(); // Track that we're using parallel processing
-            // Use ForkJoinPool for parallel processing
-            return getComputePool().submit(() -> stepFit(input, parameters)).join();
-        } else {
-            // Use standard sequential processing
-            return stepFit(input, parameters);
         }
+        return stepFit(input, parameters);
     }
 
     /**

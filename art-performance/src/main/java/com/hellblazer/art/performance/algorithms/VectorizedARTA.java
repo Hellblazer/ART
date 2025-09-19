@@ -107,11 +107,17 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedARTAParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         if (isClosed) {
             throw new IllegalStateException("VectorizedARTA has been closed");
         }
         
-        var params = parameters != null ? parameters : defaultParams;
+        var params = parameters;
         long startTime = System.nanoTime();
         
         try {
@@ -151,11 +157,17 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedARTAParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         if (isClosed) {
             throw new IllegalStateException("VectorizedARTA has been closed");
         }
         
-        var params = parameters != null ? parameters : defaultParams;
+        var params = parameters;
         long startTime = System.nanoTime();
         
         try {

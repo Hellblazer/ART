@@ -121,94 +121,90 @@ public abstract class BaseART<P> implements ARTAlgorithm<P> {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        // Step 1: Handle empty categories - create first category
-        if (categories.isEmpty()) {
-            synchronized (categories) {
-                // Double-check after acquiring lock
-                if (categories.isEmpty()) {
-                    var newWeight = createInitialWeight(input, parameters);
-                    categories.add(newWeight);
-                    categoryUsageCount.add(1L);
-                    categoryLastUsedTimestamp.add(System.currentTimeMillis());
-                    totalActivations++;
-                    return new ActivationResult.Success(0, 1.0, newWeight);
-                }
-            }
-        }
-        
-        // Step 2: Calculate activations, applying match reset filtering if specified
-        var activations = new Double[categories.size()];
-        var caches = new ActivationCache[categories.size()];
-        
-        for (int i = 0; i < categories.size(); i++) {
-            var weight = categories.get(i);
-            
-            // Apply match reset function if provided (Python MT~ mode)
-            if (matchTracking == MatchTrackingMode.MT_COMPLEMENT && matchResetFunc != null) {
-                boolean shouldConsider = matchResetFunc.shouldConsiderCategory(
-                    input, weight, i, parameters, java.util.Optional.empty());
-                if (!shouldConsider) {
-                    activations[i] = Double.NaN;
-                    caches[i] = ActivationCache.empty("skipped");
-                    continue;
-                }
-            }
-            
-            // Calculate activation with caching
-            var result = calculateActivationWithCache(input, weight, parameters);
-            activations[i] = result.activation();
-            caches[i] = result.cache();
-        }
-        
-        // Step 3: Python-style iterative category testing with NaN marking
-        var baseParams = deepCopyParams(parameters);
-        var mtOperator = matchTracking.getOperator();
-        
-        while (hasValidActivation(activations)) {
-            // Find category with highest valid activation (nanargmax equivalent)
-            int bestCategory = findBestValidCategory(activations);
-            var weight = categories.get(bestCategory);
-            var cache = caches[bestCategory];
-            
-            // Test match criterion (vigilance) with caching
-            var matchResult = checkVigilanceWithCache(input, weight, parameters, cache, mtOperator);
-            
-            // Apply match reset logic
-            boolean noMatchReset = matchResetFunc == null || 
-                (matchTracking != MatchTrackingMode.MT_COMPLEMENT && 
-                 matchResetFunc.shouldConsiderCategory(input, weight, bestCategory, parameters, 
-                     matchResult.cache().getData()));
-            
-            if (matchResult.result().isAccepted() && noMatchReset) {
-                // Success: update weight and return
-                var updatedWeight = updateWeightsWithCache(input, weight, parameters, matchResult.cache());
-                categories.set(bestCategory, updatedWeight);
-                // Update usage statistics
-                categoryUsageCount.set(bestCategory, categoryUsageCount.get(bestCategory) + 1);
-                categoryLastUsedTimestamp.set(bestCategory, System.currentTimeMillis());
+        // Synchronize the entire stepFit operation to prevent concurrent modifications
+        synchronized (this) {
+            // Step 1: Handle empty categories - create first category
+            if (categories.isEmpty()) {
+                var newWeight = createInitialWeight(input, parameters);
+                categories.add(newWeight);
+                categoryUsageCount.add(1L);
+                categoryLastUsedTimestamp.add(System.currentTimeMillis());
                 totalActivations++;
-                restoreParams(baseParams, parameters);
-                return new ActivationResult.Success(bestCategory, activations[bestCategory], updatedWeight);
-            } else {
-                // Mark this category as tested (Python: T[c_] = np.nan)
-                activations[bestCategory] = Double.NaN;
+                return new ActivationResult.Success(0, 1.0, newWeight);
+            }
+            
+            // Step 2: Calculate activations, applying match reset filtering if specified
+            var activations = new Double[categories.size()];
+            var caches = new ActivationCache[categories.size()];
+            
+            for (int i = 0; i < categories.size(); i++) {
+                var weight = categories.get(i);
+            
+                // Apply match reset function if provided (Python MT~ mode)
+                if (matchTracking == MatchTrackingMode.MT_COMPLEMENT && matchResetFunc != null) {
+                    boolean shouldConsider = matchResetFunc.shouldConsiderCategory(
+                        input, weight, i, parameters, java.util.Optional.empty());
+                    if (!shouldConsider) {
+                        activations[i] = Double.NaN;
+                        caches[i] = ActivationCache.empty("skipped");
+                        continue;
+                    }
+                }
                 
-                // Apply match tracking if vigilance passed but match reset failed
-                if (matchResult.result().isAccepted() && !noMatchReset) {
-                    boolean keepSearching = applyMatchTracking(
-                        matchResult.cache(), epsilon, parameters, matchTracking);
-                    if (!keepSearching) {
-                        // Stop searching all categories (Python: T[:] = np.nan)
-                        for (int i = 0; i < activations.length; i++) {
-                            activations[i] = Double.NaN;
+                // Calculate activation with caching
+                var result = calculateActivationWithCache(input, weight, parameters);
+                activations[i] = result.activation();
+                caches[i] = result.cache();
+            }
+        
+            // Step 3: Python-style iterative category testing with NaN marking
+            var baseParams = deepCopyParams(parameters);
+            var mtOperator = matchTracking.getOperator();
+            
+            while (hasValidActivation(activations)) {
+                // Find category with highest valid activation (nanargmax equivalent)
+                int bestCategory = findBestValidCategory(activations);
+                var weight = categories.get(bestCategory);
+                var cache = caches[bestCategory];
+            
+                // Test match criterion (vigilance) with caching
+                var matchResult = checkVigilanceWithCache(input, weight, parameters, cache, mtOperator);
+                
+                // Apply match reset logic
+                boolean noMatchReset = matchResetFunc == null || 
+                    (matchTracking != MatchTrackingMode.MT_COMPLEMENT && 
+                     matchResetFunc.shouldConsiderCategory(input, weight, bestCategory, parameters, 
+                         matchResult.cache().getData()));
+            
+                if (matchResult.result().isAccepted() && noMatchReset) {
+                    // Success: update weight and return
+                    var updatedWeight = updateWeightsWithCache(input, weight, parameters, matchResult.cache());
+                    categories.set(bestCategory, updatedWeight);
+                    // Update usage statistics
+                    categoryUsageCount.set(bestCategory, categoryUsageCount.get(bestCategory) + 1);
+                    categoryLastUsedTimestamp.set(bestCategory, System.currentTimeMillis());
+                    totalActivations++;
+                    restoreParams(baseParams, parameters);
+                    return new ActivationResult.Success(bestCategory, activations[bestCategory], updatedWeight);
+                } else {
+                    // Mark this category as tested (Python: T[c_] = np.nan)
+                    activations[bestCategory] = Double.NaN;
+                    
+                    // Apply match tracking if vigilance passed but match reset failed
+                    if (matchResult.result().isAccepted() && !noMatchReset) {
+                        boolean keepSearching = applyMatchTracking(
+                            matchResult.cache(), epsilon, parameters, matchTracking);
+                        if (!keepSearching) {
+                            // Stop searching all categories (Python: T[:] = np.nan)
+                            for (int i = 0; i < activations.length; i++) {
+                                activations[i] = Double.NaN;
+                            }
                         }
                     }
                 }
             }
-        }
         
-        // Step 4: All categories failed - create new category
-        synchronized (categories) {
+            // Step 4: All categories failed - create new category
             var newWeight = createInitialWeight(input, parameters);
             categories.add(newWeight);
             categoryUsageCount.add(1L);
@@ -217,7 +213,7 @@ public abstract class BaseART<P> implements ARTAlgorithm<P> {
             var newIndex = categories.size() - 1;
             restoreParams(baseParams, parameters);
             return new ActivationResult.Success(newIndex, 1.0, newWeight);
-        }
+        } // End of synchronized block
     }
     
     // ==================== PYTHON-COMPATIBLE HELPER METHODS ====================

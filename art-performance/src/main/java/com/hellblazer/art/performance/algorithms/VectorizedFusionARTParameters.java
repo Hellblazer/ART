@@ -18,172 +18,109 @@
  */
 package com.hellblazer.art.performance.algorithms;
 
-import java.util.Arrays;
-import java.util.List;
-
 /**
  * Parameters for VectorizedFusionART algorithm.
- * Extends base vectorized parameters with multi-channel fusion specific settings.
+ * Extends VectorizedParameters with fusion-specific settings for multi-channel processing.
  */
-public class VectorizedFusionARTParameters {
+public record VectorizedFusionARTParameters(
+    double vigilance,
+    double learningRate,
+    double[] gamma,
+    int[] channelDimensions,
+    double[] channelVigilance,
+    double[] channelWeights,
+    VectorizedParameters baseParameters,
+    boolean enableChannelSkipping,
+    double activationThreshold,
+    int maxSearchAttempts
+) {
     
-    private final double vigilance;
-    private final double learningRate;
-    private final double[] gammaValues;
-    private final int[] channelDimensions;
-    private final double[] channelVigilance;
-    private final double[] channelLearningRates;
-    private final VectorizedParameters baseParameters;
-    private final boolean enableChannelSkipping;
-    private final double activationThreshold;
-    private final int maxSearchAttempts;
-    
-    public VectorizedFusionARTParameters(
-            double vigilance,
-            double learningRate,
-            double[] gammaValues,
-            int[] channelDimensions,
-            double[] channelVigilance,
-            double[] channelLearningRates,
-            VectorizedParameters baseParameters,
-            boolean enableChannelSkipping,
-            double activationThreshold,
-            int maxSearchAttempts) {
-        
-        validateInputs(vigilance, learningRate, gammaValues, channelDimensions, 
-                       channelVigilance, channelLearningRates, activationThreshold, maxSearchAttempts);
-        
-        this.vigilance = vigilance;
-        this.learningRate = learningRate;
-        this.gammaValues = Arrays.copyOf(gammaValues, gammaValues.length);
-        this.channelDimensions = Arrays.copyOf(channelDimensions, channelDimensions.length);
-        this.channelVigilance = channelVigilance != null ? Arrays.copyOf(channelVigilance, channelVigilance.length) : null;
-        this.channelLearningRates = channelLearningRates != null ? Arrays.copyOf(channelLearningRates, channelLearningRates.length) : null;
-        this.baseParameters = baseParameters;
-        this.enableChannelSkipping = enableChannelSkipping;
-        this.activationThreshold = activationThreshold;
-        this.maxSearchAttempts = maxSearchAttempts;
-    }
-    
-    public static VectorizedFusionARTParameters defaults() {
-        // Create default 2-channel fusion with equal weights
-        var defaultGamma = new double[]{0.5, 0.5};
-        var defaultChannelDims = new int[]{50, 50}; // 50 dimensions per channel
-        var defaultBaseParams = VectorizedParameters.createDefault();
-        
-        return new VectorizedFusionARTParameters(
-            0.75,    // vigilance
-            0.01,    // learningRate
-            defaultGamma,
-            defaultChannelDims,
-            null,    // channelVigilance (use global)
-            null,    // channelLearningRates (use global)
-            defaultBaseParams,
-            false,   // enableChannelSkipping
-            0.001,   // activationThreshold
-            50       // maxSearchAttempts
-        );
-    }
-    
-    public static VectorizedFusionARTParameters createMultiChannel(int numChannels, int dimensionsPerChannel) {
-        // Create equal-weighted multi-channel parameters
-        var gamma = new double[numChannels];
-        var channelDims = new int[numChannels];
-        double weight = 1.0 / numChannels;
-        
-        Arrays.fill(gamma, weight);
-        Arrays.fill(channelDims, dimensionsPerChannel);
-        
-        var baseParams = VectorizedParameters.createDefault();
-        
-        return new VectorizedFusionARTParameters(
-            0.75,    // vigilance
-            0.01,    // learningRate
-            gamma,
-            channelDims,
-            null,    // channelVigilance (use global)
-            null,    // channelLearningRates (use global)
-            baseParams,
-            false,   // enableChannelSkipping
-            0.001,   // activationThreshold
-            50       // maxSearchAttempts
-        );
-    }
-    
-    private static void validateInputs(double vigilance, double learningRate, double[] gammaValues,
-                                       int[] channelDimensions, double[] channelVigilance,
-                                       double[] channelLearningRates, double activationThreshold,
-                                       int maxSearchAttempts) {
+    public VectorizedFusionARTParameters {
         if (vigilance < 0.0 || vigilance > 1.0) {
-            throw new IllegalArgumentException("Vigilance must be in [0, 1], got: " + vigilance);
+            throw new IllegalArgumentException("Vigilance must be between 0.0 and 1.0");
         }
-        
         if (learningRate < 0.0 || learningRate > 1.0) {
-            throw new IllegalArgumentException("Learning rate must be in [0, 1], got: " + learningRate);
+            throw new IllegalArgumentException("Learning rate must be between 0.0 and 1.0");
         }
-        
-        if (gammaValues == null || gammaValues.length < 2) {
-            throw new IllegalArgumentException("FusionART requires at least 2 channels");
+        if (gamma == null || gamma.length == 0) {
+            throw new IllegalArgumentException("Gamma values cannot be null or empty");
         }
-        
-        if (channelDimensions == null || channelDimensions.length != gammaValues.length) {
-            throw new IllegalArgumentException("Channel dimensions must match gamma values length");
+        if (channelDimensions == null || channelDimensions.length == 0) {
+            throw new IllegalArgumentException("Channel dimensions cannot be null or empty");
         }
-        
-        // Validate gamma values sum to 1.0
-        double gammaSum = Arrays.stream(gammaValues).sum();
-        if (Math.abs(gammaSum - 1.0) > 1e-6) {
-            throw new IllegalArgumentException("Gamma values must sum to 1.0, got: " + gammaSum);
+        if (channelVigilance == null || channelVigilance.length != gamma.length) {
+            throw new IllegalArgumentException("Channel vigilance array must match gamma array length");
         }
-        
-        // Validate gamma values are in [0, 1]
-        for (int i = 0; i < gammaValues.length; i++) {
-            if (gammaValues[i] < 0.0 || gammaValues[i] > 1.0) {
-                throw new IllegalArgumentException("Gamma values must be in [0, 1], got: " + gammaValues[i] + " at index " + i);
-            }
+        if (channelWeights == null || channelWeights.length != gamma.length) {
+            throw new IllegalArgumentException("Channel weights array must match gamma array length");
         }
-        
-        // Validate channel dimensions are positive
-        for (int i = 0; i < channelDimensions.length; i++) {
-            if (channelDimensions[i] <= 0) {
-                throw new IllegalArgumentException("Channel dimensions must be positive, got: " + channelDimensions[i] + " at index " + i);
-            }
+        if (baseParameters == null) {
+            throw new IllegalArgumentException("Base parameters cannot be null");
         }
-        
-        // Validate channel vigilance if provided
-        if (channelVigilance != null) {
-            if (channelVigilance.length != gammaValues.length) {
-                throw new IllegalArgumentException("Channel vigilance length must match number of channels");
-            }
-            for (int i = 0; i < channelVigilance.length; i++) {
-                if (channelVigilance[i] < 0.0 || channelVigilance[i] > 1.0) {
-                    throw new IllegalArgumentException("Channel vigilance must be in [0, 1], got: " + channelVigilance[i] + " at index " + i);
-                }
-            }
+        if (activationThreshold < 0.0 || activationThreshold > 1.0) {
+            throw new IllegalArgumentException("Activation threshold must be between 0.0 and 1.0");
         }
-        
-        // Validate channel learning rates if provided
-        if (channelLearningRates != null) {
-            if (channelLearningRates.length != gammaValues.length) {
-                throw new IllegalArgumentException("Channel learning rates length must match number of channels");
-            }
-            for (int i = 0; i < channelLearningRates.length; i++) {
-                if (channelLearningRates[i] < 0.0 || channelLearningRates[i] > 1.0) {
-                    throw new IllegalArgumentException("Channel learning rates must be in [0, 1], got: " + channelLearningRates[i] + " at index " + i);
-                }
-            }
-        }
-        
-        if (activationThreshold < 0.0) {
-            throw new IllegalArgumentException("Activation threshold must be non-negative, got: " + activationThreshold);
-        }
-        
-        if (maxSearchAttempts <= 0) {
-            throw new IllegalArgumentException("Max search attempts must be positive, got: " + maxSearchAttempts);
+        if (maxSearchAttempts < 1) {
+            throw new IllegalArgumentException("Max search attempts must be at least 1");
         }
     }
     
-    // Getters
+    public static VectorizedFusionARTParameters createDefault() {
+        var baseParams = VectorizedParameters.createDefault();
+        return new VectorizedFusionARTParameters(
+            0.7,                                                    // vigilance
+            0.01,                                                   // learningRate
+            new double[]{1.0, 1.0, 1.0},                           // gamma
+            new int[]{4, 4, 4},                                    // channelDimensions
+            new double[]{0.7, 0.7, 0.7},                          // channelVigilance
+            new double[]{0.6, 0.3, 0.1},                          // channelWeights
+            baseParams,                                             // baseParameters
+            false,                                                  // enableChannelSkipping
+            0.5,                                                    // activationThreshold
+            10                                                      // maxSearchAttempts
+        );
+    }
+    
+    public static VectorizedFusionARTParameters createWithVigilance(double vigilance) {
+        var defaultParams = createDefault();
+        return new VectorizedFusionARTParameters(
+            vigilance,
+            defaultParams.learningRate(),
+            defaultParams.gamma(),
+            defaultParams.channelDimensions(),
+            new double[]{vigilance, vigilance, vigilance},
+            defaultParams.channelWeights(),
+            defaultParams.baseParameters(),
+            defaultParams.enableChannelSkipping(),
+            defaultParams.activationThreshold(),
+            defaultParams.maxSearchAttempts()
+        );
+    }
+    
+    public int getNumChannels() {
+        return gamma.length;
+    }
+    
+    public int getTotalDimensions() {
+        int total = 0;
+        for (int dim : channelDimensions) {
+            total += dim;
+        }
+        return total;
+    }
+    
+    // Legacy method names for compatibility
+    public int getTotalDimension() {
+        return getTotalDimensions();
+    }
+    
+    public double[] getGammaValues() {
+        return gamma.clone();
+    }
+    
+    public int[] getChannelDimensions() {
+        return channelDimensions.clone();
+    }
     
     public double vigilanceThreshold() {
         return vigilance;
@@ -193,158 +130,35 @@ public class VectorizedFusionARTParameters {
         return learningRate;
     }
     
-    public double[] getGammaValues() {
-        return Arrays.copyOf(gammaValues, gammaValues.length);
-    }
-    
-    public int[] getChannelDimensions() {
-        return Arrays.copyOf(channelDimensions, channelDimensions.length);
-    }
-    
-    public int getNumChannels() {
-        return gammaValues.length;
-    }
-    
-    public int getTotalDimension() {
-        return Arrays.stream(channelDimensions).sum();
+    public boolean isValidPatternDimension(int dimension) {
+        return dimension == getTotalDimensions();
     }
     
     public double getChannelVigilance(int channel) {
-        if (channelVigilance != null && channel < channelVigilance.length) {
+        if (channel >= 0 && channel < channelVigilance.length) {
             return channelVigilance[channel];
         }
-        return vigilance; // Use global vigilance as default
+        return vigilance;
     }
     
-    public double getChannelLearningRate(int channel) {
-        if (channelLearningRates != null && channel < channelLearningRates.length) {
-            return channelLearningRates[channel];
+    public double getChannelWeight(int channel) {
+        if (channel >= 0 && channel < channelWeights.length) {
+            return channelWeights[channel];
         }
-        return learningRate; // Use global learning rate as default
+        return 1.0 / getNumChannels(); // Equal weights as fallback
     }
     
-    public VectorizedParameters getBaseParameters() {
-        return baseParameters;
+    public double getGamma(int channel) {
+        if (channel >= 0 && channel < gamma.length) {
+            return gamma[channel];
+        }
+        return 1.0; // Default gamma
     }
     
-    public boolean isChannelSkippingEnabled() {
-        return enableChannelSkipping;
-    }
-    
-    public double getActivationThreshold() {
-        return activationThreshold;
-    }
-    
-    public int getMaxSearchAttempts() {
-        return maxSearchAttempts;
-    }
-    
-    /**
-     * Check if pattern has the expected total dimension.
-     */
-    public boolean isValidPatternDimension(int dimension) {
-        return dimension == getTotalDimension();
-    }
-    
-    /**
-     * Get the start and end indices for a specific channel in the combined pattern.
-     */
-    public int[] getChannelIndices(int channel) {
-        if (channel < 0 || channel >= getNumChannels()) {
-            throw new IllegalArgumentException("Channel index out of bounds: " + channel);
+    public int getChannelDimension(int channel) {
+        if (channel >= 0 && channel < channelDimensions.length) {
+            return channelDimensions[channel];
         }
-        
-        int start = 0;
-        for (int i = 0; i < channel; i++) {
-            start += channelDimensions[i];
-        }
-        int end = start + channelDimensions[channel];
-        
-        return new int[]{start, end};
-    }
-    
-    /**
-     * Create a builder for more complex parameter configurations.
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
-    
-    public static class Builder {
-        private double vigilance = 0.75;
-        private double learningRate = 0.01;
-        private double[] gammaValues;
-        private int[] channelDimensions;
-        private double[] channelVigilance;
-        private double[] channelLearningRates;
-        private VectorizedParameters baseParameters;
-        private boolean enableChannelSkipping = false;
-        private double activationThreshold = 0.001;
-        private int maxSearchAttempts = 50;
-        
-        public Builder vigilance(double vigilance) {
-            this.vigilance = vigilance;
-            return this;
-        }
-        
-        public Builder learningRate(double learningRate) {
-            this.learningRate = learningRate;
-            return this;
-        }
-        
-        public Builder gammaValues(double[] gammaValues) {
-            this.gammaValues = gammaValues != null ? Arrays.copyOf(gammaValues, gammaValues.length) : null;
-            return this;
-        }
-        
-        public Builder channelDimensions(int[] channelDimensions) {
-            this.channelDimensions = channelDimensions != null ? Arrays.copyOf(channelDimensions, channelDimensions.length) : null;
-            return this;
-        }
-        
-        public Builder channelVigilance(double[] channelVigilance) {
-            this.channelVigilance = channelVigilance != null ? Arrays.copyOf(channelVigilance, channelVigilance.length) : null;
-            return this;
-        }
-        
-        public Builder channelLearningRates(double[] channelLearningRates) {
-            this.channelLearningRates = channelLearningRates != null ? Arrays.copyOf(channelLearningRates, channelLearningRates.length) : null;
-            return this;
-        }
-        
-        public Builder baseParameters(VectorizedParameters baseParameters) {
-            this.baseParameters = baseParameters;
-            return this;
-        }
-        
-        public Builder enableChannelSkipping(boolean enableChannelSkipping) {
-            this.enableChannelSkipping = enableChannelSkipping;
-            return this;
-        }
-        
-        public Builder activationThreshold(double activationThreshold) {
-            this.activationThreshold = activationThreshold;
-            return this;
-        }
-        
-        public Builder maxSearchAttempts(int maxSearchAttempts) {
-            this.maxSearchAttempts = maxSearchAttempts;
-            return this;
-        }
-        
-        public VectorizedFusionARTParameters build() {
-            if (baseParameters == null) {
-                baseParameters = VectorizedParameters.createDefault();
-            }
-            if (gammaValues == null || channelDimensions == null) {
-                throw new IllegalArgumentException("Gamma values and channel dimensions are required");
-            }
-            
-            return new VectorizedFusionARTParameters(
-                vigilance, learningRate, gammaValues, channelDimensions,
-                channelVigilance, channelLearningRates, baseParameters,
-                enableChannelSkipping, activationThreshold, maxSearchAttempts
-            );
-        }
+        return 0;
     }
 }

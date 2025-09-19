@@ -108,11 +108,17 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         if (isClosed) {
             throw new IllegalStateException("VectorizedQuadraticNeuronART has been closed");
         }
         
-        var params = parameters != null ? parameters : defaultParams;
+        var params = parameters;
         long startTime = System.nanoTime();
         
         try {
@@ -158,11 +164,17 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         if (isClosed) {
             throw new IllegalStateException("VectorizedQuadraticNeuronART has been closed");
         }
         
-        var params = parameters != null ? parameters : defaultParams;
+        var params = parameters;
         long startTime = System.nanoTime();
         
         try {
@@ -400,5 +412,7 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
     @Override
     public void clear() {
         categories.clear();
+        baseQuadraticNeuronART.clear();
+        isTrained = false;
     }
 }

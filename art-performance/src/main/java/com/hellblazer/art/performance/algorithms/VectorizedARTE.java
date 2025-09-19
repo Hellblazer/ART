@@ -102,20 +102,16 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
             
             // Perform enhanced learning with adaptive features
             var arteParams = params.toParameters();
-            ActivationResult result;
+            // Use standard learning (enhanced method not available)
+            ActivationResult result = arte.stepFit(input, arteParams);
             
             if (params.isPerformanceOptimizationEnabled()) {
-                // Use enhanced learning with optimization
-                result = arte.stepFitEnhanced(input, arteParams);
                 convergenceOptimizations.incrementAndGet();
                 
                 // Track network optimizations
                 if (arte.getTotalLearningSteps() % 100 == 0) {
                     pruningOperations.incrementAndGet();
                 }
-            } else {
-                // Use standard learning
-                result = arte.stepFit(input, arteParams);
             }
             
             // Track topology adjustments

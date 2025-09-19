@@ -261,6 +261,9 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult learn(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
+        Objects.requireNonNull(input, "Input pattern cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
         var result = learn(input);
         // Convert result to ActivationResult
         if (result instanceof TopoARTResult topoResult) {
@@ -275,6 +278,14 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult predict(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
+        Objects.requireNonNull(input, "Input pattern cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
+        // If the network is empty, return NoMatch for predict
+        if (getCategoryCount() == 0) {
+            return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+        }
+        
         // TopoART doesn't have a separate predict mode, it always learns
         return learn(input, parameters);
     }
@@ -345,5 +356,8 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     @Override
     public void clear() {
         categories.clear();
+        // Also reset both components to clear their neurons
+        componentA.reset();
+        componentB.reset();
     }
 }

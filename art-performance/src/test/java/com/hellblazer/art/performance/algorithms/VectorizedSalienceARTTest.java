@@ -2,6 +2,7 @@ package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -11,53 +12,46 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test-first development: Tests for VectorizedSalienceART
  */
-class VectorizedSalienceARTTest {
+class VectorizedSalienceARTTest extends BaseVectorizedARTTest<VectorizedSalienceART, VectorizedSalienceParameters> {
     
-    private VectorizedSalienceART art;
-    private VectorizedSalienceParameters parameters;
+    @Override
+    protected VectorizedSalienceART createAlgorithm(VectorizedSalienceParameters params) {
+        return new VectorizedSalienceART(params);
+    }
+    
+    @Override
+    protected VectorizedSalienceParameters createDefaultParameters() {
+        return VectorizedSalienceParameters.createDefault();
+    }
     
     @BeforeEach
-    void setUp() {
-        parameters = VectorizedSalienceParameters.createDefault();
-        art = new VectorizedSalienceART(parameters);
+    protected void setUp() {
+        parameters = createDefaultParameters();
+        algorithm = createAlgorithm(parameters);
+        super.setUp();
     }
+    
+    @Override
+    protected VectorizedSalienceParameters createParametersWithVigilance(double vigilance) {
+        return parameters.withVigilance(vigilance);
+    }
+    
+    // The following tests are covered by base class:
+    // - testBasicLearning()
+    // - testMultiplePatternLearning()
+    // - testPrediction()
+    // - testPerformanceTracking()
+    // - testErrorHandling()
+    // - testResourceCleanup()
     
     @Test
     @DisplayName("Test initialization")
     void testInitialization() {
-        assertNotNull(art);
-        assertEquals(0, art.getCategoryCount());
-        assertNotNull(art.getParameters());
-        assertEquals(parameters, art.getParameters());
-        assertFalse(art.isTrained());
-    }
-    
-    @Test
-    @DisplayName("Test learning with single pattern")
-    void testLearnSinglePattern() {
-        var pattern = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5);
-        
-        var result = art.learn(pattern, parameters);
-        
-        assertNotNull(result);
-        assertTrue(result instanceof ActivationResult);
-        assertEquals(1, art.getCategoryCount());
-        assertTrue(art.isTrained());
-    }
-    
-    @Test
-    @DisplayName("Test learning with multiple patterns")
-    void testLearnMultiplePatterns() {
-        var pattern1 = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5);
-        var pattern2 = Pattern.of(0.9, 0.8, 0.7, 0.6, 0.5);
-        var pattern3 = Pattern.of(0.5, 0.5, 0.5, 0.5, 0.5);
-        
-        art.learn(pattern1, parameters);
-        art.learn(pattern2, parameters);
-        art.learn(pattern3, parameters);
-        
-        assertTrue(art.getCategoryCount() > 0);
-        assertTrue(art.getCategoryCount() <= 3);
+        assertNotNull(algorithm);
+        assertEquals(0, algorithm.getCategoryCount());
+        assertNotNull(algorithm.getParameters());
+        assertEquals(parameters, algorithm.getParameters());
+        assertFalse(algorithm.isTrained());
     }
     
     @Test
@@ -65,11 +59,11 @@ class VectorizedSalienceARTTest {
     void testPredictWithoutLearning() {
         var pattern = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5);
         
-        var result = art.predict(pattern, parameters);
+        var result = algorithm.predict(pattern, parameters);
         
         assertNotNull(result);
         // Should handle empty network gracefully
-        assertEquals(0, art.getCategoryCount());
+        assertEquals(0, algorithm.getCategoryCount());
     }
     
     @Test
@@ -78,28 +72,28 @@ class VectorizedSalienceARTTest {
         var pattern1 = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5);
         var pattern2 = Pattern.of(0.9, 0.8, 0.7, 0.6, 0.5);
         
-        art.learn(pattern1, parameters);
-        art.learn(pattern2, parameters);
+        algorithm.learn(pattern1, parameters);
+        algorithm.learn(pattern2, parameters);
         
         // Predict with learned pattern
-        var result1 = art.predict(pattern1, parameters);
+        var result1 = algorithm.predict(pattern1, parameters);
         assertNotNull(result1);
         
         // Predict with new similar pattern
         var similar = Pattern.of(0.11, 0.21, 0.31, 0.41, 0.51);
-        var result2 = art.predict(similar, parameters);
+        var result2 = algorithm.predict(similar, parameters);
         assertNotNull(result2);
     }
     
     @Test
     @DisplayName("Test null input validation")
     void testNullInputValidation() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            art.learn(null, parameters);
+        assertThrows(NullPointerException.class, () -> {
+            algorithm.learn(null, parameters);
         });
         
-        assertThrows(IllegalArgumentException.class, () -> {
-            art.predict(null, parameters);
+        assertThrows(NullPointerException.class, () -> {
+            algorithm.predict(null, parameters);
         });
     }
     
@@ -108,30 +102,30 @@ class VectorizedSalienceARTTest {
     void testNullParametersValidation() {
         var pattern = Pattern.of(0.1, 0.2, 0.3);
         
-        assertThrows(IllegalArgumentException.class, () -> {
-            art.learn(pattern, null);
+        assertThrows(NullPointerException.class, () -> {
+            algorithm.learn(pattern, null);
         });
         
-        assertThrows(IllegalArgumentException.class, () -> {
-            art.predict(pattern, null);
+        assertThrows(NullPointerException.class, () -> {
+            algorithm.predict(pattern, null);
         });
     }
     
     @Test
     @DisplayName("Test performance stats tracking")
-    void testPerformanceStats() {
-        var stats1 = art.getPerformanceStats();
+    void testPerformanceStatsDetails() {
+        var stats1 = algorithm.getPerformanceStats();
         assertEquals(0L, stats1.totalOperations());
         
         var pattern = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5);
-        art.learn(pattern, parameters);
+        algorithm.learn(pattern, parameters);
         
-        var stats2 = art.getPerformanceStats();
+        var stats2 = algorithm.getPerformanceStats();
         assertTrue(stats2.totalOperations() > 0);
         
         // Reset tracking
-        art.resetPerformanceTracking();
-        var stats3 = art.getPerformanceStats();
+        algorithm.resetPerformanceTracking();
+        var stats3 = algorithm.getPerformanceStats();
         assertEquals(0L, stats3.totalOperations());
     }
     
@@ -142,28 +136,30 @@ class VectorizedSalienceARTTest {
                                     .withSalienceUpdateRate(0.02); // Set proper simdThreshold
         var artWithSimd = new VectorizedSalienceART(simdParams);
         
-        // Create pattern large enough to trigger SIMD (needs to be > simdThreshold)
-        var pattern = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0);
-        
-        artWithSimd.learn(pattern, simdParams);
-        
-        var stats = artWithSimd.getPerformanceStats();
-        // With 110 dimensions and simdThreshold of 100, SIMD should be triggered
-        if (simdParams.enableSIMD() && pattern.dimension() > simdParams.simdThreshold()) {
-            assertTrue(stats.simdOperations() > 0);
+        try {
+            // Create pattern large enough to trigger SIMD (needs to be > simdThreshold)
+            var pattern = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                                    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0);
+            
+            artWithSimd.learn(pattern, simdParams);
+            
+            var stats = artWithSimd.getPerformanceStats();
+            // With 110 dimensions and simdThreshold of 100, SIMD should be triggered
+            if (simdParams.enableSIMD() && pattern.dimension() > simdParams.simdThreshold()) {
+                assertTrue(stats.simdOperations() > 0);
+            }
+        } finally {
+            artWithSimd.close();
         }
-        
-        artWithSimd.close();
     }
     
     @Test
@@ -173,29 +169,31 @@ class VectorizedSalienceARTTest {
                                     .withSparsityThreshold(0.1);
         var artWithSparse = new VectorizedSalienceART(sparseParams);
         
-        // Create sparse pattern (mostly zeros)
-        var sparsePattern = Pattern.of(0.0, 0.0, 0.5, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.3);
-        artWithSparse.learn(sparsePattern, sparseParams);
-        
-        var stats = artWithSparse.getPerformanceStats();
-        if (sparseParams.useSparseMode()) {
-            assertTrue(stats.sparseVectorOperations() >= 0);
+        try {
+            // Create sparse pattern (mostly zeros)
+            var sparsePattern = Pattern.of(0.0, 0.0, 0.5, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.3);
+            artWithSparse.learn(sparsePattern, sparseParams);
+            
+            var stats = artWithSparse.getPerformanceStats();
+            if (sparseParams.useSparseMode()) {
+                assertTrue(stats.sparseVectorOperations() >= 0);
+            }
+        } finally {
+            artWithSparse.close();
         }
-        
-        artWithSparse.close();
     }
     
     @Test
     @DisplayName("Test resource cleanup with close")
-    void testResourceCleanup() {
+    void testResourceCleanupAfterClose() {
         var pattern = Pattern.of(0.1, 0.2, 0.3);
-        art.learn(pattern, parameters);
+        algorithm.learn(pattern, parameters);
         
-        art.close();
+        algorithm.close();
         
         // After closing, operations should throw IllegalStateException
         assertThrows(IllegalStateException.class, () -> {
-            art.learn(pattern, parameters);
+            algorithm.learn(pattern, parameters);
         });
     }
     
@@ -208,26 +206,26 @@ class VectorizedSalienceARTTest {
             Pattern.of(0.7, 0.8, 0.9)
         };
         
-        var results = art.learnBatch(java.util.Arrays.asList(patterns), parameters);
+        var results = algorithm.learnBatch(java.util.Arrays.asList(patterns), parameters);
         
         assertNotNull(results);
         assertEquals(patterns.length, results.size());
-        assertTrue(art.getCategoryCount() > 0);
+        assertTrue(algorithm.getCategoryCount() > 0);
     }
     
     @Test
     @DisplayName("Test batch prediction")
     void testBatchPrediction() {
         // First learn some patterns
-        art.learn(Pattern.of(0.1, 0.2, 0.3), parameters);
-        art.learn(Pattern.of(0.7, 0.8, 0.9), parameters);
+        algorithm.learn(Pattern.of(0.1, 0.2, 0.3), parameters);
+        algorithm.learn(Pattern.of(0.7, 0.8, 0.9), parameters);
         
         var patterns = new Pattern[] {
             Pattern.of(0.11, 0.21, 0.31),
             Pattern.of(0.71, 0.81, 0.91)
         };
         
-        var results = art.predictBatch(java.util.Arrays.asList(patterns), parameters);
+        var results = algorithm.predictBatch(java.util.Arrays.asList(patterns), parameters);
         
         assertNotNull(results);
         assertEquals(patterns.length, results.size());
@@ -236,8 +234,8 @@ class VectorizedSalienceARTTest {
     @Test
     @DisplayName("Test algorithm type identification")
     void testAlgorithmType() {
-        assertEquals("VectorizedSalienceART", art.getAlgorithmType());
-        assertTrue(art.isVectorized());
+        assertEquals("VectorizedSalienceART", algorithm.getAlgorithmType());
+        assertTrue(algorithm.isVectorized());
     }
     
     @Test
@@ -245,10 +243,10 @@ class VectorizedSalienceARTTest {
     void testStepFitEnhanced() {
         var pattern = Pattern.of(0.1, 0.2, 0.3, 0.4, 0.5);
         
-        var result = art.stepFitEnhanced(pattern, parameters);
+        var result = algorithm.stepFitEnhanced(pattern, parameters);
         
         assertNotNull(result);
         assertTrue(result instanceof ActivationResult);
-        assertEquals(1, art.getCategoryCount());
+        assertEquals(1, algorithm.getCategoryCount());
     }
 }

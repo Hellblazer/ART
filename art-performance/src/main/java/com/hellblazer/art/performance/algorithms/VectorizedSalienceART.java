@@ -89,9 +89,8 @@ public class VectorizedSalienceART
             return new ActivationResult.NoMatch();
         }
         
-        // For now, just return a simple no-match since we can't access internal weights
-        // In a real implementation, we'd need to expose prediction methods in SalienceAwareART
-        return new ActivationResult.NoMatch();
+        // Use stepPredict to get prediction without learning
+        return salienceART.stepPredict(input, parameters);
     }
     
     @Override
@@ -199,10 +198,10 @@ public class VectorizedSalienceART
     // Validation helper
     private void validateInput(Pattern input, VectorizedSalienceParameters params) {
         if (input == null) {
-            throw new IllegalArgumentException("Input pattern cannot be null");
+            throw new NullPointerException("Input pattern cannot be null");
         }
         if (params == null) {
-            throw new IllegalArgumentException("Parameters cannot be null");
+            throw new NullPointerException("Parameters cannot be null");
         }
         ensureNotClosed();
     }
@@ -242,5 +241,7 @@ public class VectorizedSalienceART
     @Override
     public void clear() {
         categories.clear();
+        // Also clear the underlying salienceART
+        salienceART.clear();
     }
 }

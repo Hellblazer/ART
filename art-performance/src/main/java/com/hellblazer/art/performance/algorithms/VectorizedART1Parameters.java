@@ -59,6 +59,33 @@ public record VectorizedART1Parameters(
     
     /**
      * Create default parameters suitable for most binary pattern recognition tasks.
+     * Alias for defaultParameters() to match test expectations.
+     * 
+     * @return VectorizedART1Parameters with default values
+     */
+    public static VectorizedART1Parameters createDefault() {
+        return defaultParameters();
+    }
+    
+    /**
+     * Create parameters with a specific vigilance value using default settings for other parameters.
+     * 
+     * @param vigilance Vigilance parameter [0, 1]
+     * @return VectorizedART1Parameters with specified vigilance and default other values
+     */
+    public static VectorizedART1Parameters createWithVigilance(double vigilance) {
+        return new VectorizedART1Parameters(
+            vigilance,                                   // custom vigilance
+            2.0,                                         // default L
+            Runtime.getRuntime().availableProcessors(), // default parallelismLevel
+            100,                                         // default parallelThreshold
+            1000,                                        // default maxCacheSize
+            true                                         // default enableSIMD
+        );
+    }
+    
+    /**
+     * Create default parameters suitable for most binary pattern recognition tasks.
      * 
      * Default configuration:
      * - vigilance: 0.75 (moderate selectivity)

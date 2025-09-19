@@ -2,8 +2,8 @@ package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,14 +15,16 @@ import java.util.ArrayList;
  * Comprehensive test suite for VectorizedEllipsoidART implementation.
  * Tests ellipsoidal category representation with vectorized operations.
  */
-public class VectorizedEllipsoidARTTest {
+public class VectorizedEllipsoidARTTest extends BaseVectorizedARTTest<VectorizedEllipsoidART, VectorizedEllipsoidParameters> {
     
-    private VectorizedEllipsoidART algorithm;
-    private VectorizedEllipsoidParameters params;
+    @Override
+    protected VectorizedEllipsoidART createAlgorithm(VectorizedEllipsoidParameters params) {
+        return new VectorizedEllipsoidART();
+    }
     
-    @BeforeEach
-    void setUp() {
-        params = new VectorizedEllipsoidParameters(
+    @Override
+    protected VectorizedEllipsoidParameters createDefaultParameters() {
+        return new VectorizedEllipsoidParameters(
             0.75,   // vigilance
             0.9,    // mu - shape parameter  
             1.0,    // baseRadius
@@ -31,29 +33,35 @@ public class VectorizedEllipsoidARTTest {
             1000,   // maxCacheSize
             true    // enableSIMD
         );
-        algorithm = new VectorizedEllipsoidART();
     }
     
-    @AfterEach
-    void tearDown() {
-        if (algorithm != null) {
-            algorithm.close();
-        }
+    @BeforeEach
+    protected void setUp() {
+        parameters = createDefaultParameters();
+        algorithm = createAlgorithm(parameters);
+        super.setUp();
     }
     
-    @Test
-    @DisplayName("Should create ellipsoidal categories correctly")
-    void testEllipsoidalCategoryCreation() {
-        var pattern1 = Pattern.of(0.8, 0.2);
-        var pattern2 = Pattern.of(0.3, 0.7);
-        
-        var result1 = algorithm.learn(pattern1, params);
-        var result2 = algorithm.learn(pattern2, params);
-        
-        assertEquals(2, algorithm.getCategoryCount());
-        assertTrue(result1 instanceof ActivationResult.Success);
-        assertTrue(result2 instanceof ActivationResult.Success);
+    @Override
+    protected VectorizedEllipsoidParameters createParametersWithVigilance(double vigilance) {
+        return new VectorizedEllipsoidParameters(
+            vigilance,
+            0.9,    // mu - shape parameter  
+            1.0,    // baseRadius
+            4,      // parallelismLevel
+            50,     // parallelThreshold
+            1000,   // maxCacheSize
+            true    // enableSIMD
+        );
     }
+    
+    // The following tests are covered by base class:
+    // - testBasicLearning()
+    // - testMultiplePatternLearning()
+    // - testPrediction()
+    // - testPerformanceTracking()
+    // - testErrorHandling()
+    // - testResourceCleanup()
     
     @Test
     @DisplayName("Should handle ellipsoidal geometry activation correctly")
@@ -63,15 +71,15 @@ public class VectorizedEllipsoidARTTest {
         var farPoint = Pattern.of(0.9, 0.9);    // Outside ellipsoid
         
         // Train with center pattern
-        algorithm.learn(center, params);
+        algorithm.learn(center, parameters);
         assertEquals(1, algorithm.getCategoryCount());
         
         // Near point should activate same category
-        var nearResult = algorithm.predict(nearPoint, params);
+        var nearResult = algorithm.predict(nearPoint, parameters);
         assertTrue(nearResult instanceof ActivationResult.Success);
         
         // Far point may create new category or have low activation
-        var farResult = algorithm.predict(farPoint, params);
+        var farResult = algorithm.predict(farPoint, parameters);
         assertNotNull(farResult);
     }
     
@@ -82,12 +90,12 @@ public class VectorizedEllipsoidARTTest {
         var pattern2 = Pattern.of(0.0, 1.0);
         var pattern3 = Pattern.of(0.7, 0.7); // Diagonal
         
-        algorithm.learn(pattern1, params);
+        algorithm.learn(pattern1, parameters);
         assertEquals(1, algorithm.getCategoryCount());
         
         // Test different distances from first category
-        var result2 = algorithm.predict(pattern2, params);
-        var result3 = algorithm.predict(pattern3, params);
+        var result2 = algorithm.predict(pattern2, parameters);
+        var result3 = algorithm.predict(pattern3, parameters);
         
         assertNotNull(result2);
         assertNotNull(result3);
@@ -133,15 +141,15 @@ public class VectorizedEllipsoidARTTest {
         var similar4D = Pattern.of(0.52, 0.28, 0.82, 0.18);
         var different4D = Pattern.of(0.1, 0.9, 0.1, 0.9);
         
-        algorithm.learn(pattern4D, params);
+        algorithm.learn(pattern4D, parameters);
         assertEquals(1, algorithm.getCategoryCount());
         
         // Similar pattern should match
-        var similarResult = algorithm.predict(similar4D, params);
+        var similarResult = algorithm.predict(similar4D, parameters);
         assertTrue(similarResult instanceof ActivationResult.Success);
         
         // Different pattern may create new category
-        var differentResult = algorithm.learn(different4D, params);
+        var differentResult = algorithm.learn(different4D, parameters);
         assertNotNull(differentResult);
     }
     
@@ -158,26 +166,9 @@ public class VectorizedEllipsoidARTTest {
         }
         var largePattern = Pattern.of(largeDim);
         
-        var result = algorithm.learn(largePattern, params);
+        var result = algorithm.learn(largePattern, parameters);
         assertNotNull(result);
         assertEquals(1, algorithm.getCategoryCount());
-    }
-    
-    @Test
-    @DisplayName("Should provide performance statistics")
-    void testPerformanceTracking() {
-        var initialStats = algorithm.getPerformanceStats();
-        assertNotNull(initialStats);
-        
-        // Perform some operations
-        for (int i = 0; i < 5; i++) {
-            var pattern = Pattern.of(Math.random(), Math.random());
-            algorithm.learn(pattern, params);
-        }
-        
-        var finalStats = algorithm.getPerformanceStats();
-        assertNotNull(finalStats);
-        assertTrue(finalStats.totalVectorOperations() >= initialStats.totalVectorOperations());
     }
     
     @Test
@@ -186,7 +177,7 @@ public class VectorizedEllipsoidARTTest {
         // Generate some activity
         for (int i = 0; i < 3; i++) {
             var pattern = Pattern.of(Math.random(), Math.random());
-            algorithm.learn(pattern, params);
+            algorithm.learn(pattern, parameters);
         }
         
         algorithm.resetPerformanceTracking();
@@ -201,36 +192,19 @@ public class VectorizedEllipsoidARTTest {
     void testEdgeCases() {
         // Zero pattern
         var zeroPattern = Pattern.of(0.0, 0.0);
-        var zeroResult = algorithm.learn(zeroPattern, params);
+        var zeroResult = algorithm.learn(zeroPattern, parameters);
         assertNotNull(zeroResult);
         
         // Unit pattern
         var unitPattern = Pattern.of(1.0, 1.0);
-        var unitResult = algorithm.learn(unitPattern, params);
+        var unitResult = algorithm.learn(unitPattern, parameters);
         assertNotNull(unitResult);
         
         // Single dimension - needs separate algorithm instance
         var singleDimAlgorithm = new VectorizedEllipsoidART();
         var singleDim = Pattern.of(0.5);
-        var singleResult = singleDimAlgorithm.learn(singleDim, params);
+        var singleResult = singleDimAlgorithm.learn(singleDim, parameters);
         assertNotNull(singleResult);
         singleDimAlgorithm.close();
-    }
-    
-    @Test
-    @DisplayName("Should implement AutoCloseable correctly")
-    void testResourceManagement() {
-        var tempAlgorithm = new VectorizedEllipsoidART();
-        
-        // Use the algorithm
-        var pattern = Pattern.of(0.5, 0.5);
-        tempAlgorithm.learn(pattern, params);
-        assertEquals(1, tempAlgorithm.getCategoryCount());
-        
-        // Close should not throw
-        assertDoesNotThrow(() -> tempAlgorithm.close());
-        
-        // Multiple closes should be safe
-        assertDoesNotThrow(() -> tempAlgorithm.close());
     }
 }

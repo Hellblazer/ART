@@ -109,7 +109,8 @@ public final class VectorizedTopoARTComponent {
         var bestNeuron = neurons.get(matchResult.bestIndex());
         
         // Test vigilance using vectorized operations
-        if (VectorizedMathOperations.matchFunction(complementInput, bestNeuron.getWeights(), vigilance)) {
+        boolean matches = VectorizedMathOperations.matchFunction(complementInput, bestNeuron.getWeights(), vigilance);
+        if (matches) {
             // Resonance achieved - update weights
             updateNeuronWeights(bestNeuron, matchResult, complementInput);
             return new TopoARTResult(true, matchResult.bestIndex());

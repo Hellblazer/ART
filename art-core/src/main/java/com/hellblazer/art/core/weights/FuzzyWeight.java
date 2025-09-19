@@ -99,7 +99,7 @@ public record FuzzyWeight(double[] data, int originalDimension) implements Weigh
      * Update this FuzzyWeight using the fuzzy ART learning rule.
      * New weight = β * min(input, weight) + (1-β) * weight
      * 
-     * @param input the input vector (must be complement-coded with same dimension)
+     * @param input the input vector (will be complement-coded if not already)
      * @param parameters FuzzyParameters containing the beta learning rate
      * @return new updated FuzzyWeight
      */
@@ -119,19 +119,51 @@ public record FuzzyWeight(double[] data, int originalDimension) implements Weigh
                 parameters.getClass().getSimpleName());
         }
         
-        if (input.dimension() != data.length) {
+        // Auto-complement code the input if it doesn't match weight dimension
+        Pattern complementCodedInput;
+        if (input.dimension() == data.length) {
+            // Input is already complement-coded
+            complementCodedInput = input;
+        } else if (input.dimension() == originalDimension) {
+            // Input needs complement coding
+            complementCodedInput = Pattern.of(createComplementCodedArray(input));
+        } else {
             throw new IllegalArgumentException("Input dimension " + input.dimension() + 
-                " must match weight dimension " + data.length);
+                " must be either " + originalDimension + " (original) or " + data.length + " (complement-coded)");
         }
         var newData = new double[data.length];
         
         // Apply fuzzy learning rule: β * min(input, weight) + (1-β) * weight
         for (int i = 0; i < data.length; i++) {
-            var minValue = Math.min(input.get(i), data[i]);
+            var minValue = Math.min(complementCodedInput.get(i), data[i]);
             newData[i] = beta * minValue + (1.0 - beta) * data[i];
         }
         
         return new FuzzyWeight(newData, originalDimension);
+    }
+    
+    /**
+     * Create complement-coded array from a pattern.
+     * Helper method for internal use.
+     * 
+     * @param input the input pattern to complement code
+     * @return complement-coded array
+     */
+    private double[] createComplementCodedArray(Pattern input) {
+        var original = input.dimension();
+        var complementCoded = new double[original * 2];
+        
+        // Copy original values
+        for (int i = 0; i < original; i++) {
+            complementCoded[i] = input.get(i);
+        }
+        
+        // Add complement values
+        for (int i = 0; i < original; i++) {
+            complementCoded[original + i] = 1.0 - input.get(i);
+        }
+        
+        return complementCoded;
     }
     
     @Override

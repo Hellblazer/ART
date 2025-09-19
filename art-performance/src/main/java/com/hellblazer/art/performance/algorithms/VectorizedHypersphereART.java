@@ -298,6 +298,12 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedHypersphereParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         // Use the existing learn method with current parameters
         int categoryIndex = learn(input);
         if (categoryIndex >= 0 && categoryIndex < categories.size()) {
@@ -310,6 +316,12 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedHypersphereParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         // Use classify for prediction
         int categoryIndex = classify(input);
         if (categoryIndex >= 0 && categoryIndex < categories.size()) {

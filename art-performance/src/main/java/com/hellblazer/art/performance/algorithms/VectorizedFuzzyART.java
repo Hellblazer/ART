@@ -61,100 +61,8 @@ public class VectorizedFuzzyART extends AbstractVectorizedFuzzyART {
     }
     
     // === VectorizedARTAlgorithm Implementation ===
-    // These methods are called by the base class learn() and predict() methods
+    // The base class AbstractVectorizedFuzzyART handles all core ART operations
     
-    // Not @Override - parent doesn't have this method
-    protected Object performVectorizedLearning(Pattern input, VectorizedParameters parameters) {
-        // Use parallel processing for large category sets
-        if (getCategoryCount() > parameters.parallelThreshold()) {
-            // Track that we're using parallel processing
-            trackParallelTask();
-            
-            // Execute learning with parallel category search
-            return parallelStepFit(input, parameters);
-        } else {
-            // Use BaseART's stepFit method which calls our vectorized implementations
-            // (calculateActivation, checkVigilance, updateWeights, createWeightVector)
-            var result = stepFit(input, parameters);
-            
-            // Performance tracking is handled by base class methods
-            
-            return result;
-        }
-    }
-    
-    /**
-     * Parallel stepFit implementation for large category sets.
-     */
-    private ActivationResult parallelStepFit(Pattern input, VectorizedParameters parameters) {
-        if (getCategoryCount() == 0) {
-            return stepFit(input, parameters);
-        }
-        
-        // Use parallel stream to find best matching category
-        var categories = getCategories();
-        var bestMatch = java.util.stream.IntStream.range(0, categories.size())
-            .parallel()
-            .mapToObj(i -> {
-                var weight = categories.get(i);
-                var activation = calculateActivation(input, weight, parameters);
-                var vigilanceResult = checkVigilance(input, weight, parameters);
-                return new CategoryMatch(i, activation, weight, vigilanceResult.isAccepted());
-            })
-            .filter(match -> match.accepted)
-            .max(java.util.Comparator.comparingDouble(CategoryMatch::activation));
-        
-        if (bestMatch.isPresent()) {
-            var match = bestMatch.get();
-            var updatedWeight = updateWeights(input, match.weight, parameters);
-            return new ActivationResult.Success(match.index, match.activation, updatedWeight);
-        } else {
-            // No matching category, create new one
-            var newWeight = createInitialWeight(input, parameters);
-            return new ActivationResult.Success(getCategoryCount(), 1.0, newWeight);
-        }
-    }
-    
-    /**
-     * Helper record for parallel category matching.
-     */
-    private record CategoryMatch(int index, double activation, 
-                                 com.hellblazer.art.core.WeightVector weight, 
-                                 boolean accepted) {}
-    
-    // Not @Override - parent doesn't have this method
-    protected Object performVectorizedPrediction(Pattern input, VectorizedParameters parameters) {
-        // For prediction, find best matching category without learning
-        if (getCategoryCount() == 0) {
-            return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
-        }
-        
-        var bestCategory = -1;
-        var bestActivation = -1.0;
-        
-        // Use vectorized activation from AbstractVectorizedFuzzyART
-        var categories = getCategories(); // Inherited from BaseART
-        
-        for (int i = 0; i < categories.size(); i++) {
-            var weight = categories.get(i);
-            // This calls our vectorized activation implementation
-            var activation = calculateActivation(input, weight, parameters);
-            
-            if (activation > bestActivation) {
-                bestActivation = activation;
-                bestCategory = i;
-            }
-        }
-        
-        if (bestCategory >= 0) {
-            var bestWeight = categories.get(bestCategory);
-            return new com.hellblazer.art.core.results.ActivationResult.Success(
-                bestCategory, bestActivation, bestWeight
-            );
-        } else {
-            return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
-        }
-    }
     
     /**
      * Enhanced stepFit with performance optimizations and parallel processing.
@@ -168,16 +76,13 @@ public class VectorizedFuzzyART extends AbstractVectorizedFuzzyART {
             params = VectorizedParameters.createDefault();
         }
         
-        // Delegate to performVectorizedLearning which handles parallel processing
-        var result = performVectorizedLearning(input, params);
-        
-        // Convert result to ActivationResult if needed
-        if (result instanceof ActivationResult activationResult) {
-            return activationResult;
-        } else {
-            // Handle other result types - this shouldn't happen with current implementation
-            return new ActivationResult.Success(0, 1.0, createInitialWeight(input, params));
+        // Track parallel processing if we have enough categories
+        if (getCategoryCount() >= params.parallelThreshold()) {
+            trackParallelTask();
         }
+        
+        // Delegate to learn method which handles the actual learning
+        return learn(input, params);
     }
     
     // === Optional Customizations ===

@@ -72,7 +72,7 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
      */
     public VectorizedFusionART(VectorizedFusionARTParameters defaultParams) {
         if (defaultParams == null) {
-            throw new IllegalArgumentException("Default parameters cannot be null");
+            throw new NullPointerException("Default parameters cannot be null");
         }
         
         this.defaultParams = defaultParams;
@@ -101,11 +101,17 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedFusionARTParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         if (isClosed) {
             throw new IllegalStateException("VectorizedFusionART has been closed");
         }
         
-        var params = parameters != null ? parameters : defaultParams;
+        var params = parameters;
         long startTime = System.nanoTime();
         
         try {
@@ -140,11 +146,17 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
     
     @Override
     public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedFusionARTParameters parameters) {
+        if (input == null) {
+            throw new NullPointerException("Input cannot be null");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("Parameters cannot be null");
+        }
         if (isClosed) {
             throw new IllegalStateException("VectorizedFusionART has been closed");
         }
         
-        var params = parameters != null ? parameters : defaultParams;
+        var params = parameters;
         long startTime = System.nanoTime();
         
         try {
