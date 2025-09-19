@@ -293,11 +293,11 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should handle null inputs gracefully")
     void testNullInputHandling() {
-        // AbstractVectorizedART handles null gracefully by using defaults
-        assertDoesNotThrow(() ->
+        // BaseART enforces null checks on inputs and parameters
+        assertThrows(NullPointerException.class, () ->
             algorithm.learn(null, params));
 
-        assertDoesNotThrow(() ->
+        assertThrows(NullPointerException.class, () ->
             algorithm.predict(Pattern.of(1.0, 0.0), null));
     }
 

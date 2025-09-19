@@ -1,6 +1,7 @@
 package com.hellblazer.art.core;
 
 import com.hellblazer.art.core.algorithms.FusionART;
+import com.hellblazer.art.core.algorithms.FusionParameters;
 import com.hellblazer.art.core.algorithms.FuzzyART;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
 import com.hellblazer.art.core.results.ActivationResult;
@@ -143,7 +144,7 @@ class FusionARTReferenceTest {
         var params = fusionART.createDefaultParameters();
         
         // First step_fit should create a category
-        var result = fusionART.stepFit(pattern, params);
+        var result = fusionART.stepFit(pattern, (FusionParameters) params);
         assertNotNull(result);
         assertTrue(result instanceof com.hellblazer.art.core.results.ActivationResult.Success);
         assertEquals(0, ((com.hellblazer.art.core.results.ActivationResult.Success) result).categoryIndex());
@@ -169,7 +170,7 @@ class FusionARTReferenceTest {
         
         // Fit all patterns
         for (var pattern : patterns) {
-            fusionART.stepFit(pattern, params);
+            fusionART.stepFit(pattern, (FusionParameters) params);
         }
         
         // Should have created some categories (exact number depends on vigilance)
@@ -181,18 +182,18 @@ class FusionARTReferenceTest {
     void testPredict() {
         // Test prediction after training
         var random = new Random(42);
-        var params = fusionART.createDefaultParameters();
-        
+        var params = (FusionParameters) fusionART.createDefaultParameters();
+
         // Train with a pattern
         var trainPattern = generateRandomPattern(8, random);
         fusionART.stepFit(trainPattern, params);
-        
+
         // Predict with the same pattern
         var prediction = fusionART.stepPredict(trainPattern, params);
         assertNotNull(prediction);
         assertTrue(prediction instanceof ActivationResult.Success);
         assertEquals(0, ((ActivationResult.Success) prediction).categoryIndex()); // Should predict the first category
-        
+
         // Predict with a slightly different pattern
         var testPattern = generateSimilarPattern(trainPattern, 0.05, random);
         var testPrediction = fusionART.stepPredict(testPattern, params);
@@ -205,8 +206,8 @@ class FusionARTReferenceTest {
         // Test that we can skip channels during processing
         var random = new Random(42);
         var pattern = generateRandomPattern(8, random);
-        var params = fusionART.createDefaultParameters();
-        
+        var params = (FusionParameters) fusionART.createDefaultParameters();
+
         // Train normally
         fusionART.stepFit(pattern, params);
         
@@ -222,8 +223,8 @@ class FusionARTReferenceTest {
     void testGetClusterCenters() {
         // Test getting cluster centers after training
         var random = new Random(42);
-        var params = fusionART.createDefaultParameters();
-        
+        var params = (FusionParameters) fusionART.createDefaultParameters();
+
         // Train with several patterns
         for (int i = 0; i < 5; i++) {
             var pattern = generateRandomPattern(8, random);

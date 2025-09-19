@@ -23,6 +23,7 @@ import com.hellblazer.art.core.artmap.AbstractDeepARTMAP;
 import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.artmap.DeepARTMAPResult;
+import com.hellblazer.art.core.artmap.DeepARTMAPParameters;
 import com.hellblazer.art.core.artmap.SimpleARTMAP;
 import com.hellblazer.art.core.artmap.ARTMAP;
 import com.hellblazer.art.core.artmap.ARTMAPParameters;
@@ -66,7 +67,7 @@ import java.util.stream.IntStream;
  * 
  * @author Hal Hildebrand
  */
-public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements VectorizedARTAlgorithm<VectorizedDeepARTMAPPerformanceStats, VectorizedDeepARTMAPParameters> {
+public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP {
     
     private static final Logger log = LoggerFactory.getLogger(VectorizedDeepARTMAP.class);
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
@@ -778,38 +779,31 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
     
     // === BaseART Implementation ===
     
-    @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, DeepARTMAPParameters parameters) {
         // VectorizedDeepARTMAP doesn't use traditional activation calculation
         // Return a default value that works for the framework
         return 1.0;
     }
     
-    @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, DeepARTMAPParameters parameters) {
         // VectorizedDeepARTMAP uses its own hierarchical vigilance checking
         // Always accept for compatibility
         return new MatchResult.Accepted(1.0, 0.0);
     }
     
-    @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, DeepARTMAPParameters parameters) {
         // VectorizedDeepARTMAP doesn't update weights directly - this is handled by internal layers
         // Return the current weight unchanged
         return currentWeight;
     }
     
-    @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
-        // Create a simple initial weight for compatibility
-        // This won't be used in practice since VectorizedDeepARTMAP manages its own hierarchical structure
-        // Create initial weight with complement coding
-        int dim = input.dimension();
-        double[] initialWeights = new double[dim * 2];
-        Arrays.fill(initialWeights, 1.0); // Initialize to ones for FuzzyART
-        return new FuzzyWeight(initialWeights, dim);
-    }
     
+    @Override
+    protected WeightVector createInitialWeight(Pattern input, DeepARTMAPParameters parameters) {
+        // Create initial fuzzy weight with complement coding
+        return FuzzyWeight.fromInput(input);
+    }
+
     // === ScikitClusterer Implementation ===
     
     @Override
@@ -1039,9 +1033,9 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
     }
     
     // VectorizedARTAlgorithm interface implementation
-    
-    @Override
-    public Object learn(Pattern input, VectorizedDeepARTMAPParameters parameters) {
+
+    // Not @Override - signature doesn't match parent
+    public ActivationResult learn(Pattern input, VectorizedDeepARTMAPParameters parameters) {
         // For single pattern learning, create multi-channel data by replicating the input
         // This provides compatibility with the VectorizedARTAlgorithm interface
         if (input == null) {
@@ -1060,11 +1054,13 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
             if (result instanceof DeepARTMAPResult.Success) {
                 // Update the categories list to reflect learning
                 var newCategories = new ArrayList<WeightVector>();
-                newCategories.add(createInitialWeight(input, parameters));
+                // For now, create a simple weight vector
+                var weight = FuzzyWeight.fromInput(input);
+                newCategories.add(weight);
                 replaceAllCategories(newCategories);
-                return 0; // Return category 0 for single module
+                return new ActivationResult.Success(0, 1.0, weight);
             }
-            return 0;
+            return ActivationResult.NoMatch.instance();
         }
         
         // Replicate the input pattern across all channels (one for each module)
@@ -1080,23 +1076,28 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
             // Update the categories list to reflect the total categories learned
             var newCategories = new ArrayList<WeightVector>();
             for (int i = 0; i < totalCategoryCount; i++) {
-                newCategories.add(createInitialWeight(input, parameters));
+                // FuzzyWeight needs complement-coded data (2x original dimension)
+                newCategories.add(FuzzyWeight.fromInput(input));
             }
             replaceAllCategories(newCategories);
             
             // Return the first layer's first prediction as the category
             var deepLabels = success.deepLabels();
             if (deepLabels.length > 0 && deepLabels[0].length > 0) {
-                return deepLabels[0][0];
+                int categoryIndex = deepLabels[0][0];
+                return new ActivationResult.Success(categoryIndex, 1.0,
+                    categoryIndex < getCategoryCount() ? getCategory(categoryIndex) : FuzzyWeight.fromInput(input));
             }
         }
         
-        // Return 0 as default category if learning failed
-        return 0;
+        // Return NoMatch if learning failed
+        return ActivationResult.NoMatch.instance();
     }
-    
-    @Override
-    public Object predict(Pattern input, VectorizedDeepARTMAPParameters parameters) {
+
+
+
+    // Not @Override - signature doesn't match parent
+    public ActivationResult predict(Pattern input, VectorizedDeepARTMAPParameters parameters) {
         // For single pattern prediction, create a single-channel data structure
         // This provides compatibility with the VectorizedARTAlgorithm interface
         if (input == null) {
@@ -1114,8 +1115,12 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
         }
         var predictions = predict(multiChannelData);
         
-        // Return the first prediction
-        return predictions.length > 0 ? predictions[0] : 0;
+        // Return the first prediction as an ActivationResult
+        if (predictions.length > 0 && predictions[0] >= 0) {
+            return new ActivationResult.Success(predictions[0], 1.0, getCategory(Math.min(predictions[0], getCategoryCount() - 1)));
+        } else {
+            return ActivationResult.NoMatch.instance();
+        }
     }
     
     // getCategoryCount() is inherited from BaseART as a final method, no override needed
@@ -1125,13 +1130,13 @@ public final class VectorizedDeepARTMAP extends AbstractDeepARTMAP implements Ve
     // resetPerformanceTracking() is already implemented above, no override needed
     
     // clear() is inherited from BaseART as a final method, no override needed
-    
-    @Override
+
+    // Not @Override - parent doesn't have this method
     public VectorizedDeepARTMAPParameters getParameters() {
         return parameters;
     }
-    
-    @Override
+
+    // Not @Override - parent doesn't have this method
     public int getVectorSpeciesLength() {
         return SPECIES.length();
     }

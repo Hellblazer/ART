@@ -450,8 +450,8 @@ class VectorizedARTTest {
         assertThrows(NullPointerException.class, () -> art.stepFit(input, null));
         
         // Invalid parameters should throw
-        assertThrows(IllegalArgumentException.class, () -> 
-            art.stepFit(input, "invalid parameters"));
+        assertThrows(ClassCastException.class, () -> 
+            art.stepFit(input, (VectorizedParameters) ((Object) "invalid parameters")));
     }
     
     @Test

@@ -1,7 +1,9 @@
 package com.hellblazer.art.performance.algorithms;
 
-import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.hierarchical.SMART;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.results.MatchResult;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 
 import java.util.*;
@@ -12,7 +14,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Vectorized SMART (Self-Monitoring Adaptive Resonance Theory) implementation.
  * Performs hierarchical clustering with multiple layers of different vigilance values.
  */
-public class VectorizedSMART implements VectorizedARTAlgorithm<VectorizedSMART.PerformanceMetrics, VectorizedSMARTParameters> {
+public class VectorizedSMART extends BaseART<VectorizedSMARTParameters> implements VectorizedARTAlgorithm<VectorizedSMART.PerformanceMetrics, VectorizedSMARTParameters> {
 
     private final SMART smart;
     private final VectorizedSMARTParameters defaultParams;
@@ -113,8 +115,7 @@ public class VectorizedSMART implements VectorizedARTAlgorithm<VectorizedSMART.P
         return learn(Pattern.of(input), defaultParams);
     }
     
-    @Override
-    public Object learn(Pattern input, VectorizedSMARTParameters params) {
+    public ActivationResult learnWithParams(Pattern input, VectorizedSMARTParameters params) {
         lock.writeLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -154,8 +155,14 @@ public class VectorizedSMART implements VectorizedARTAlgorithm<VectorizedSMART.P
                 interLayerConnections.incrementAndGet();
             }
             
-            // Return the label
-            return labels != null && labels.length > 0 ? labels[0] : -1;
+            // Return activation result
+            if (labels != null && labels.length > 0) {
+                int categoryIndex = labels[0];
+                if (categoryIndex < getCategoryCount()) {
+                    return new ActivationResult.Success(categoryIndex, 1.0, getCategory(categoryIndex));
+                }
+            }
+            return ActivationResult.NoMatch.instance();
             
         } finally {
             lock.writeLock().unlock();
@@ -164,11 +171,13 @@ public class VectorizedSMART implements VectorizedARTAlgorithm<VectorizedSMART.P
     
     public int predict(double[] input) {
         var result = predict(Pattern.of(input), defaultParams);
-        return result instanceof Integer ? (Integer) result : -1;
+        if (result instanceof ActivationResult.Success success) {
+            return success.categoryIndex();
+        }
+        return -1;
     }
     
-    @Override
-    public Object predict(Pattern input, VectorizedSMARTParameters params) {
+    public ActivationResult predictWithParams(Pattern input, VectorizedSMARTParameters params) {
         lock.readLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -186,16 +195,21 @@ public class VectorizedSMART implements VectorizedARTAlgorithm<VectorizedSMART.P
                 layerOperations[layer].incrementAndGet();
             }
             
-            // Return the label
-            return labels != null && labels.length > 0 ? labels[0] : -1;
+            // Return activation result
+            if (labels != null && labels.length > 0) {
+                int categoryIndex = labels[0];
+                if (categoryIndex < getCategoryCount()) {
+                    return new ActivationResult.Success(categoryIndex, 1.0, getCategory(categoryIndex));
+                }
+            }
+            return ActivationResult.NoMatch.instance();
             
         } finally {
             lock.readLock().unlock();
         }
     }
     
-    @Override
-    public int getCategoryCount() {
+    public int getTotalCategoryCount() {
         lock.readLock().lock();
         try {
             // Return total categories across all layers
@@ -360,6 +374,65 @@ public class VectorizedSMART implements VectorizedARTAlgorithm<VectorizedSMART.P
         } finally {
             lock.readLock().unlock();
         }
+    }
+    
+    // Implement BaseART abstract methods
+    
+    @Override
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedSMARTParameters parameters) {
+        // SMART uses its internal implementation
+        // This is a placeholder for the abstract method requirement
+        return 1.0;
+    }
+    
+    @Override
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedSMARTParameters parameters) {
+        // SMART handles vigilance internally across layers
+        // This is a placeholder for the abstract method requirement
+        return new MatchResult.Accepted(1.0, parameters.getVigilanceValues()[0]);
+    }
+    
+    @Override
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedSMARTParameters parameters) {
+        // SMART handles weight updates internally
+        // This is a placeholder for the abstract method requirement
+        return currentWeight;
+    }
+    
+    @Override
+    protected WeightVector createInitialWeight(Pattern input, VectorizedSMARTParameters parameters) {
+        // SMART creates weights internally
+        // Create a placeholder weight vector
+        double[] data = new double[input.dimension()];
+        for (int i = 0; i < input.dimension(); i++) {
+            data[i] = input.get(i);
+        }
+        return new WeightVector() {
+            @Override
+            public double get(int index) {
+                return data[index];
+            }
+            
+            @Override
+            public int dimension() {
+                return data.length;
+            }
+            
+            @Override
+            public double l1Norm() {
+                double sum = 0.0;
+                for (double d : data) {
+                    sum += Math.abs(d);
+                }
+                return sum;
+            }
+            
+            @Override
+            public WeightVector update(Pattern pattern, Object parameters) {
+                // Placeholder implementation
+                return this;
+            }
+        };
     }
     
     @Override

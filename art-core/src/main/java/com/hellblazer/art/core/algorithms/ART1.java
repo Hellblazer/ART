@@ -27,7 +27,7 @@ import java.util.Objects;
  * @see ART1Weight for dual weight vector implementation
  * @see ART1Parameters for algorithm parameters (vigilance, L)
  */
-public final class ART1 extends BaseART {
+public final class ART1 extends BaseART<ART1Parameters> {
     
     /**
      * Create a new ART1 network with no initial categories.
@@ -92,7 +92,7 @@ public final class ART1 extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, ART1Parameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         
@@ -127,7 +127,7 @@ public final class ART1 extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, ART1Parameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         
@@ -163,7 +163,7 @@ public final class ART1 extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, ART1Parameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         
@@ -194,7 +194,7 @@ public final class ART1 extends BaseART {
      * @throws IllegalArgumentException if input is not binary
      */
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, ART1Parameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         validateBinaryPattern(input);
         
@@ -213,5 +213,10 @@ public final class ART1 extends BaseART {
     @Override
     public String toString() {
         return String.format("ART1{categories=%d}", getCategoryCount());
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

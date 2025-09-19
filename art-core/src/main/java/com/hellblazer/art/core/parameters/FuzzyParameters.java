@@ -9,7 +9,7 @@ import java.util.Objects;
  * @param alpha the choice parameter (α) for activation function, α ≥ 0
  * @param beta the learning rate (β) in range [0, 1]
  */
-public record FuzzyParameters(double vigilance, double alpha, double beta) {
+public record FuzzyParameters(double vigilance, double alpha, double beta) implements FuzzyParameterProvider {
     
     /**
      * Constructor with validation.

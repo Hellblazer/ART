@@ -67,8 +67,8 @@ public class VectorizedART extends AbstractVectorizedFuzzyART {
     
     // === VectorizedARTAlgorithm Implementation ===
     // (performVectorizedLearning is implemented in Enhanced Parallel Processing section below)
-    
-    @Override
+
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedPrediction(Pattern input, VectorizedParameters parameters) {
         // For prediction, find best matching category without learning
         if (getCategoryCount() == 0) {
@@ -157,7 +157,7 @@ public class VectorizedART extends AbstractVectorizedFuzzyART {
     /**
      * Override performVectorizedLearning to add parallel processing when threshold is met.
      */
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedLearning(Pattern input, VectorizedParameters parameters) {
         // Use parallel processing if we have enough categories
         if (getCategoryCount() > parameters.parallelThreshold()) {
@@ -174,7 +174,7 @@ public class VectorizedART extends AbstractVectorizedFuzzyART {
      * Enhanced stepFit with performance optimizations and parallel processing.
      * This method provides the same interface as other vectorized ART implementations.
      */
-    public ActivationResult stepFitEnhanced(Pattern input, VectorizedParameters params) {
+    public ActivationResult stepFitEnhancedVectorized(Pattern input, VectorizedParameters params) {
         if (input == null) {
             input = Pattern.of(0.5, 0.5, 0.5, 0.5); // Default pattern
         }

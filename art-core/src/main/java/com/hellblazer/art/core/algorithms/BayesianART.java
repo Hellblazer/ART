@@ -37,7 +37,7 @@ import java.util.Map;
  * 
  * @author Hal Hildebrand
  */
-public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
+public class BayesianART extends BaseART<BayesianParameters> implements ScikitClusterer<Pattern> {
     
     private final BayesianParameters parameters;
     private boolean fitted = false;
@@ -88,31 +88,27 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, BayesianParameters parameters) {
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("BayesianART requires DenseVector input");
         }
         if (!(weight instanceof BayesianWeight bayesianWeight)) {
             throw new IllegalArgumentException("BayesianART requires BayesianWeight");
         }
-        if (!(parameters instanceof BayesianParameters bayesianParams)) {
-            throw new IllegalArgumentException("BayesianART requires BayesianParameters");
-        }
+        var bayesianParams = parameters;
         
         return calculateMultivariateGaussianLikelihood(inputVector, bayesianWeight);
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, BayesianParameters parameters) {
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("BayesianART requires DenseVector input");
         }
         if (!(weight instanceof BayesianWeight bayesianWeight)) {
             throw new IllegalArgumentException("BayesianART requires BayesianWeight");
         }
-        if (!(parameters instanceof BayesianParameters bayesianParams)) {
-            throw new IllegalArgumentException("BayesianART requires BayesianParameters");
-        }
+        var bayesianParams = parameters;
         
         // When at max categories limit, always accept to prevent creating new categories
         if (getCategoryCount() >= this.parameters.maxCategories()) {
@@ -138,28 +134,24 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, BayesianParameters parameters) {
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("BayesianART requires DenseVector input");
         }
         if (!(currentWeight instanceof BayesianWeight bayesianWeight)) {
             throw new IllegalArgumentException("BayesianART requires BayesianWeight");
         }
-        if (!(parameters instanceof BayesianParameters bayesianParams)) {
-            throw new IllegalArgumentException("BayesianART requires BayesianParameters");
-        }
+        var bayesianParams = parameters;
         
         return updateBayesianParameters(bayesianWeight, inputVector, bayesianParams);
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, BayesianParameters parameters) {
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("BayesianART requires DenseVector input");
         }
-        if (!(parameters instanceof BayesianParameters bayesianParams)) {
-            throw new IllegalArgumentException("BayesianART requires BayesianParameters");
-        }
+        var bayesianParams = parameters;
         
         // Initialize Bayesian weight with the input as the initial mean
         var initialMean = inputVector;
@@ -1531,5 +1523,10 @@ public class BayesianART extends BaseART implements ScikitClusterer<Pattern> {
             }
         }
         return -1; // Not found
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

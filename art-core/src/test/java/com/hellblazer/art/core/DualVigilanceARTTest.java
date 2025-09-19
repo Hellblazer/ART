@@ -341,9 +341,12 @@ class DualVigilanceARTTest {
             var test1 = new DenseVector(new double[]{0.3, 0.3});
             var test2 = new DenseVector(new double[]{0.7, 0.7});
             
-            var pred1 = art.predict(test1, defaultParams);
-            var pred2 = art.predict(test2, defaultParams);
-            
+            var result1 = art.predict(test1, defaultParams);
+            var result2 = art.predict(test2, defaultParams);
+
+            var pred1 = result1 instanceof ActivationResult.Success s1 ? s1.categoryIndex() : -1;
+            var pred2 = result2 instanceof ActivationResult.Success s2 ? s2.categoryIndex() : -1;
+
             assertNotEquals(pred1, pred2); // Different clusters
             assertTrue(pred1 < pureCategories || pred2 < pureCategories); // At least one original
         }

@@ -317,10 +317,11 @@ public class SklearnWrapper {
             // Extract data from weight vector
             // Since weights are typically stored as arrays internally
             // we need to extract the raw data
-            var dimension = weight.dimension();
+            var weightVector = (WeightVector) weight;
+            var dimension = weightVector.dimension();
             var center = new double[dimension];
             for (int j = 0; j < dimension; j++) {
-                var value = weight.get(j);
+                var value = weightVector.get(j);
                 // Handle potential NaN values
                 if (Double.isNaN(value)) {
                     center[j] = 0.0; // Default to 0 for NaN values

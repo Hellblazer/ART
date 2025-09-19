@@ -6,7 +6,8 @@ import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.WeightVector;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.results.MatchResult;
-import com.hellblazer.art.core.weights.ARTEWeight;import java.util.ArrayList;
+import com.hellblazer.art.core.weights.ARTEWeight;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -14,7 +15,7 @@ import java.util.Random;
 /**
  * ART-E (Enhanced ART) implementation with adaptive learning features.
  */
-public final class ARTE extends BaseART {
+public final class ARTE extends BaseART<ARTEParameters> {
     
     private final Random random;
     private long totalLearningSteps;
@@ -58,7 +59,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, ARTEParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -66,9 +67,7 @@ public final class ARTE extends BaseART {
         if (!(weight instanceof ARTEWeight arteWeight)) {
             throw new IllegalArgumentException("Weight must be ARTEWeight, got: " + weight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTEParameters arteParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTEParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var arteParams = parameters;  // Now type-safe via generics
         
         var categoryWeights = arteWeight.getCategoryWeights();
         var featureImportances = arteWeight.getFeatureImportances();
@@ -103,7 +102,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, ARTEParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -111,9 +110,7 @@ public final class ARTE extends BaseART {
         if (!(weight instanceof ARTEWeight arteWeight)) {
             throw new IllegalArgumentException("Weight must be ARTEWeight, got: " + weight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTEParameters arteParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTEParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var arteParams = parameters;  // Now type-safe via generics
         
         var categoryWeights = arteWeight.getCategoryWeights();
         var featureImportances = arteWeight.getFeatureImportances();
@@ -169,7 +166,7 @@ public final class ARTE extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, ARTEParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -177,22 +174,18 @@ public final class ARTE extends BaseART {
         if (!(currentWeight instanceof ARTEWeight arteWeight)) {
             throw new IllegalArgumentException("Weight must be ARTEWeight, got: " + currentWeight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTEParameters arteParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTEParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var arteParams = parameters;  // Now type-safe via generics
         
         // Update using ARTEWeight's enhanced update method
         return arteWeight.update(input, parameters);
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, ARTEParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof ARTEParameters arteParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTEParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var arteParams = parameters;  // Now type-safe via generics
         
         return ARTEWeight.fromInput(input, arteParams);
     }
@@ -200,7 +193,7 @@ public final class ARTE extends BaseART {
     /**
      * Enhanced learning step with ART-E optimizations.
      */
-    public ActivationResult stepFitEnhanced(Pattern input, ARTEParameters parameters) {
+    public ActivationResult enhancedStepFit(Pattern input, ARTEParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
@@ -457,5 +450,10 @@ public final class ARTE extends BaseART {
                                averageFamiliarity, averagePerformance, averageContextAdaptation,
                                totalUpdates, averageConvergence, convergenceRate, averageAge);
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

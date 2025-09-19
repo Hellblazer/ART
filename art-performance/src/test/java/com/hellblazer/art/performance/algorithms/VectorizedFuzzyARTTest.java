@@ -11,23 +11,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import java.util.ArrayList;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
+import com.hellblazer.art.performance.algorithms.VectorizedPerformanceStats;
 
 /**
  * Comprehensive test suite for VectorizedFuzzyART implementation.
  * Tests both SIMD and standard computation paths, performance characteristics,
  * and compatibility with FuzzyART semantics.
  */
-public class VectorizedFuzzyARTTest {
+public class VectorizedFuzzyARTTest extends BaseVectorizedARTTest<VectorizedFuzzyART, VectorizedParameters> {
     
-    private VectorizedFuzzyART vectorizedART;
-    private VectorizedParameters params;
     private FuzzyART standardART;
     private FuzzyParameters fuzzyParams;
     
-    @BeforeEach
-    void setUp() {
-        // Configure vectorized parameters
-        params = new VectorizedParameters(
+    @Override
+    protected VectorizedFuzzyART createAlgorithm(VectorizedParameters params) {
+        return new VectorizedFuzzyART(params);
+    }
+    
+    @Override
+    protected VectorizedParameters createDefaultParameters() {
+        return new VectorizedParameters(
             0.9,    // vigilanceThreshold
             0.1,    // learningRate
             0.1,    // alpha
@@ -38,71 +42,17 @@ public class VectorizedFuzzyARTTest {
             false,  // enableJOML (not used for FuzzyART)
             0.8     // memoryOptimizationThreshold
         );
-        
-        vectorizedART = new VectorizedFuzzyART(params);
-        
+    }
+    
+    @BeforeEach
+    protected void setUp() {
+        super.setUp();
         // Configure standard FuzzyART for comparison
         fuzzyParams = new FuzzyParameters(0.9, 0.1, 0.1);
         standardART = new FuzzyART();
     }
     
-    @Test
-    @DisplayName("Basic learning and recognition should work correctly")
-    void testBasicLearningAndRecognition() {
-        // Create simple 2D patterns
-        var pattern1 = Pattern.of(0.8, 0.2);
-        var pattern2 = Pattern.of(0.3, 0.7);
-        var pattern3 = Pattern.of(0.8, 0.3); // Similar to pattern1
-        
-        // Train on first two patterns
-        var result1 = vectorizedART.stepFit(pattern1, params);
-        var result2 = vectorizedART.stepFit(pattern2, params);
-        
-        // Should create two categories
-        assertEquals(2, vectorizedART.getCategoryCount());
-        assertTrue(result1 instanceof ActivationResult.Success);
-        assertTrue(result2 instanceof ActivationResult.Success);
-        
-        // Test recognition of similar pattern
-        var result3 = vectorizedART.stepFit(pattern3, params);
-        assertTrue(result3 instanceof ActivationResult.Success);
-        
-        var successResult3 = (ActivationResult.Success) result3;
-        // Should match first category (category 0) due to similarity
-        assertEquals(0, successResult3.categoryIndex());
-    }
-    
-    @Test
-    @DisplayName("Vigilance parameter should control category creation")
-    void testVigilanceControl() {
-        var pattern1 = Pattern.of(0.8, 0.2);
-        var pattern2 = Pattern.of(0.7, 0.3); // Moderately similar
-        
-        // High vigilance - should create separate categories
-        var highVigilanceParams = new VectorizedParameters(
-            0.95, 0.1, 0.1, 4, 100, 1000, true, false, 0.8
-        );
-        var highVigilanceART = new VectorizedFuzzyART(highVigilanceParams);
-        
-        highVigilanceART.stepFit(pattern1, highVigilanceParams);
-        highVigilanceART.stepFit(pattern2, highVigilanceParams);
-        
-        assertEquals(2, highVigilanceART.getCategoryCount());
-        
-        // Low vigilance - should merge into one category
-        var lowVigilanceParams = new VectorizedParameters(
-            0.5, 0.1, 0.1, 4, 100, 1000, true, false, 0.8
-        );
-        var lowVigilanceART = new VectorizedFuzzyART(lowVigilanceParams);
-        
-        lowVigilanceART.stepFit(pattern1, lowVigilanceParams);
-        lowVigilanceART.stepFit(pattern2, lowVigilanceParams);
-        
-        assertEquals(1, lowVigilanceART.getCategoryCount());
-        
-        highVigilanceART.close();
-        lowVigilanceART.close();
-    }
+    // Basic learning and vigilance control tests are inherited from base class
     
     @Test
     @DisplayName("SIMD and standard computation should produce equivalent results")
@@ -118,18 +68,18 @@ public class VectorizedFuzzyARTTest {
         var simdParams = new VectorizedParameters(
             0.8, 0.1, 0.1, 4, 100, 1000, true, false, 0.8
         );
-        var simdART = new VectorizedFuzzyART(simdParams);
+        var simdART = createAlgorithm(simdParams);
         
         // Train with SIMD disabled
         var noSimdParams = new VectorizedParameters(
             0.8, 0.1, 0.1, 4, 100, 1000, false, false, 0.8
         );
-        var noSimdART = new VectorizedFuzzyART(noSimdParams);
+        var noSimdART = createAlgorithm(noSimdParams);
         
         // Train both networks
         for (var pattern : patterns) {
-            simdART.stepFit(pattern, simdParams);
-            noSimdART.stepFit(pattern, noSimdParams);
+            simdART.learn(pattern, simdParams);
+            noSimdART.learn(pattern, noSimdParams);
         }
         
         // Should create same number of categories
@@ -137,8 +87,8 @@ public class VectorizedFuzzyARTTest {
         
         // Test predictions should be equivalent
         for (var pattern : patterns) {
-            var simdResult = simdART.stepFitEnhanced(pattern, simdParams);
-            var noSimdResult = noSimdART.stepFitEnhanced(pattern, noSimdParams);
+            var simdResult = simdART.stepFitEnhancedVectorized(pattern, simdParams);
+            var noSimdResult = noSimdART.stepFitEnhancedVectorized(pattern, noSimdParams);
             
             assertTrue(simdResult instanceof ActivationResult.Success);
             assertTrue(noSimdResult instanceof ActivationResult.Success);
@@ -176,9 +126,9 @@ public class VectorizedFuzzyARTTest {
     @DisplayName("Weight updates should follow fuzzy min learning rule")
     void testFuzzyMinLearning() {
         var input = Pattern.of(0.6, 0.4);
-        var weight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.8, 0.2), params);
+        var weight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.8, 0.2), parameters);
         
-        var updatedWeight = weight.updateFuzzy(input, params);
+        var updatedWeight = weight.updateFuzzy(input, parameters);
         
         // Complement-coded input: [0.6, 0.4, 0.4, 0.6]
         // Complement-coded weight: [0.8, 0.2, 0.2, 0.8]
@@ -207,11 +157,11 @@ public class VectorizedFuzzyARTTest {
         var parallelParams = new VectorizedParameters(
             0.95, 0.1, 0.1, 4, 5, 1000, true, false, 0.8
         );
-        var parallelART = new VectorizedFuzzyART(parallelParams);
+        var parallelART = createAlgorithm(parallelParams);
         
         // Train with many patterns using enhanced stepFit to trigger parallel processing
         for (var pattern : patterns) {
-            parallelART.stepFitEnhanced(pattern, parallelParams);
+            parallelART.stepFitEnhancedVectorized(pattern, parallelParams);
         }
         
         // Should have created many categories (more than parallel threshold)
@@ -220,7 +170,7 @@ public class VectorizedFuzzyARTTest {
         
         // Test additional parallel stepFit
         var testPattern = Pattern.of(0.5, 0.5);
-        var result = parallelART.stepFitEnhanced(testPattern, parallelParams);
+        var result = parallelART.stepFitEnhancedVectorized(testPattern, parallelParams);
         assertTrue(result instanceof ActivationResult.Success);
         
         // Check performance stats - should show parallel tasks were executed
@@ -244,18 +194,18 @@ public class VectorizedFuzzyARTTest {
         var smallCacheParams = new VectorizedParameters(
             0.8, 0.1, 0.1, 4, 100, 2, true, false, 0.8
         );
-        var art = new VectorizedFuzzyART(smallCacheParams);
+        var art = createAlgorithm(smallCacheParams);
         
         // Train with patterns
         for (var pattern : patterns) {
-            art.stepFit(pattern, smallCacheParams);
+            art.learn(pattern, smallCacheParams);
         }
         
         // Memory optimization is handled automatically by the algorithm
         // art.optimizeMemory(); // Method doesn't exist - memory is managed internally
         
         // Should still work correctly after optimization
-        var result = art.stepFit(patterns.get(0), smallCacheParams);
+        var result = art.learn(patterns.get(0), smallCacheParams);
         assertTrue(result instanceof ActivationResult.Success);
         
         art.close();
@@ -271,52 +221,35 @@ public class VectorizedFuzzyARTTest {
         );
         
         // Initial stats should be zero
-        var initialStats = vectorizedART.getPerformanceStats();
+        var initialStats = algorithm.getPerformanceStats();
         assertEquals(0, initialStats.totalVectorOperations());
         assertEquals(0, initialStats.totalParallelTasks());
         
         // Train and test
         for (var pattern : patterns) {
-            vectorizedART.stepFit(pattern, params);
+            algorithm.learn(pattern, parameters);
         }
         
         // Stats should be updated
-        var finalStats = vectorizedART.getPerformanceStats();
+        var finalStats = algorithm.getPerformanceStats();
         assertTrue(finalStats.totalVectorOperations() > 0);
         assertTrue(finalStats.avgComputeTimeMs() >= 0);
         
         // Reset should clear stats
-        vectorizedART.resetPerformanceTracking();
-        var resetStats = vectorizedART.getPerformanceStats();
+        algorithm.resetPerformanceTracking();
+        var resetStats = algorithm.getPerformanceStats();
         assertEquals(0, resetStats.totalVectorOperations());
         assertEquals(0, resetStats.totalParallelTasks());
     }
     
-    @Test
-    @DisplayName("Error handling should work correctly")
-    void testErrorHandling() {
-        // Null parameters should throw exception
-        assertThrows(NullPointerException.class, () -> {
-            vectorizedART.stepFit(Pattern.of(0.5, 0.5), null);
-        });
-        
-        // Wrong parameter type should throw exception
-        assertThrows(IllegalArgumentException.class, () -> {
-            vectorizedART.stepFit(Pattern.of(0.5, 0.5), "wrong type");
-        });
-        
-        // Null input should throw exception
-        assertThrows(NullPointerException.class, () -> {
-            vectorizedART.stepFit(null, params);
-        });
-    }
+    // Error handling tests are inherited from base class
     
     @Test
     @DisplayName("VectorizedFuzzyWeight should handle edge cases correctly")
     void testVectorizedFuzzyWeightEdgeCases() {
         // Test noise addition
-        var weight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.5, 0.5), params);
-        var noisyWeight = weight.addNoise(0.1, params);
+        var weight = VectorizedFuzzyWeight.fromInput(Pattern.of(0.5, 0.5), parameters);
+        var noisyWeight = weight.addNoise(0.1, parameters);
         
         // Should maintain valid range [0, 1]
         for (int i = 0; i < noisyWeight.dimension(); i++) {
@@ -326,22 +259,9 @@ public class VectorizedFuzzyARTTest {
         
         // Test vigilance computation
         var input = Pattern.of(0.8, 0.2);
-        var vigilance = weight.computeVigilance(input, params);
+        var vigilance = weight.computeVigilance(input, parameters);
         assertTrue(vigilance >= 0.0 && vigilance <= 1.0);
     }
     
-    @Test
-    @DisplayName("Resource cleanup should work correctly")
-    void testResourceCleanup() {
-        var art = new VectorizedFuzzyART(params);
-        
-        // Use the ART network
-        art.stepFit(Pattern.of(0.5, 0.5), params);
-        
-        // Close should not throw exception
-        assertDoesNotThrow(() -> art.close());
-        
-        // toString should work even after close
-        assertNotNull(art.toString());
-    }
+    // Resource cleanup tests are inherited from base class
 }

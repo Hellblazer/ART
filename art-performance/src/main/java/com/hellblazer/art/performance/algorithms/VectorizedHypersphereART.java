@@ -242,8 +242,22 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
     
     // Accessor methods for testing and monitoring
     
+    @Override
     public int getCategoryCount() {
         return categories.size();
+    }
+    
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index " + index + " out of bounds for " + categories.size() + " categories");
+        }
+        return categories.get(index);
+    }
+    
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return new ArrayList<>(categories);
     }
     
     public double getVigilance() {
@@ -283,15 +297,27 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
     // === VectorizedARTAlgorithm Interface Implementation ===
     
     @Override
-    public Object learn(Pattern input, VectorizedHypersphereParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedHypersphereParameters parameters) {
         // Use the existing learn method with current parameters
-        return learn(input);
+        int categoryIndex = learn(input);
+        if (categoryIndex >= 0 && categoryIndex < categories.size()) {
+            return new com.hellblazer.art.core.results.ActivationResult.Success(
+                categoryIndex, 1.0, categories.get(categoryIndex)
+            );
+        }
+        return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedHypersphereParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedHypersphereParameters parameters) {
         // Use classify for prediction
-        return classify(input);
+        int categoryIndex = classify(input);
+        if (categoryIndex >= 0 && categoryIndex < categories.size()) {
+            return new com.hellblazer.art.core.results.ActivationResult.Success(
+                categoryIndex, 1.0, categories.get(categoryIndex)
+            );
+        }
+        return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
     }
     
     @Override
@@ -357,5 +383,10 @@ public class VectorizedHypersphereART implements VectorizedARTAlgorithm<Vectoriz
                ", scalarOps=" + totalScalarOperations +
                ", cacheSize=" + inputCache.size() +
                "}";
+    }
+
+    @Override
+    public void clear() {
+        categories.clear();
     }
 }

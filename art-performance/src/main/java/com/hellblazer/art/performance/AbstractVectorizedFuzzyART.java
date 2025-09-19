@@ -57,61 +57,45 @@ public abstract class AbstractVectorizedFuzzyART extends AbstractVectorizedART<V
     // === BaseART Integration ===
     
     @Override
-    protected final double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected final double calculateActivation(Pattern input, WeightVector weight, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
         
         var vWeight = convertToVectorizedFuzzyWeight(weight);
         trackVectorOperation();
-        return computeVectorizedActivation(input, vWeight, vParams);
+        return computeVectorizedActivation(input, vWeight, parameters);
     }
     
     @Override
-    protected final MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected final MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
         
         var vWeight = convertToVectorizedFuzzyWeight(weight);
         trackMatchOperation();
-        return computeVectorizedVigilance(input, vWeight, vParams);
+        return computeVectorizedVigilance(input, vWeight, parameters);
     }
     
     @Override
-    protected final WeightVector updateWeights(Pattern input, WeightVector weight, Object parameters) {
+    protected final WeightVector updateWeights(Pattern input, WeightVector weight, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
-        
         var vWeight = convertToVectorizedFuzzyWeight(weight);
         trackVectorOperation();
-        return computeVectorizedWeightUpdate(input, vWeight, vParams);
+        return computeVectorizedWeightUpdate(input, vWeight, parameters);
     }
     
     @Override
-    protected final WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected final WeightVector createInitialWeight(Pattern input, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
-        
         trackVectorOperation();
-        return createVectorizedWeightVector(input, vParams);
+        return createVectorizedWeightVector(input, parameters);
     }
     
     // === Template Methods for FuzzyART Algorithms ===

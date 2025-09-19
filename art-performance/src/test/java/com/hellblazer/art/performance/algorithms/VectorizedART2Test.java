@@ -255,14 +255,14 @@ class VectorizedART2Test {
     
     @Test
     void testNullInputs() {
-        // AbstractVectorizedART handles null gracefully by using default parameters
-        assertDoesNotThrow(() -> 
+        // BaseART enforces null checks on inputs and parameters
+        assertThrows(NullPointerException.class, () -> 
             algorithm.learn(null, params));
         
-        assertDoesNotThrow(() -> 
+        assertThrows(NullPointerException.class, () -> 
             algorithm.learn(Pattern.of(1.0, 2.0), null));
         
-        assertDoesNotThrow(() -> 
+        assertThrows(NullPointerException.class, () -> 
             algorithm.predict(null, params));
     }
     

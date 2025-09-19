@@ -294,7 +294,7 @@ class VectorizedARTAlgorithmicTest {
             // Now test enhanced step fit which should use parallel processing
             var testPattern = Pattern.of(0.25, 0.35, 0.45, 0.55, 0.65);
             var startTime = System.nanoTime();
-            var result = parallelArt.stepFitEnhanced(testPattern, parallelParams);
+            var result = parallelArt.stepFitEnhancedVectorized(testPattern, parallelParams);
             var endTime = System.nanoTime();
             
             assertInstanceOf(ActivationResult.Success.class, result);

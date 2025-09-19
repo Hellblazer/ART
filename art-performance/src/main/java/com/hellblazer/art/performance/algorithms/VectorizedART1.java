@@ -129,11 +129,11 @@ public class VectorizedART1 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedART1Parameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         
-        var vecParams = validateParameters(parameters);
+        var vecParams = parameters;
         validateBinaryPattern(input);
         
         var vWeight = convertToVectorizedART1Weight(weight);
@@ -144,11 +144,11 @@ public class VectorizedART1 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedART1Parameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         
-        var vecParams = validateParameters(parameters);
+        var vecParams = parameters;
         validateBinaryPattern(input);
         
         var vWeight = convertToVectorizedART1Weight(weight);
@@ -159,11 +159,11 @@ public class VectorizedART1 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedART1Parameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         
-        var vecParams = validateParameters(parameters);
+        var vecParams = parameters;
         validateBinaryPattern(input);
         
         var vWeight = convertToVectorizedART1Weight(currentWeight);
@@ -174,11 +174,11 @@ public class VectorizedART1 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, VectorizedART1Parameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         validateBinaryPattern(input);
         
-        var vecParams = validateParameters(parameters);
+        var vecParams = parameters;
         
         return VectorizedART1Weight.fromInput(input, vecParams);
     }
@@ -190,12 +190,10 @@ public class VectorizedART1 extends AbstractVectorizedART<VectorizedPerformanceS
         // Additional ART1-specific validation could go here
     }
     
-    @Override
     protected Object performVectorizedLearning(Pattern input, VectorizedART1Parameters params) {
         return learnEnhanced(input, params);
     }
-    
-    @Override
+
     protected Object performVectorizedPrediction(Pattern input, VectorizedART1Parameters params) {
         // Implement prediction logic directly to avoid recursion
         if (getCategoryCount() == 0) {

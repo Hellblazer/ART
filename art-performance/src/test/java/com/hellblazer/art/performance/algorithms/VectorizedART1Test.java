@@ -328,10 +328,9 @@ public class VectorizedART1Test {
     @Test
     @DisplayName("Error handling should work correctly")
     void testErrorHandling() {
-        // Null parameters should use default parameters (not throw exception)
-        assertDoesNotThrow(() -> {
-            var result = vectorizedART.learn(Pattern.of(1.0, 0.0), null);
-            assertNotNull(result);
+        // Null parameters should throw exception as per BaseART contract
+        assertThrows(NullPointerException.class, () -> {
+            vectorizedART.learn(Pattern.of(1.0, 0.0), null);
         });
         
         // Invalid parameter values should throw exception during construction

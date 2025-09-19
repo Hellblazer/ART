@@ -31,7 +31,7 @@ import java.util.Objects;
  * 
  * @author Hal Hildebrand
  */
-public final class QuadraticNeuronART extends BaseART {
+public final class QuadraticNeuronART extends BaseART<QuadraticNeuronARTParameters> {
     
     /**
      * Create a new QuadraticNeuronART instance
@@ -56,14 +56,12 @@ public final class QuadraticNeuronART extends BaseART {
      * @return the activation value for this category
      */
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, QuadraticNeuronARTParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof QuadraticNeuronARTParameters params)) {
-            throw new IllegalArgumentException("Parameters must be QuadraticNeuronARTParameters");
-        }
+        var params = parameters;
         
         if (!(weight instanceof QuadraticNeuronARTWeight qnWeight)) {
             throw new IllegalArgumentException("Weight must be QuadraticNeuronARTWeight");
@@ -103,14 +101,12 @@ public final class QuadraticNeuronART extends BaseART {
      * @return MatchResult.Accepted if vigilance test passes, MatchResult.Rejected otherwise
      */
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, QuadraticNeuronARTParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof QuadraticNeuronARTParameters params)) {
-            throw new IllegalArgumentException("Parameters must be QuadraticNeuronARTParameters");
-        }
+        var params = parameters;
         
         // In QuadraticNeuronART, match criterion is the same as activation
         double activation = calculateActivation(input, weight, parameters);
@@ -131,14 +127,12 @@ public final class QuadraticNeuronART extends BaseART {
      * @return the updated weight vector
      */
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector weight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector weight, QuadraticNeuronARTParameters parameters) {
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof QuadraticNeuronARTParameters params)) {
-            throw new IllegalArgumentException("Parameters must be QuadraticNeuronARTParameters");
-        }
+        var params = parameters;
         
         if (!(weight instanceof QuadraticNeuronARTWeight qnWeight)) {
             throw new IllegalArgumentException("Weight must be QuadraticNeuronARTWeight");
@@ -200,13 +194,11 @@ public final class QuadraticNeuronART extends BaseART {
      * @return a new weight vector initialized for the input
      */
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, QuadraticNeuronARTParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof QuadraticNeuronARTParameters params)) {
-            throw new IllegalArgumentException("Parameters must be QuadraticNeuronARTParameters");
-        }
+        var params = parameters;
         
         int dim = input.dimension();
         int dim2 = dim * dim;
@@ -277,5 +269,10 @@ public final class QuadraticNeuronART extends BaseART {
         }
         
         return result;
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

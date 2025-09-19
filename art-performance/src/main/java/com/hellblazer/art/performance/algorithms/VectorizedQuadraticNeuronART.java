@@ -23,6 +23,8 @@ import com.hellblazer.art.core.algorithms.QuadraticNeuronART;
 import com.hellblazer.art.core.parameters.QuadraticNeuronARTParameters;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -71,6 +73,7 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
     // Training state
     private volatile boolean isTrained;
     private volatile boolean isClosed;
+    private final List<com.hellblazer.art.core.WeightVector> categories;
     
     /**
      * Initialize VectorizedQuadraticNeuronART with specified parameters.
@@ -97,13 +100,14 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
         
         this.isTrained = false;
         this.isClosed = false;
-        
+        this.categories = new ArrayList<>();
+
         // Create base QuadraticNeuronART using the core implementation
         this.baseQuadraticNeuronART = new QuadraticNeuronART();
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
         if (isClosed) {
             throw new IllegalStateException("VectorizedQuadraticNeuronART has been closed");
         }
@@ -138,16 +142,14 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
                 sAdaptations.incrementAndGet();
             }
             
-            // Return training result
-            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
-                return new TrainResult.Success(success.categoryIndex(), success.activationValue());
-            } else if (result instanceof com.hellblazer.art.core.results.ActivationResult.NoMatch) {
-                // Create new category with quadratic neuron weights
-                var newCategoryIndex = baseQuadraticNeuronART.getCategoryCount();
-                return new TrainResult.NewCategory(newCategoryIndex, 1.0);
-            } else {
-                return new TrainResult.Failed("Learning failed");
+            // Sync categories with base implementation
+            categories.clear();
+            for (int i = 0; i < baseQuadraticNeuronART.getCategoryCount(); i++) {
+                categories.add(baseQuadraticNeuronART.getCategory(i));
             }
+
+            // Return training result directly
+            return result;
             
         } finally {
             totalProcessingTime.addAndGet(System.nanoTime() - startTime);
@@ -155,7 +157,7 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
         if (isClosed) {
             throw new IllegalStateException("VectorizedQuadraticNeuronART has been closed");
         }
@@ -185,12 +187,8 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
             
             simdOperations.addAndGet(estimateSimdOperations(input.dimension()));
             
-            // Return prediction result
-            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
-                return new PredictResult.Success(success.categoryIndex(), success.activationValue());
-            } else {
-                return new PredictResult.NoMatch("No matching category found");
-            }
+            // Return prediction result directly
+            return result;
             
         } finally {
             totalProcessingTime.addAndGet(System.nanoTime() - startTime);
@@ -198,6 +196,17 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
     }
     
     @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index " + index + " out of bounds for " + categories.size() + " categories");
+        }
+        return categories.get(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return new ArrayList<>(categories);
+    }
     public int getCategoryCount() {
         if (isClosed) {
             return 0;
@@ -261,19 +270,6 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
         }
     }
     
-    /**
-     * Typed learning method for better API experience.
-     */
-    public TrainResult learnTyped(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
-        return (TrainResult) learn(input, parameters);
-    }
-    
-    /**
-     * Typed prediction method for better API experience.
-     */
-    public PredictResult predictTyped(Pattern input, VectorizedQuadraticNeuronARTParameters parameters) {
-        return (PredictResult) predict(input, parameters);
-    }
     
     /**
      * Get the matrix dimension for this quadratic neuron network.
@@ -399,5 +395,10 @@ public class VectorizedQuadraticNeuronART implements VectorizedARTAlgorithm<Vect
                 getQuadraticActivationRate(), getAdaptationRate()
             );
         }
+    }
+
+    @Override
+    public void clear() {
+        categories.clear();
     }
 }

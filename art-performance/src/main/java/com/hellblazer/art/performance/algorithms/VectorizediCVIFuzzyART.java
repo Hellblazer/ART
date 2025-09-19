@@ -80,7 +80,7 @@ public class VectorizediCVIFuzzyART implements VectorizedARTAlgorithm<Vectorized
     }
     
     @Override
-    public Object learn(Pattern input, VectorizediCVIFuzzyARTParameters params) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizediCVIFuzzyARTParameters params) {
         lock.writeLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -103,26 +103,35 @@ public class VectorizediCVIFuzzyART implements VectorizedARTAlgorithm<Vectorized
             var icviParams = createICVIParameters(params);
             
             // Perform learning
-            var result = icviFuzzyART.learn(processedInput, icviParams);
-            
+            var learningResult = icviFuzzyART.learn(processedInput, icviParams);
+
             // Track CVI update statistics
             if (icviFuzzyART.getCVIUpdateCount() > beforeCVICount) {
                 cviUpdates.incrementAndGet();
-                
+
                 if (icviFuzzyART.wasIncrementallyUpdated()) {
                     incrementalUpdates.incrementAndGet();
                 } else if (icviFuzzyART.wasLastUpdateBatch()) {
                     batchUpdates.incrementAndGet();
                 }
             }
-            
+
             // Track vigilance adaptations
             if (params.isAdaptiveVigilance()) {
                 // Note: LearningResult doesn't have wasVigilanceAdapted() method
                 vigilanceAdaptations.incrementAndGet();
             }
-            
-            return result.categoryIndex();
+
+            // Convert LearningResult to ActivationResult
+            if (learningResult.wasSuccessful() && learningResult.categoryIndex() >= 0) {
+                return new com.hellblazer.art.core.results.ActivationResult.Success(
+                    learningResult.categoryIndex(),
+                    1.0, // Default activation since LearningResult doesn't provide it
+                    null
+                );
+            } else {
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+            }
             
         } finally {
             lock.writeLock().unlock();
@@ -131,11 +140,14 @@ public class VectorizediCVIFuzzyART implements VectorizedARTAlgorithm<Vectorized
     
     public int predict(double[] input) {
         var result = predict(Pattern.of(input), defaultParams);
-        return result instanceof Integer ? (Integer) result : -1;
+        if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+            return success.categoryIndex();
+        }
+        return -1;
     }
     
     @Override
-    public Object predict(Pattern input, VectorizediCVIFuzzyARTParameters params) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizediCVIFuzzyARTParameters params) {
         lock.readLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -155,9 +167,18 @@ public class VectorizediCVIFuzzyART implements VectorizedARTAlgorithm<Vectorized
             
             // iCVIFuzzyART doesn't have a predict method, use learn for prediction
             // This won't update the model since we're in a read lock
-            var result = icviFuzzyART.learn(processedInput, icviParams);
-            
-            return result.categoryIndex();
+            var learningResult = icviFuzzyART.learn(processedInput, icviParams);
+
+            // Convert LearningResult to ActivationResult
+            if (learningResult.wasSuccessful() && learningResult.categoryIndex() >= 0) {
+                return new com.hellblazer.art.core.results.ActivationResult.Success(
+                    learningResult.categoryIndex(),
+                    1.0, // Default activation since LearningResult doesn't provide it
+                    null
+                );
+            } else {
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+            }
             
         } finally {
             lock.readLock().unlock();
@@ -327,5 +348,35 @@ public class VectorizediCVIFuzzyART implements VectorizedARTAlgorithm<Vectorized
                            getCategoryCount(), stats.currentCVIScore(),
                            stats.cviUpdates(), stats.incrementalUpdates(),
                            stats.batchUpdates(), stats.storedPatternCount());
+    }
+
+    @Override
+    public void clear() {
+        lock.writeLock().lock();
+        try {
+            icviFuzzyART.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        lock.readLock().lock();
+        try {
+            return icviFuzzyART.getCategory(index);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        lock.readLock().lock();
+        try {
+            return icviFuzzyART.getCategories();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 }

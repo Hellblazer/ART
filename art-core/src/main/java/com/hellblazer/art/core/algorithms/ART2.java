@@ -50,7 +50,7 @@ import java.util.Map;
  * 
  * @author Hal Hildebrand
  */
-public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
+public final class ART2 extends BaseART<ART2Parameters> implements ScikitClusterer<Pattern> {
     
     private final ART2Parameters parameters;
     private boolean fitted = false;
@@ -72,13 +72,11 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
     // BaseART abstract method implementations for ART-2 neural network
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, ART2Parameters parameters) {
         if (!(weight instanceof ART2Weight art2Weight)) {
             throw new IllegalArgumentException("Weight must be ART2Weight");
         }
-        if (!(parameters instanceof ART2Parameters)) {
-            throw new IllegalArgumentException("Parameters must be ART2Parameters");
-        }
+        // Parameters are already typed as ART2Parameters
         
         // Normalize input first
         var normalizedInput = normalizeInput(input);
@@ -103,13 +101,11 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, ART2Parameters parameters) {
         if (!(weight instanceof ART2Weight art2Weight)) {
             throw new IllegalArgumentException("Weight must be ART2Weight");
         }
-        if (!(parameters instanceof ART2Parameters art2Params)) {
-            throw new IllegalArgumentException("Parameters must be ART2Parameters");
-        }
+        var art2Params = parameters;
         
         // Normalize input first
         var normalizedInput = normalizeInput(input);
@@ -151,13 +147,11 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, ART2Parameters parameters) {
         if (!(currentWeight instanceof ART2Weight art2Weight)) {
             throw new IllegalArgumentException("Weight must be ART2Weight");
         }
-        if (!(parameters instanceof ART2Parameters art2Params)) {
-            throw new IllegalArgumentException("Parameters must be ART2Parameters");
-        }
+        var art2Params = parameters;
         
         // Normalize input first
         var normalizedInput = normalizeInput(input);
@@ -184,10 +178,8 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
-        if (!(parameters instanceof ART2Parameters)) {
-            throw new IllegalArgumentException("Parameters must be ART2Parameters");
-        }
+    protected WeightVector createInitialWeight(Pattern input, ART2Parameters parameters) {
+        // Parameters are already typed as ART2Parameters
         
         // Create initial weight from normalized input
         var normalizedInput = normalizeInput(input);
@@ -702,5 +694,10 @@ public final class ART2 extends BaseART implements ScikitClusterer<Pattern> {
         }
         
         return Math.sqrt(distance);
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

@@ -220,7 +220,7 @@ class ARTETest {
     @Test
     void testEnhancedStepFit() {
         var input = Pattern.of(0.8, 0.6, 0.4);
-        var result = arte.stepFitEnhanced(input, params);
+        var result = arte.enhancedStepFit(input, params);
         
         assertInstanceOf(ActivationResult.Success.class, result);
         assertEquals(1, arte.getTotalLearningSteps());
@@ -263,7 +263,7 @@ class ARTETest {
         // Train several categories
         for (int i = 0; i < 5; i++) {
             var input = Pattern.of(0.1 * i, 0.2 * i, 0.3 * i);
-            arte.stepFitEnhanced(input, params);
+            arte.enhancedStepFit(input, params);
         }
         
         int categoriesBeforeOptimization = arte.getCategoryCount();
@@ -287,7 +287,7 @@ class ARTETest {
         // Create some categories that might underperform
         for (int i = 0; i < 10; i++) {
             var input = Pattern.of(Math.random(), Math.random(), Math.random());
-            arte.stepFitEnhanced(input, lowPerformanceParams);
+            arte.enhancedStepFit(input, lowPerformanceParams);
         }
         
         int categoriesBeforePruning = arte.getCategoryCount();
@@ -302,7 +302,7 @@ class ARTETest {
         // Train network with several inputs
         for (int i = 0; i < 10; i++) {
             var input = Pattern.of(0.1 * i, 0.2 * i, 0.3 * i);
-            arte.stepFitEnhanced(input, params);
+            arte.enhancedStepFit(input, params);
         }
         
         var analysis = arte.analyzeNetwork();
@@ -343,7 +343,7 @@ class ARTETest {
         
         // Train with same input multiple times
         for (int i = 0; i < 20; i++) {
-            arte.stepFitEnhanced(input, params);
+            arte.enhancedStepFit(input, params);
         }
         
         // Should show some convergence pattern

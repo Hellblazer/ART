@@ -38,7 +38,7 @@ import java.util.Set;
  * @see TopoARTWeight for topology-aware weight vectors
  * @see TopoARTParameters for algorithm parameters
  */
-public final class TopoART extends BaseART {
+public final class TopoART extends BaseART<TopoARTParameters> {
     
     private final TopoARTComponent componentA;
     private final TopoARTComponent componentB;
@@ -261,7 +261,7 @@ public final class TopoART extends BaseART {
      * @return the activation value
      */
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, TopoARTParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -303,7 +303,7 @@ public final class TopoART extends BaseART {
      * @return match result indicating acceptance or rejection
      */
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, TopoARTParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -354,7 +354,7 @@ public final class TopoART extends BaseART {
      * @return updated weight vector
      */
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, TopoARTParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -401,7 +401,7 @@ public final class TopoART extends BaseART {
      * @return new TopoARTWeight initialized from input
      */
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, TopoARTParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         // Parameters can be null for initial weight creation
         
@@ -453,5 +453,10 @@ public final class TopoART extends BaseART {
             componentA.cleanup();
             componentB.cleanup();
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

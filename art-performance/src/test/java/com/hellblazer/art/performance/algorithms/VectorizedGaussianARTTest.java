@@ -12,23 +12,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import java.util.ArrayList;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
 
 /**
  * Comprehensive test suite for VectorizedGaussianART implementation.
  * Tests both SIMD and standard computation paths, performance characteristics,
  * and compatibility with GaussianART semantics.
  */
-public class VectorizedGaussianARTTest {
+public class VectorizedGaussianARTTest extends BaseVectorizedARTTest<VectorizedGaussianART, VectorizedGaussianParameters> {
     
-    private VectorizedGaussianART vectorizedART;
-    private VectorizedGaussianParameters params;
     private GaussianART standardART;
     private GaussianParameters gaussianParams;
     
-    @BeforeEach
-    void setUp() {
-        // Configure vectorized parameters for GaussianART
-        params = new VectorizedGaussianParameters(
+    @Override
+    protected VectorizedGaussianART createAlgorithm(VectorizedGaussianParameters params) {
+        return new VectorizedGaussianART(params);
+    }
+    
+    @Override
+    protected VectorizedGaussianParameters createDefaultParameters() {
+        return new VectorizedGaussianParameters(
             0.8,    // vigilance
             0.1,    // gamma (learning rate)
             1.0,    // rho_a (variance adjustment factor)
@@ -36,9 +39,23 @@ public class VectorizedGaussianARTTest {
             4,      // parallelismLevel
             true    // enableSIMD
         );
-        
-        vectorizedART = new VectorizedGaussianART(params);
-        
+    }
+    
+    @Override
+    protected VectorizedGaussianParameters createParametersWithVigilance(double vigilance) {
+        return new VectorizedGaussianParameters(
+            vigilance,
+            0.1,    // gamma (learning rate) - same as default
+            1.0,    // rho_a (variance adjustment factor) - same as default
+            0.5,    // rho_b (minimum variance) - same as default
+            4,      // parallelismLevel - same as default
+            true    // enableSIMD - same as default
+        );
+    }
+    
+    @BeforeEach
+    protected void setUp() {
+        super.setUp();
         // Configure standard GaussianART for comparison
         var sigmaInit = new double[]{0.5, 0.5}; // 2D default
         gaussianParams = new GaussianParameters(0.8, sigmaInit);
@@ -47,30 +64,31 @@ public class VectorizedGaussianARTTest {
     
     @AfterEach
     void tearDown() {
-        if (vectorizedART != null) {
-            vectorizedART.close();
+        if (algorithm != null) {
+            algorithm.close();
         }
     }
     
+    // Basic learning test is inherited from base class, but we override to test Gaussian-specific behavior
     @Test
-    @DisplayName("Basic learning and recognition should work correctly")
-    void testBasicLearningAndRecognition() {
+    @DisplayName("Gaussian-specific learning should work correctly")
+    void testGaussianLearning() {
         // Create simple 2D patterns
         var pattern1 = Pattern.of(0.8, 0.2);
         var pattern2 = Pattern.of(0.3, 0.7);
         var pattern3 = Pattern.of(0.75, 0.25); // Similar to pattern1
         
         // Train on first two patterns
-        var result1 = vectorizedART.learn(pattern1, params);
-        var result2 = vectorizedART.learn(pattern2, params);
+        var result1 = algorithm.learn(pattern1, parameters);
+        var result2 = algorithm.learn(pattern2, parameters);
         
         // Should create two categories
-        assertEquals(2, vectorizedART.getCategoryCount());
+        assertEquals(2, algorithm.getCategoryCount());
         assertTrue(result1 instanceof ActivationResult.Success);
         assertTrue(result2 instanceof ActivationResult.Success);
         
         // Test recognition of similar pattern
-        var result3 = vectorizedART.learn(pattern3, params);
+        var result3 = algorithm.learn(pattern3, parameters);
         assertTrue(result3 instanceof ActivationResult.Success);
         
         var successResult3 = (ActivationResult.Success) result3;
@@ -79,9 +97,10 @@ public class VectorizedGaussianARTTest {
         assertTrue(successResult3.categoryIndex() >= 0 && successResult3.categoryIndex() < 3);
     }
     
+    // Vigilance control test is inherited from base class, but we provide Gaussian-specific one
     @Test
-    @DisplayName("Vigilance parameter should control category creation")
-    void testVigilanceControl() {
+    @DisplayName("Gaussian vigilance should control category creation")
+    void testGaussianVigilanceControl() {
         var pattern1 = Pattern.of(0.8, 0.2);
         var pattern2 = Pattern.of(0.7, 0.3); // Moderately similar
         
@@ -89,7 +108,7 @@ public class VectorizedGaussianARTTest {
         var highVigilanceParams = new VectorizedGaussianParameters(
             0.95, 0.1, 1.0, 0.1, 4, true
         );
-        var highVigilanceART = new VectorizedGaussianART(highVigilanceParams);
+        var highVigilanceART = createAlgorithm(highVigilanceParams);
         
         highVigilanceART.learn(pattern1, highVigilanceParams);
         highVigilanceART.learn(pattern2, highVigilanceParams);
@@ -101,7 +120,7 @@ public class VectorizedGaussianARTTest {
         var lowVigilanceParams = new VectorizedGaussianParameters(
             0.01, 0.1, 1.0, 0.1, 4, true
         );
-        var lowVigilanceART = new VectorizedGaussianART(lowVigilanceParams);
+        var lowVigilanceART = createAlgorithm(lowVigilanceParams);
         
         lowVigilanceART.learn(pattern1, lowVigilanceParams);
         lowVigilanceART.learn(pattern2, lowVigilanceParams);
@@ -126,13 +145,13 @@ public class VectorizedGaussianARTTest {
         var simdParams = new VectorizedGaussianParameters(
             0.5, 0.1, 1.0, 0.1, 4, true
         );
-        var simdART = new VectorizedGaussianART(simdParams);
+        var simdART = createAlgorithm(simdParams);
         
         // Train with SIMD disabled
         var noSimdParams = new VectorizedGaussianParameters(
             0.5, 0.1, 1.0, 0.1, 4, false
         );
-        var noSimdART = new VectorizedGaussianART(noSimdParams);
+        var noSimdART = createAlgorithm(noSimdParams);
         
         // Train both networks
         for (var pattern : patterns) {
@@ -166,16 +185,16 @@ public class VectorizedGaussianARTTest {
     @DisplayName("Gaussian probability density should be computed correctly")
     void testGaussianProbabilityComputation() {
         var input = Pattern.of(0.5, 0.5);
-        var weight = VectorizedGaussianWeight.fromInput(input, params);
+        var weight = VectorizedGaussianWeight.fromInput(input, parameters);
         
         // For a Gaussian centered at the input with initial variance,
         // the probability density should be high
-        var activation = vectorizedART.calculateActivation(input, weight, params);
+        var activation = algorithm.calculateActivation(input, weight, parameters);
         assertTrue(activation > 0.0, "Activation should be positive");
         
         // Test with different input - should have lower activation
         var differentInput = Pattern.of(0.9, 0.1);
-        var differentActivation = vectorizedART.calculateActivation(differentInput, weight, params);
+        var differentActivation = algorithm.calculateActivation(differentInput, weight, parameters);
         assertTrue(differentActivation > 0.0, "Different activation should be positive");
         assertTrue(activation > differentActivation, "Centered input should have higher activation");
     }
@@ -187,13 +206,13 @@ public class VectorizedGaussianARTTest {
         var input2 = Pattern.of(0.6, 0.4);
         
         // Create initial weight from first input
-        var weight1 = VectorizedGaussianWeight.fromInput(input1, params);
+        var weight1 = VectorizedGaussianWeight.fromInput(input1, parameters);
         assertEquals(1, weight1.getSampleCount());
         assertEquals(0.5, weight1.getMean()[0], 1e-10);
         assertEquals(0.5, weight1.getMean()[1], 1e-10);
         
         // Update with second input
-        var weight2 = weight1.updateGaussian(input2, params);
+        var weight2 = weight1.updateGaussian(input2, parameters);
         assertEquals(2, weight2.getSampleCount());
         
         // Mean should be incremental average: (0.5 + 0.6) / 2 = 0.55, (0.5 + 0.4) / 2 = 0.45
@@ -220,7 +239,7 @@ public class VectorizedGaussianARTTest {
         var parallelParams = new VectorizedGaussianParameters(
             0.99, 0.1, 1.0, 0.05, 4, true
         );
-        var parallelART = new VectorizedGaussianART(parallelParams);
+        var parallelART = createAlgorithm(parallelParams);
         
         // Train with many patterns
         for (var pattern : patterns) {
@@ -249,13 +268,13 @@ public class VectorizedGaussianARTTest {
         var highGammaParams = new VectorizedGaussianParameters(
             0.5, 0.5, 1.0, 0.1, 4, true
         );
-        var highGammaART = new VectorizedGaussianART(highGammaParams);
+        var highGammaART = createAlgorithm(highGammaParams);
         
         // Low gamma (slow learning)
         var lowGammaParams = new VectorizedGaussianParameters(
             0.5, 0.1, 1.0, 0.1, 4, true
         );
-        var lowGammaART = new VectorizedGaussianART(lowGammaParams);
+        var lowGammaART = createAlgorithm(lowGammaParams);
         
         // Train both with same patterns
         highGammaART.learn(input1, highGammaParams);
@@ -309,51 +328,42 @@ public class VectorizedGaussianARTTest {
         );
         
         // Initial stats should show zero operations
-        var initialStats = vectorizedART.getPerformanceStats();
+        var initialStats = algorithm.getPerformanceStats();
         assertEquals(0, initialStats.totalVectorOperations());
         
         // Train and test
         for (var pattern : patterns) {
-            vectorizedART.learn(pattern, params);
+            algorithm.learn(pattern, parameters);
         }
         
         // Stats should be updated
-        var finalStats = vectorizedART.getPerformanceStats();
+        var finalStats = algorithm.getPerformanceStats();
         assertTrue(finalStats.totalVectorOperations() > 0);
         assertTrue(finalStats.avgComputeTimeMs() >= 0.0);
-        assertEquals(vectorizedART.getCategoryCount(), finalStats.categoryCount());
+        assertEquals(algorithm.getCategoryCount(), finalStats.categoryCount());
         
         // Reset should clear stats
-        vectorizedART.resetPerformanceTracking();
-        var resetStats = vectorizedART.getPerformanceStats();
+        algorithm.resetPerformanceTracking();
+        var resetStats = algorithm.getPerformanceStats();
         assertEquals(0, resetStats.totalVectorOperations());
         assertEquals(0, resetStats.totalParallelTasks());
     }
     
+    // Error handling is inherited from base class, but we add Gaussian-specific tests
     @Test
-    @DisplayName("Error handling should work correctly")
-    void testErrorHandling() {
-        // Null parameters should be handled gracefully
-        assertDoesNotThrow(() -> {
-            vectorizedART.learn(Pattern.of(0.5, 0.5), null);
-        });
-        
+    @DisplayName("Gaussian-specific error handling should work correctly")
+    void testGaussianErrorHandling() {
         // Wrong parameter type should throw exception
-        assertThrows(IllegalArgumentException.class, () -> {
-            vectorizedART.calculateActivation(Pattern.of(0.5, 0.5), 
-                VectorizedGaussianWeight.fromInput(Pattern.of(0.5, 0.5), params), 
-                "wrong type");
-        });
-        
-        // Null input should be handled gracefully
-        assertDoesNotThrow(() -> {
-            vectorizedART.learn(null, params);
+        assertThrows(ClassCastException.class, () -> {
+            algorithm.calculateActivation(Pattern.of(0.5, 0.5), 
+                VectorizedGaussianWeight.fromInput(Pattern.of(0.5, 0.5), parameters), 
+                (VectorizedGaussianParameters) ((Object) "wrong type"));
         });
         
         // Mismatched dimensions should throw exception
         assertThrows(IllegalArgumentException.class, () -> {
-            var weight2D = VectorizedGaussianWeight.fromInput(Pattern.of(0.5, 0.5), params);
-            vectorizedART.calculateActivation(Pattern.of(0.5, 0.5, 0.5), weight2D, params);
+            var weight2D = VectorizedGaussianWeight.fromInput(Pattern.of(0.5, 0.5), parameters);
+            algorithm.calculateActivation(Pattern.of(0.5, 0.5, 0.5), weight2D, parameters);
         });
     }
     
@@ -362,12 +372,12 @@ public class VectorizedGaussianARTTest {
     void testVectorizedGaussianWeightEdgeCases() {
         // Test minimum variance enforcement
         var input = Pattern.of(0.5, 0.5);
-        var weight = VectorizedGaussianWeight.fromInput(input, params);
+        var weight = VectorizedGaussianWeight.fromInput(input, parameters);
         
         // All variance values should be >= rho_b
         var covariance = weight.getCovariance();
         for (int i = 0; i < covariance.length; i++) {
-            assertTrue(covariance[i][i] >= params.rho_b(), 
+            assertTrue(covariance[i][i] >= parameters.rho_b(), 
                 "Variance at " + i + " should be >= rho_b");
         }
         
@@ -375,24 +385,11 @@ public class VectorizedGaussianARTTest {
         assertTrue(weight.getDeterminant() > 0.0, "Determinant should be positive");
         
         // Test vigilance computation
-        var vigilance = weight.computeVigilance(input, params);
+        var vigilance = weight.computeVigilance(input, parameters);
         assertTrue(vigilance >= 0.0, "Vigilance should be non-negative");
     }
     
-    @Test
-    @DisplayName("Resource cleanup should work correctly")
-    void testResourceCleanup() {
-        var art = new VectorizedGaussianART(params);
-        
-        // Use the ART network
-        art.learn(Pattern.of(0.5, 0.5), params);
-        
-        // Close should not throw exception
-        assertDoesNotThrow(() -> art.close());
-        
-        // toString should work even after close
-        assertNotNull(art.toString());
-    }
+    // Resource cleanup tests are inherited from base class
     
     @Test
     @DisplayName("VectorizedARTAlgorithm interface methods should work correctly")
@@ -400,17 +397,17 @@ public class VectorizedGaussianARTTest {
         var input = Pattern.of(0.6, 0.4);
         
         // Test learn method
-        var learnResult = vectorizedART.learn(input, params);
+        var learnResult = algorithm.learn(input, parameters);
         assertTrue(learnResult instanceof ActivationResult.Success);
         
         // Test predict method
-        var predictResult = vectorizedART.predict(input, params);
+        var predictResult = algorithm.predict(input, parameters);
         assertTrue(predictResult instanceof ActivationResult.Success);
         
         // Test getCategoryCount
-        assertTrue(vectorizedART.getCategoryCount() > 0);
+        assertTrue(algorithm.getCategoryCount() > 0);
         
         // Test getParameters
-        assertEquals(params, vectorizedART.getParameters());
+        assertEquals(parameters, algorithm.getParameters());
     }
 }

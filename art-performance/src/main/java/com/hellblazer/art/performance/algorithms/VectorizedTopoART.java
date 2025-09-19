@@ -27,10 +27,11 @@ import java.util.Stack;
  * - High-performance vectorized learning rules
  */
 public final class VectorizedTopoART implements VectorizedARTAlgorithm<VectorizedPerformanceStats, TopoARTParameters> {
-    
+
     private final VectorizedTopoARTComponent componentA;
     private final VectorizedTopoARTComponent componentB;
     private final TopoARTParameters parameters;
+    private final List<com.hellblazer.art.core.WeightVector> categories;
     
     // Performance tracking
     private long totalVectorOperations = 0;
@@ -49,7 +50,8 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
      */
     public VectorizedTopoART(TopoARTParameters parameters) {
         this.parameters = Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
+        this.categories = new ArrayList<>();
+
         // Component A: Lower vigilance for coarse categorization
         this.componentA = new VectorizedTopoARTComponent(
             parameters.inputDimension(),
@@ -258,16 +260,37 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
     // VectorizedARTAlgorithm interface implementation
     
     @Override
-    public Object learn(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
-        return learn(input);
+    public com.hellblazer.art.core.results.ActivationResult learn(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
+        var result = learn(input);
+        // Convert result to ActivationResult
+        if (result instanceof TopoARTResult topoResult) {
+            // Create a dummy weight vector since we can't return null
+            var dummyWeight = new com.hellblazer.art.core.algorithms.SimpleWeight(new double[input.dimension() * 2]);
+            return new com.hellblazer.art.core.results.ActivationResult.Success(
+                topoResult.bestIndex(), 1.0, dummyWeight
+            );
+        }
+        return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
     }
     
     @Override
-    public Object predict(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
-        return learn(input);
+    public com.hellblazer.art.core.results.ActivationResult predict(com.hellblazer.art.core.Pattern input, TopoARTParameters parameters) {
+        // TopoART doesn't have a separate predict mode, it always learns
+        return learn(input, parameters);
     }
     
     @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index " + index + " out of bounds for " + categories.size() + " categories");
+        }
+        return categories.get(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return new ArrayList<>(categories);
+    }
     public int getCategoryCount() {
         return Math.max(componentA.getNeurons().size(), componentB.getNeurons().size());
     }
@@ -317,5 +340,10 @@ public final class VectorizedTopoART implements VectorizedARTAlgorithm<Vectorize
                            componentA.getNeurons().size(),
                            componentB.getNeurons().size(),
                            isVectorizedSupported());
+    }
+
+    @Override
+    public void clear() {
+        categories.clear();
     }
 }

@@ -33,7 +33,7 @@ import java.util.Objects;
  * 4. Category health monitoring and pruning
  * 5. Network-level regulation parameter adjustment
  */
-public final class ARTSTAR extends BaseART {
+public final class ARTSTAR extends BaseART<ARTSTARParameters> {
     
     // Network-level regulation state
     private double networkStability;
@@ -68,7 +68,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, ARTSTARParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -76,9 +76,7 @@ public final class ARTSTAR extends BaseART {
         if (!(weight instanceof ARTSTARWeight artstarWeight)) {
             throw new IllegalArgumentException("Weight must be ARTSTARWeight, got: " + weight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTSTARParameters artstarParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTSTARParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artstarParams = parameters;
         
         var categoryWeights = artstarWeight.getCategoryWeights();
         
@@ -106,7 +104,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, ARTSTARParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -114,9 +112,7 @@ public final class ARTSTAR extends BaseART {
         if (!(weight instanceof ARTSTARWeight artstarWeight)) {
             throw new IllegalArgumentException("Weight must be ARTSTARWeight, got: " + weight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTSTARParameters artstarParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTSTARParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artstarParams = parameters;
         
         var categoryWeights = artstarWeight.getCategoryWeights();
         
@@ -165,7 +161,7 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, ARTSTARParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -173,9 +169,7 @@ public final class ARTSTAR extends BaseART {
         if (!(currentWeight instanceof ARTSTARWeight artstarWeight)) {
             throw new IllegalArgumentException("Weight must be ARTSTARWeight, got: " + currentWeight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTSTARParameters artstarParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTSTARParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artstarParams = parameters;
         
         var currentCategoryWeights = artstarWeight.getCategoryWeights();
         var newCategoryWeights = new double[currentCategoryWeights.length];
@@ -211,13 +205,11 @@ public final class ARTSTAR extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, ARTSTARParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof ARTSTARParameters artstarParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTSTARParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artstarParams = parameters;
         
         // Initialize category weights to input (complement coded if needed)
         var categoryWeights = new double[input.dimension()];
@@ -472,5 +464,10 @@ public final class ARTSTAR extends BaseART {
                                averageCategoryStrength, averageUsageCount,
                                learningSuccessRate, totalCategories);
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

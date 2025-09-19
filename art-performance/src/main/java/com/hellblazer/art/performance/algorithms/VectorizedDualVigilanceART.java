@@ -51,19 +51,7 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
         Objects.requireNonNull(params, "Parameters cannot be null");
     }
 
-    @Override
-    protected Object performVectorizedLearning(Pattern input, VectorizedDualVigilanceParameters params) {
-        // Ensure input is complement coded
-        var complementCodedInput = ensureComplementCoded(input);
-        return stepFit(complementCodedInput, params);
-    }
-
-    @Override
-    protected Object performVectorizedPrediction(Pattern input, VectorizedDualVigilanceParameters params) {
-        // Ensure input is complement coded
-        var complementCodedInput = ensureComplementCoded(input);
-        return stepPredict(complementCodedInput, params);
-    }
+    // Removed performVectorizedLearning and performVectorizedPrediction - no longer needed
 
     protected void clearAlgorithmState() {
         inputCache.clear();
@@ -93,18 +81,17 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
     // BaseART method implementations
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
-        if (!(parameters instanceof VectorizedDualVigilanceParameters params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedDualVigilanceParameters");
-        }
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedDualVigilanceParameters parameters) {
+        var params = parameters;
         if (!(weight instanceof VectorizedDualVigilanceWeight dualWeight)) {
             throw new IllegalArgumentException("Weight must be VectorizedDualVigilanceWeight");
         }
         
         trackVectorOperation();
         
-        // Input is already complement coded from learn/predict methods
-        var inputData = convertToFloatArray(input);
+        // Ensure input is complement coded
+        var complementCoded = ensureComplementCoded(input);
+        var inputData = convertToFloatArray(complementCoded);
         var intersection = dualWeight.computeIntersectionSize(inputData);
         var magnitude = dualWeight.computeMinMagnitude();
         
@@ -113,10 +100,8 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
-        if (!(parameters instanceof VectorizedDualVigilanceParameters params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedDualVigilanceParameters");
-        }
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedDualVigilanceParameters parameters) {
+        var params = parameters;
         if (!(weight instanceof VectorizedDualVigilanceWeight dualWeight)) {
             throw new IllegalArgumentException("Weight must be VectorizedDualVigilanceWeight");
         }
@@ -124,7 +109,9 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
         trackVectorOperation();
         trackMatchOperation();
         
-        var inputData = convertToFloatArray(input);
+        // Ensure input is complement coded
+        var complementCoded = ensureComplementCoded(input);
+        var inputData = convertToFloatArray(complementCoded);
         
         // Compute fuzzy AND intersection
         var intersection = dualWeight.computeIntersectionSize(inputData);
@@ -152,17 +139,17 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
-        if (!(parameters instanceof VectorizedDualVigilanceParameters params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedDualVigilanceParameters");
-        }
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedDualVigilanceParameters parameters) {
+        var params = parameters;
         if (!(currentWeight instanceof VectorizedDualVigilanceWeight dualWeight)) {
             throw new IllegalArgumentException("Weight must be VectorizedDualVigilanceWeight");
         }
         
         trackVectorOperation();
         
-        var inputData = convertToFloatArray(input);
+        // Ensure input is complement coded
+        var complementCoded = ensureComplementCoded(input);
+        var inputData = convertToFloatArray(complementCoded);
         
         // Fast learning: new_weight = fuzzy_AND(input, old_weight)
         if (params.beta() >= 1.0) {
@@ -174,12 +161,12 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
-        if (!(parameters instanceof VectorizedDualVigilanceParameters params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedDualVigilanceParameters");
-        }
+    protected WeightVector createInitialWeight(Pattern input, VectorizedDualVigilanceParameters parameters) {
+        var params = parameters;
         
-        var inputData = convertToFloatArray(input);
+        // Ensure input is complement coded before creating weight
+        var complementCoded = ensureComplementCoded(input);
+        var inputData = convertToFloatArray(complementCoded);
         return VectorizedDualVigilanceWeight.createInitial(inputData);
     }
     
@@ -209,11 +196,11 @@ public final class VectorizedDualVigilanceART extends AbstractVectorizedART<Vect
             }
             // Need to complement code to match existing categories
             if (dimension * 2 == expectedDim) {
-                // Create complement coded version
-                var complementCoded = new double[data.length * 2];
-                System.arraycopy(data, 0, complementCoded, 0, data.length);
-                for (int i = 0; i < data.length; i++) {
-                    complementCoded[i + data.length] = 1.0 - data[i];
+                // Input needs complement coding
+                var complementCoded = new double[dimension * 2];
+                System.arraycopy(data, 0, complementCoded, 0, dimension);
+                for (int i = 0; i < dimension; i++) {
+                    complementCoded[i + dimension] = 1.0 - data[i];
                 }
                 return Pattern.of(complementCoded);
             }

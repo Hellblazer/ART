@@ -23,6 +23,7 @@ import com.hellblazer.art.core.algorithms.ARTA;
 import com.hellblazer.art.core.parameters.ARTAParameters;
 import com.hellblazer.art.performance.VectorizedARTAlgorithm;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -105,7 +106,7 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedARTAParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedARTAParameters parameters) {
         if (isClosed) {
             throw new IllegalStateException("VectorizedARTA has been closed");
         }
@@ -140,16 +141,8 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
                 attentionWeightUpdates.incrementAndGet();
             }
             
-            // Return training result
-            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
-                return new TrainResult.Success(success.categoryIndex(), success.activationValue());
-            } else if (result instanceof com.hellblazer.art.core.results.ActivationResult.NoMatch) {
-                // Create new category with attention weights
-                var newCategoryIndex = baseARTA.getCategoryCount();
-                return new TrainResult.NewCategory(newCategoryIndex, 1.0);
-            } else {
-                return new TrainResult.Failed("Learning failed");
-            }
+            // Return training result directly
+            return result;
             
         } finally {
             totalProcessingTime.addAndGet(System.nanoTime() - startTime);
@@ -157,7 +150,7 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedARTAParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedARTAParameters parameters) {
         if (isClosed) {
             throw new IllegalStateException("VectorizedARTA has been closed");
         }
@@ -187,12 +180,8 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
             
             simdOperations.addAndGet(estimateSimdOperations(input.dimension()));
             
-            // Return prediction result
-            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
-                return new PredictResult.Success(success.categoryIndex(), success.activationValue());
-            } else {
-                return new PredictResult.NoMatch("No matching category found");
-            }
+            // Return prediction result directly
+            return result;
             
         } finally {
             totalProcessingTime.addAndGet(System.nanoTime() - startTime);
@@ -262,20 +251,25 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
             // Clean up resources if needed
         }
     }
-    
-    /**
-     * Typed learning method for better API experience.
-     */
-    public TrainResult learnTyped(Pattern input, VectorizedARTAParameters parameters) {
-        return (TrainResult) learn(input, parameters);
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        if (index < 0 || index >= baseARTA.getCategoryCount()) {
+            throw new IndexOutOfBoundsException("Category index " + index + " out of bounds");
+        }
+        return baseARTA.getCategory(index);
+    }
+
+    @Override
+    public List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return baseARTA.getCategories();
+    }
+
+    @Override
+    public void clear() {
+        baseARTA.clear();
     }
     
-    /**
-     * Typed prediction method for better API experience.
-     */
-    public PredictResult predictTyped(Pattern input, VectorizedARTAParameters parameters) {
-        return (PredictResult) predict(input, parameters);
-    }
     
     /**
      * Get the input dimension for this attention-based network.
@@ -411,4 +405,5 @@ public class VectorizedARTA implements VectorizedARTAlgorithm<VectorizedARTA.Per
             );
         }
     }
+
 }

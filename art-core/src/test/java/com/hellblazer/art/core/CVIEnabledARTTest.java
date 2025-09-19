@@ -372,5 +372,10 @@ public class CVIEnabledARTTest {
             }
             return new CVIEnabledART.SimpleWeight(values);
         }
+
+        @Override
+        public void close() {
+            // No resources to close in test implementation
+        }
     }
 }

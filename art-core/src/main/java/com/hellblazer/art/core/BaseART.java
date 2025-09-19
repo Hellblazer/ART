@@ -12,8 +12,10 @@ import java.util.Objects;
  * Abstract base class implementing the template method pattern for ART algorithms.
  * Provides the common ART algorithm structure while allowing specific implementations
  * to customize activation, vigilance, and learning behaviors.
+ * 
+ * @param <P> the type of parameters used by this ART algorithm
  */
-public abstract class BaseART {
+public abstract class BaseART<P> implements ARTAlgorithm<P> {
     
     protected final List<WeightVector> categories;
     protected final List<Long> categoryUsageCount;
@@ -58,7 +60,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the result of the activation process
      */
-    public final ActivationResult stepFit(Pattern input, Object parameters) {
+    public final ActivationResult stepFit(Pattern input, P parameters) {
         return stepFit(input, parameters, null, MatchTrackingMode.MT_PLUS, 0.0);
     }
 
@@ -70,8 +72,34 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the result of the activation process
      */
-    public final ActivationResult stepFitEnhanced(Pattern input, Object parameters) {
+    public final ActivationResult stepFitEnhanced(Pattern input, P parameters) {
         return stepFit(input, parameters);
+    }
+    
+    /**
+     * Train the network with a single pattern (modern API).
+     * This is an alias for stepFit() to match the ARTAlgorithm interface.
+     * 
+     * @param input the input pattern to learn
+     * @param parameters the algorithm-specific parameters
+     * @return the result of the learning step
+     */
+    @Override
+    public final ActivationResult learn(Pattern input, P parameters) {
+        return stepFit(input, parameters);
+    }
+    
+    /**
+     * Predict the category for a pattern (modern API).
+     * This is an alias for stepPredict() to match the ARTAlgorithm interface.
+     * 
+     * @param input the input pattern to classify
+     * @param parameters the algorithm-specific parameters  
+     * @return the prediction result
+     */
+    @Override
+    public final ActivationResult predict(Pattern input, P parameters) {
+        return stepPredict(input, parameters);
     }
 
     /**
@@ -86,7 +114,7 @@ public abstract class BaseART {
      */
     public final ActivationResult stepFit(
             Pattern input, 
-            Object parameters, 
+            P parameters, 
             MatchResetFunction matchResetFunc,
             MatchTrackingMode matchTracking,
             double epsilon) {
@@ -243,7 +271,7 @@ public abstract class BaseART {
      * Calculate activation with caching support.
      */
     protected ActivationWithCache calculateActivationWithCache(
-            Pattern input, WeightVector weight, Object parameters) {
+            Pattern input, WeightVector weight, P parameters) {
         double activation = calculateActivation(input, weight, parameters);
         var cache = ActivationCache.empty(getAlgorithmName());
         return new ActivationWithCache(activation, cache);
@@ -253,7 +281,7 @@ public abstract class BaseART {
      * Check vigilance with caching and match tracking operator.
      */
     protected VigilanceWithCache checkVigilanceWithCache(
-            Pattern input, WeightVector weight, Object parameters, 
+            Pattern input, WeightVector weight, P parameters, 
             ActivationCache cache, java.util.function.BinaryOperator<Double> mtOperator) {
         var result = checkVigilance(input, weight, parameters);
         return new VigilanceWithCache(result, cache);
@@ -263,7 +291,7 @@ public abstract class BaseART {
      * Update weights with caching support.
      */
     protected WeightVector updateWeightsWithCache(
-            Pattern input, WeightVector currentWeight, Object parameters, ActivationCache cache) {
+            Pattern input, WeightVector currentWeight, P parameters, ActivationCache cache) {
         return updateWeights(input, currentWeight, parameters);
     }
     
@@ -272,7 +300,7 @@ public abstract class BaseART {
     /**
      * Create a deep copy of parameters for restoration after match tracking.
      */
-    protected Object deepCopyParams(Object parameters) {
+    protected P deepCopyParams(P parameters) {
         // Default implementation returns the same object (assuming immutable)
         // Subclasses should override if parameters are mutable
         return parameters;
@@ -281,7 +309,7 @@ public abstract class BaseART {
     /**
      * Restore parameters from a saved copy.
      */
-    protected void restoreParams(Object savedParams, Object currentParams) {
+    protected void restoreParams(P savedParams, P currentParams) {
         // Default implementation does nothing (assuming immutable parameters)
         // Subclasses should override if parameters are mutable
     }
@@ -290,7 +318,7 @@ public abstract class BaseART {
      * Apply match tracking logic.
      */
     protected boolean applyMatchTracking(
-            ActivationCache cache, double epsilon, Object parameters, MatchTrackingMode mode) {
+            ActivationCache cache, double epsilon, P parameters, MatchTrackingMode mode) {
         // Default implementation: always continue searching
         // Subclasses can override for specific match tracking behavior
         return true;
@@ -315,7 +343,7 @@ public abstract class BaseART {
      * @return the activation value (higher means better match)
      * @throws IndexOutOfBoundsException if categoryIndex is invalid
      */
-    public double getActivationValue(Pattern input, int categoryIndex, Object parameters) {
+    public double getActivationValue(Pattern input, int categoryIndex, P parameters) {
         if (categoryIndex < 0 || categoryIndex >= categories.size()) {
             throw new IndexOutOfBoundsException("Category index " + categoryIndex + 
                 " out of bounds for " + categories.size() + " categories");
@@ -332,7 +360,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the activation value for this category
      */
-    protected abstract double calculateActivation(Pattern input, WeightVector weight, Object parameters);
+    protected abstract double calculateActivation(Pattern input, WeightVector weight, P parameters);
     
     /**
      * Test whether the input matches the category well enough according to vigilance.
@@ -343,7 +371,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the match result (accepted or rejected)
      */
-    protected abstract MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters);
+    protected abstract MatchResult checkVigilance(Pattern input, WeightVector weight, P parameters);
     
     /**
      * Update the category weight based on the input using the learning rule.
@@ -354,7 +382,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the updated weight vector
      */
-    protected abstract WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters);
+    protected abstract WeightVector updateWeights(Pattern input, WeightVector currentWeight, P parameters);
     
     /**
      * Create an initial weight vector for a new category based on the input.
@@ -364,7 +392,7 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the initial weight vector for the new category
      */
-    protected abstract WeightVector createInitialWeight(Pattern input, Object parameters);
+    protected abstract WeightVector createInitialWeight(Pattern input, P parameters);
     
     /**
      * Find the winner among categories using winner-take-all competition.
@@ -446,7 +474,10 @@ public abstract class BaseART {
      * @param parameters the algorithm parameters
      * @return the prediction result
      */
-    public final ActivationResult stepPredict(Pattern input, Object parameters) {
+    public final ActivationResult stepPredict(Pattern input, P parameters) {
+        Objects.requireNonNull(input, "Input vector cannot be null");
+        Objects.requireNonNull(parameters, "Parameters cannot be null");
+        
         if (categories.isEmpty()) {
             return ActivationResult.NoMatch.instance();
         }

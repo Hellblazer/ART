@@ -100,7 +100,7 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedFusionARTParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedFusionARTParameters parameters) {
         if (isClosed) {
             throw new IllegalStateException("VectorizedFusionART has been closed");
         }
@@ -130,15 +130,8 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
             simdOperations.addAndGet(estimateSimdOperations(input.dimension(), params.getNumChannels()));
             
             // Return training result
-            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
-                return new TrainResult.Success(success.categoryIndex(), success.activationValue());
-            } else if (result instanceof com.hellblazer.art.core.results.ActivationResult.NoMatch) {
-                // Create new category (this is normal behavior for ART when no match is found)
-                var newCategoryIndex = baseFusionART.getCategoryCount();
-                return new TrainResult.NewCategory(newCategoryIndex, 1.0);
-            } else {
-                return new TrainResult.Failed("Learning failed");
-            }
+            // Return the ActivationResult directly
+            return result;
             
         } finally {
             totalProcessingTime.addAndGet(System.nanoTime() - startTime);
@@ -146,7 +139,7 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedFusionARTParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedFusionARTParameters parameters) {
         if (isClosed) {
             throw new IllegalStateException("VectorizedFusionART has been closed");
         }
@@ -174,31 +167,14 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
             
             simdOperations.addAndGet(estimateSimdOperations(input.dimension(), params.getNumChannels()));
             
-            // Return prediction result
-            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
-                return new PredictResult.Success(success.categoryIndex(), success.activationValue());
-            } else {
-                return new PredictResult.NoMatch("No matching category found");
-            }
+            // Return the ActivationResult directly
+            return result;
             
         } finally {
             totalProcessingTime.addAndGet(System.nanoTime() - startTime);
         }
     }
     
-    /**
-     * Typed learning method for better API experience.
-     */
-    public TrainResult learnTyped(Pattern input, VectorizedFusionARTParameters parameters) {
-        return (TrainResult) learn(input, parameters);
-    }
-    
-    /**
-     * Typed prediction method for better API experience.
-     */
-    public PredictResult predictTyped(Pattern input, VectorizedFusionARTParameters parameters) {
-        return (PredictResult) predict(input, parameters);
-    }
     
     @Override
     public int getCategoryCount() {
@@ -415,5 +391,20 @@ public class VectorizedFusionART implements VectorizedARTAlgorithm<VectorizedFus
                 getChannelUtilization()
             );
         }
+    }
+
+    @Override
+    public void clear() {
+        baseFusionART.clear();
+    }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        return baseFusionART.getCategory(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return baseFusionART.getCategories();
     }
 }

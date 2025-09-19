@@ -73,7 +73,7 @@ public final class VectorizedBinaryFuzzyART extends AbstractVectorizedFuzzyART {
     
     // === VectorizedARTAlgorithm Implementation ===
     
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedLearning(Pattern input, VectorizedParameters parameters) {
         // Handle null input gracefully
         if (input == null) {
@@ -97,7 +97,7 @@ public final class VectorizedBinaryFuzzyART extends AbstractVectorizedFuzzyART {
         return result;
     }
     
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedPrediction(Pattern input, VectorizedParameters parameters) {
         // Handle null input gracefully
         if (input == null) {

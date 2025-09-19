@@ -63,7 +63,7 @@ public class VectorizedFuzzyART extends AbstractVectorizedFuzzyART {
     // === VectorizedARTAlgorithm Implementation ===
     // These methods are called by the base class learn() and predict() methods
     
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedLearning(Pattern input, VectorizedParameters parameters) {
         // Use parallel processing for large category sets
         if (getCategoryCount() > parameters.parallelThreshold()) {
@@ -122,7 +122,7 @@ public class VectorizedFuzzyART extends AbstractVectorizedFuzzyART {
                                  com.hellblazer.art.core.WeightVector weight, 
                                  boolean accepted) {}
     
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedPrediction(Pattern input, VectorizedParameters parameters) {
         // For prediction, find best matching category without learning
         if (getCategoryCount() == 0) {
@@ -160,7 +160,7 @@ public class VectorizedFuzzyART extends AbstractVectorizedFuzzyART {
      * Enhanced stepFit with performance optimizations and parallel processing.
      * This method provides the same interface as other vectorized ART implementations.
      */
-    public ActivationResult stepFitEnhanced(Pattern input, VectorizedParameters params) {
+    public ActivationResult stepFitEnhancedVectorized(Pattern input, VectorizedParameters params) {
         if (input == null) {
             input = Pattern.of(0.5, 0.5, 0.5, 0.5); // Default pattern
         }

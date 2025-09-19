@@ -208,10 +208,10 @@ class VectorizedSalienceARTTest {
             Pattern.of(0.7, 0.8, 0.9)
         };
         
-        var results = art.learnBatch(patterns, parameters);
+        var results = art.learnBatch(java.util.Arrays.asList(patterns), parameters);
         
         assertNotNull(results);
-        assertEquals(patterns.length, results.length);
+        assertEquals(patterns.length, results.size());
         assertTrue(art.getCategoryCount() > 0);
     }
     
@@ -227,10 +227,10 @@ class VectorizedSalienceARTTest {
             Pattern.of(0.71, 0.81, 0.91)
         };
         
-        var results = art.predictBatch(patterns, parameters);
+        var results = art.predictBatch(java.util.Arrays.asList(patterns), parameters);
         
         assertNotNull(results);
-        assertEquals(patterns.length, results.length);
+        assertEquals(patterns.length, results.size());
     }
     
     @Test
