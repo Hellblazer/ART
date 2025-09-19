@@ -92,42 +92,6 @@ public class VATTest {
     }
     
     /**
-     * Test VAT performance compared to expected Python performance.
-     */
-    @Test
-    @Timeout(value = 10, unit = TimeUnit.SECONDS)
-    @org.junit.jupiter.api.Disabled("Flaky on CI - performance varies by environment")
-    void testVATPerformance() {
-        int[] sizes = {50, 100, 200, 300};
-        
-        for (int n : sizes) {
-            var data = createRandomData(new Random(42), n, 3);
-            
-            long startTime = System.nanoTime();
-            var result = VAT.compute(data);
-            long duration = System.nanoTime() - startTime;
-            
-            double timeMs = duration / 1_000_000.0;
-            double expectedPythonTime = estimatePythonVATTime(n);
-            double speedup = expectedPythonTime / timeMs;
-            
-            System.out.printf("VAT n=%d: %.3f ms (est. Python: %.3f ms, speedup: %.1fx)%n", 
-                n, timeMs, expectedPythonTime, speedup);
-            
-            // Verify reasonable performance bounds
-            assertTrue(timeMs < getMaxExpectedTime(n), 
-                String.format("Performance too slow for n=%d: %.3f ms", n, timeMs));
-            
-            // Should be significantly faster than estimated Python time
-            assertTrue(speedup > 2.0, 
-                String.format("Should be >2x faster than Python for n=%d, got %.1fx", n, speedup));
-            
-            assertNotNull(result);
-            assertEquals(n, result.getSize());
-        }
-    }
-    
-    /**
      * Test VAT with perfect clusters should show clear structure.
      */
     @Test
@@ -320,17 +284,6 @@ public class VATTest {
             data[i] = new double[]{0.7 + random.nextGaussian() * 0.1, 0.3 + random.nextGaussian() * 0.1};
         }
         return data;
-    }
-    
-    private double estimatePythonVATTime(int n) {
-        // Conservative estimates based on Python O(n²) complexity
-        // These are rough estimates - actual Python times vary significantly
-        return Math.max(1.0, 0.001 * n * n); // Minimum 1ms, scales quadratically
-    }
-    
-    private double getMaxExpectedTime(int n) {
-        // Conservative maximum expected times for Java implementation
-        return Math.max(10.0, 0.0005 * n * n); // Should be faster than Python
     }
     
     private long timeVATComputation(Runnable computation) {
