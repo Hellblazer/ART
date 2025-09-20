@@ -2,6 +2,7 @@ package com.hellblazer.art.core.algorithms;
 
 import com.hellblazer.art.core.parameters.FuzzyParameters;
 import com.hellblazer.art.core.parameters.MutableFuzzyParameters;
+import com.hellblazer.art.core.parameters.FuzzyParameterProvider;
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.WeightVector;
@@ -30,7 +31,7 @@ import java.util.Objects;
  * @see FuzzyWeight for complement-coded weight vectors
  * @see FuzzyParameters for algorithm parameters (ρ, α, β)
  */
-public final class FuzzyART extends BaseART {
+public final class FuzzyART extends BaseART<FuzzyParameterProvider> {
     
     /**
      * Create a new FuzzyART network with no initial categories.
@@ -58,21 +59,12 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, FuzzyParameterProvider parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        // Support both mutable and immutable parameters
-        double alpha;
-        if (parameters instanceof FuzzyParameters fuzzyParams) {
-            alpha = fuzzyParams.alpha();
-        } else if (parameters instanceof MutableFuzzyParameters mutableParams) {
-            alpha = mutableParams.alpha();
-        } else {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
+        double alpha = parameters.alpha();
         
         if (!(weight instanceof FuzzyWeight fuzzyWeight)) {
             throw new IllegalArgumentException("Weight vector must be FuzzyWeight, got: " + 
@@ -118,21 +110,12 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, FuzzyParameterProvider parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        // Support both mutable and immutable parameters
-        double vigilance;
-        if (parameters instanceof FuzzyParameters fuzzyParams) {
-            vigilance = fuzzyParams.vigilance();
-        } else if (parameters instanceof MutableFuzzyParameters mutableParams) {
-            vigilance = mutableParams.vigilance();
-        } else {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
+        double vigilance = parameters.vigilance();
         
         if (!(weight instanceof FuzzyWeight fuzzyWeight)) {
             throw new IllegalArgumentException("Weight vector must be FuzzyWeight, got: " + 
@@ -187,16 +170,12 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if any parameter is null
      */
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, FuzzyParameterProvider parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        // Accept both mutable and immutable parameters for update
-        if (!(parameters instanceof FuzzyParameters) && !(parameters instanceof MutableFuzzyParameters)) {
-            throw new IllegalArgumentException("Parameters must be FuzzyParameters or MutableFuzzyParameters, got: " + 
-                parameters.getClass().getSimpleName());
-        }
+        // Parameters are now type-safe via generics
         
         if (!(currentWeight instanceof FuzzyWeight)) {
             throw new IllegalArgumentException("Weight vector must be FuzzyWeight, got: " + 
@@ -226,7 +205,7 @@ public final class FuzzyART extends BaseART {
      * @throws NullPointerException if input is null
      */
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, FuzzyParameterProvider parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         // parameters can be null for initial weight creation
         
@@ -248,7 +227,7 @@ public final class FuzzyART extends BaseART {
      */
     @Override
     protected VigilanceWithCache checkVigilanceWithCache(
-            Pattern input, WeightVector weight, Object parameters, 
+            Pattern input, WeightVector weight, FuzzyParameterProvider parameters, 
             ActivationCache cache, java.util.function.BinaryOperator<Double> mtOperator) {
         
         var result = checkVigilance(input, weight, parameters);
@@ -281,7 +260,7 @@ public final class FuzzyART extends BaseART {
      * Create a deep copy of parameters for match tracking.
      */
     @Override
-    protected Object deepCopyParams(Object parameters) {
+    protected FuzzyParameterProvider deepCopyParams(FuzzyParameterProvider parameters) {
         if (parameters instanceof FuzzyParameters fuzzyParams) {
             // Create mutable copy for match tracking
             return new MutableFuzzyParameters(fuzzyParams);
@@ -296,7 +275,7 @@ public final class FuzzyART extends BaseART {
      * Restore parameters from saved copy.
      */
     @Override
-    protected void restoreParams(Object savedParams, Object currentParams) {
+    protected void restoreParams(FuzzyParameterProvider savedParams, FuzzyParameterProvider currentParams) {
         // Restore mutable parameters from saved copy
         if (currentParams instanceof MutableFuzzyParameters current && 
             savedParams instanceof MutableFuzzyParameters saved) {
@@ -316,7 +295,7 @@ public final class FuzzyART extends BaseART {
      */
     @Override
     protected boolean applyMatchTracking(
-            ActivationCache cache, double epsilon, Object parameters, MatchTrackingMode mode) {
+            ActivationCache cache, double epsilon, FuzzyParameterProvider parameters, MatchTrackingMode mode) {
         
         // Support both mutable and immutable parameters
         if (parameters instanceof MutableFuzzyParameters mutableParams) {
@@ -370,5 +349,10 @@ public final class FuzzyART extends BaseART {
         
         // Should not reach here - immutable parameters should have been converted to mutable
         return true;
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

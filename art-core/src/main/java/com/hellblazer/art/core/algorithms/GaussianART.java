@@ -206,4 +206,9 @@ public final class GaussianART extends AbstractStatisticalART<GaussianParameters
     public String toString() {
         return "GaussianART{categories=" + getCategoryCount() + "}";
     }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
+    }
 }

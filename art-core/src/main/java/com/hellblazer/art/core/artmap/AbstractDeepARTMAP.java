@@ -45,7 +45,7 @@ import java.util.List;
  * 
  * @author Hal Hildebrand
  */
-public abstract class AbstractDeepARTMAP extends BaseART implements ScikitClusterer<DeepARTMAPResult> {
+public abstract class AbstractDeepARTMAP extends BaseART<DeepARTMAPParameters> implements ScikitClusterer<DeepARTMAPResult> {
     
     protected final List<BaseART> modules;
     protected final List<BaseARTMAP> layers;

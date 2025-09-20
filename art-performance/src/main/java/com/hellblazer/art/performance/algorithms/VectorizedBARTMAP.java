@@ -25,6 +25,7 @@ public class VectorizedBARTMAP implements VectorizedARTAlgorithm<VectorizedBARTM
     private double[][] dataMatrix;
     private int nRows;
     private int nCols;
+    private final List<com.hellblazer.art.core.WeightVector> categories = new ArrayList<>();
     
     // Performance tracking
     private final AtomicLong simdOperations;
@@ -143,7 +144,7 @@ public class VectorizedBARTMAP implements VectorizedARTAlgorithm<VectorizedBARTM
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedBARTMAPParameters params) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedBARTMAPParameters params) {
         // Convert pattern to matrix row and fit
         double[] data = new double[input.dimension()];
         for (int i = 0; i < input.dimension(); i++) {
@@ -151,23 +152,27 @@ public class VectorizedBARTMAP implements VectorizedARTAlgorithm<VectorizedBARTM
         }
         double[][] matrix = {data};
         fitMatrix(matrix, params);
-        return bartmap.getRowLabels()[0];
+        int label = bartmap.getRowLabels()[0];
+        return new com.hellblazer.art.core.results.ActivationResult.Success(label, 1.0, null);
     }
     
     public int predict(double[] input) {
         var result = predict(Pattern.of(input), defaultParams);
-        return result instanceof Integer ? (Integer) result : -1;
+        if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+            return success.categoryIndex();
+        }
+        return -1;
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedBARTMAPParameters params) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedBARTMAPParameters params) {
         lock.readLock().lock();
         try {
             totalOperations.incrementAndGet();
             
             // For prediction, find the best matching row cluster
             if (dataMatrix == null || nRows == 0) {
-                return -1;  // Model not fitted yet
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();  // Model not fitted yet
             }
             
             // Convert pattern to array
@@ -193,8 +198,12 @@ public class VectorizedBARTMAP implements VectorizedARTAlgorithm<VectorizedBARTM
             
             // Track SIMD operations
             simdOperations.addAndGet(input.dimension() * nRows);
-            
-            return bestCluster;
+
+            if (bestCluster >= 0) {
+                return new com.hellblazer.art.core.results.ActivationResult.Success(bestCluster, bestCorrelation, null);
+            } else {
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+            }
             
         } finally {
             lock.readLock().unlock();
@@ -433,5 +442,23 @@ public class VectorizedBARTMAP implements VectorizedARTAlgorithm<VectorizedBARTM
                            stats.numBiclusters(), stats.avgBiclusterCoherence(),
                            stats.correlationCalculations(),
                            stats.rowClusteringOps(), stats.columnClusteringOps());
+    }
+
+    @Override
+    public void clear() {
+        categories.clear();
+    }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index " + index + " out of bounds");
+        }
+        return categories.get(index);
+    }
+
+    @Override
+    public List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return new ArrayList<>(categories);
     }
 }

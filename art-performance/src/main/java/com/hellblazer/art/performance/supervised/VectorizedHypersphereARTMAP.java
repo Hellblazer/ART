@@ -143,12 +143,12 @@ public class VectorizedHypersphereARTMAP implements VectorizedARTAlgorithm<Vecto
     // VectorizedARTAlgorithm interface implementation
     
     @Override
-    public Object learn(Pattern input, VectorizedHypersphereARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedHypersphereARTMAPParameters parameters) {
         throw new UnsupportedOperationException("HypersphereARTMAP requires both input and label. Use train(Pattern, int) instead.");
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedHypersphereARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedHypersphereARTMAPParameters parameters) {
         ensureNotClosed();
         Objects.requireNonNull(input, "input cannot be null");
         Objects.requireNonNull(parameters, "parameters cannot be null");
@@ -163,8 +163,14 @@ public class VectorizedHypersphereARTMAP implements VectorizedARTAlgorithm<Vecto
                 data[i] = input.get(i);
             }
             int result = baseHypersphereARTMAP.predict(data);
-            
-            return result;
+
+            if (result >= 0) {
+                // Create a dummy weight vector since we can't return null
+                var dummyWeight = new com.hellblazer.art.core.algorithms.SimpleWeight(new double[input.dimension()]);
+                return new com.hellblazer.art.core.results.ActivationResult.Success(result, 1.0, dummyWeight);
+            } else {
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+            }
         } finally {
             var elapsedTime = (System.nanoTime() - startTime) / 1_000_000.0; // ms
             lock.writeLock().lock();
@@ -374,7 +380,12 @@ public class VectorizedHypersphereARTMAP implements VectorizedARTAlgorithm<Vecto
         
         var predictions = new int[data.length];
         for (int i = 0; i < data.length; i++) {
-            predictions[i] = (Integer) predict(data[i], vectorizedParams);
+            var result = predict(data[i], vectorizedParams);
+            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+                predictions[i] = success.categoryIndex();
+            } else {
+                predictions[i] = -1;
+            }
         }
         return predictions;
     }
@@ -476,4 +487,15 @@ public class VectorizedHypersphereARTMAP implements VectorizedARTAlgorithm<Vecto
             lock.writeLock().unlock();
         }
     }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        return vectorizedHypersphereART.getCategory(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return vectorizedHypersphereART.getCategories();
+    }
+
 }

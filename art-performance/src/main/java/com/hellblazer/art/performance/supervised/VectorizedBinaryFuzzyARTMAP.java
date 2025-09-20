@@ -150,12 +150,12 @@ public class VectorizedBinaryFuzzyARTMAP implements VectorizedARTAlgorithm<Vecto
     // VectorizedARTAlgorithm interface implementation
     
     @Override
-    public Object learn(Pattern input, VectorizedBinaryFuzzyARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedBinaryFuzzyARTMAPParameters parameters) {
         throw new UnsupportedOperationException("BinaryFuzzyARTMAP requires both input and label. Use train(Pattern, int) instead.");
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedBinaryFuzzyARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedBinaryFuzzyARTMAPParameters parameters) {
         ensureNotClosed();
         Objects.requireNonNull(input, "input cannot be null");
         Objects.requireNonNull(parameters, "parameters cannot be null");
@@ -183,8 +183,13 @@ public class VectorizedBinaryFuzzyARTMAP implements VectorizedARTAlgorithm<Vecto
             
             // Use the base BinaryFuzzyARTMAP for prediction
             int result = baseBinaryFuzzyARTMAP.predict(processedData);
-            
-            return result;
+
+            // Convert to ActivationResult
+            if (result >= 0) {
+                return new com.hellblazer.art.core.results.ActivationResult.Success(result, 1.0, null);
+            } else {
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+            }
         } finally {
             var elapsedTime = (System.nanoTime() - startTime) / 1_000_000.0; // ms
             lock.writeLock().lock();
@@ -204,6 +209,16 @@ public class VectorizedBinaryFuzzyARTMAP implements VectorizedARTAlgorithm<Vecto
     @Override
     public int getCategoryCount() {
         return vectorizedBinaryFuzzyART.getCategoryCount();
+    }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        return vectorizedBinaryFuzzyART.getCategory(index);
+    }
+
+    @Override
+    public List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return vectorizedBinaryFuzzyART.getCategories();
     }
     
     @Override
@@ -412,7 +427,12 @@ public class VectorizedBinaryFuzzyARTMAP implements VectorizedARTAlgorithm<Vecto
         
         var predictions = new int[data.length];
         for (int i = 0; i < data.length; i++) {
-            predictions[i] = (Integer) predict(data[i], vectorizedParams);
+            var result = predict(data[i], vectorizedParams);
+            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+                predictions[i] = success.categoryIndex();
+            } else {
+                predictions[i] = -1;
+            }
         }
         return predictions;
     }

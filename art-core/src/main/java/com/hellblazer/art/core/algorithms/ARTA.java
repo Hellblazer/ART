@@ -30,7 +30,7 @@ import java.util.Objects;
  * 3. Joint learning of category weights and attention weights
  * 4. Attention weight evolution based on discriminative features
  */
-public final class ARTA extends BaseART {
+public final class ARTA extends BaseART<ARTAParameters> {
     
     /**
      * Create a new ART-A instance with no initial categories.
@@ -48,7 +48,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, ARTAParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null"); 
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -56,9 +56,7 @@ public final class ARTA extends BaseART {
         if (!(weight instanceof ARTAWeight artaWeight)) {
             throw new IllegalArgumentException("Weight must be ARTAWeight, got: " + weight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTAParameters artaParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTAParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artaParams = parameters;
         
         // Validate dimensions
         if (input.dimension() != artaWeight.dimension()) {
@@ -92,7 +90,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, ARTAParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(weight, "Weight vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -100,9 +98,7 @@ public final class ARTA extends BaseART {
         if (!(weight instanceof ARTAWeight artaWeight)) {
             throw new IllegalArgumentException("Weight must be ARTAWeight, got: " + weight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTAParameters artaParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTAParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artaParams = parameters;
         
         var categoryWeights = artaWeight.getCategoryWeights();
         var attentionWeights = artaWeight.getAttentionWeights();
@@ -143,7 +139,7 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, ARTAParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
@@ -151,9 +147,7 @@ public final class ARTA extends BaseART {
         if (!(currentWeight instanceof ARTAWeight artaWeight)) {
             throw new IllegalArgumentException("Weight must be ARTAWeight, got: " + currentWeight.getClass().getSimpleName());
         }
-        if (!(parameters instanceof ARTAParameters artaParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTAParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artaParams = parameters;
         
         var currentCategoryWeights = artaWeight.getCategoryWeights();
         var currentAttentionWeights = artaWeight.getAttentionWeights();
@@ -175,13 +169,11 @@ public final class ARTA extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, ARTAParameters parameters) {
         Objects.requireNonNull(input, "Input vector cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof ARTAParameters artaParams)) {
-            throw new IllegalArgumentException("Parameters must be ARTAParameters, got: " + parameters.getClass().getSimpleName());
-        }
+        var artaParams = parameters;
         
         // Initialize category weights to input (complement coded)
         var categoryWeights = new double[input.dimension()];
@@ -370,5 +362,10 @@ public final class ARTA extends BaseART {
             
             return sb.toString();
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

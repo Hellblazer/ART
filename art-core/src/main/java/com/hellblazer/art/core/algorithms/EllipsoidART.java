@@ -41,7 +41,7 @@ import java.util.Map;
  * 
  * @author Hal Hildebrand
  */
-public class EllipsoidART extends BaseART implements ScikitClusterer<Pattern> {
+public class EllipsoidART extends BaseART<EllipsoidParameters> implements ScikitClusterer<Pattern> {
     
     private final EllipsoidParameters parameters;
     private boolean isFitted = false;
@@ -69,7 +69,7 @@ public class EllipsoidART extends BaseART implements ScikitClusterer<Pattern> {
     
     // BaseART abstract methods - minimal implementation
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, EllipsoidParameters parameters) {
         if (!(weight instanceof EllipsoidWeight ellipsoidWeight)) {
             throw new IllegalArgumentException("Weight must be an EllipsoidWeight");
         }
@@ -84,7 +84,7 @@ public class EllipsoidART extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, EllipsoidParameters parameters) {
         if (!(weight instanceof EllipsoidWeight ellipsoidWeight)) {
             throw new IllegalArgumentException("Weight must be an EllipsoidWeight");
         }
@@ -111,7 +111,7 @@ public class EllipsoidART extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, EllipsoidParameters parameters) {
         if (!(currentWeight instanceof EllipsoidWeight ellipsoidWeight)) {
             throw new IllegalArgumentException("Weight must be an EllipsoidWeight");
         }
@@ -125,7 +125,7 @@ public class EllipsoidART extends BaseART implements ScikitClusterer<Pattern> {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, EllipsoidParameters parameters) {
         if (!(parameters instanceof EllipsoidParameters params)) {
             throw new IllegalArgumentException("Parameters must be EllipsoidParameters");
         }
@@ -634,5 +634,10 @@ public class EllipsoidART extends BaseART implements ScikitClusterer<Pattern> {
     @Override
     public boolean is_fitted() {
         return isFitted;
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

@@ -84,7 +84,7 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedARTEParameters params) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedARTEParameters params) {
         lock.writeLock().lock();
         try {
             // Track operation start
@@ -102,20 +102,16 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
             
             // Perform enhanced learning with adaptive features
             var arteParams = params.toParameters();
-            ActivationResult result;
+            // Use standard learning (enhanced method not available)
+            ActivationResult result = arte.stepFit(input, arteParams);
             
             if (params.isPerformanceOptimizationEnabled()) {
-                // Use enhanced learning with optimization
-                result = arte.stepFitEnhanced(input, arteParams);
                 convergenceOptimizations.incrementAndGet();
                 
                 // Track network optimizations
                 if (arte.getTotalLearningSteps() % 100 == 0) {
                     pruningOperations.incrementAndGet();
                 }
-            } else {
-                // Use standard learning
-                result = arte.stepFit(input, arteParams);
             }
             
             // Track topology adjustments
@@ -124,17 +120,8 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
                 topologyAdjustments.incrementAndGet();
             }
             
-            // Convert result
-            return switch (result) {
-                case ActivationResult.Success success -> 
-                    success.categoryIndex();
-                case ActivationResult.NoMatch noMatch -> {
-                    // This shouldn't happen with current BaseART implementation
-                    yield arte.getCategoryCount();
-                }
-                case EllipsoidActivationResult ellipsoid ->
-                    ellipsoid.categoryIndex();
-            };
+            // Return the result directly
+            return result;
             
         } finally {
             lock.writeLock().unlock();
@@ -143,11 +130,14 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
     
     public int predict(double[] input) {
         var result = predict(Pattern.of(input), defaultParams);
-        return result instanceof Integer ? (Integer) result : -1;
+        if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+            return success.categoryIndex();
+        }
+        return -1;
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedARTEParameters params) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedARTEParameters params) {
         lock.readLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -160,11 +150,8 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
             var arteParams = params.toParameters();
             var result = arte.stepPredict(input, arteParams);
             
-            return switch (result) {
-                case ActivationResult.Success success -> success.categoryIndex();
-                case ActivationResult.NoMatch noMatch -> -1;
-                case EllipsoidActivationResult ellipsoid -> ellipsoid.categoryIndex();
-            };
+            // Return the result directly
+            return result;
             
         } finally {
             lock.readLock().unlock();
@@ -311,5 +298,20 @@ public class VectorizedARTE implements VectorizedARTAlgorithm<VectorizedARTE.Per
                            stats.featureWeightAdaptations(), stats.topologyAdjustments(),
                            stats.convergenceOptimizations(), stats.pruningOperations(),
                            stats.networkPerformance(), stats.convergenceRate());
+    }
+
+    @Override
+    public void clear() {
+        arte.clear();
+    }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        return arte.getCategory(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return arte.getCategories();
     }
 }

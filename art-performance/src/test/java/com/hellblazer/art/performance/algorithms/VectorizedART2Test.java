@@ -2,8 +2,7 @@ package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.core.results.ActivationResult;
-import com.hellblazer.art.performance.algorithms.VectorizedPerformanceStats;
-import org.junit.jupiter.api.AfterEach;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,28 +21,46 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Vectorization optimizations
  * - Performance tracking
  */
-class VectorizedART2Test {
+class VectorizedART2Test extends BaseVectorizedARTTest<VectorizedART2, VectorizedART2Parameters> {
     
-    private VectorizedART2Parameters params;
-    private VectorizedART2 algorithm;
+    @Override
+    protected VectorizedART2 createAlgorithm(VectorizedART2Parameters params) {
+        return new VectorizedART2(params);
+    }
     
-    @BeforeEach
-    void setUp() {
-        params = new VectorizedART2Parameters(
+    @Override
+    protected VectorizedART2Parameters createDefaultParameters() {
+        return new VectorizedART2Parameters(
             0.75,    // vigilance
             0.1,     // theta (contrast enhancement)
             0.001,   // epsilon (noise suppression)
             2,       // parallelismLevel
             true     // enableSIMD
         );
-        algorithm = new VectorizedART2(params);
     }
     
-    @AfterEach
-    void tearDown() {
-        if (algorithm != null) {
-            algorithm.close();
-        }
+    @BeforeEach
+    protected void setUp() {
+        parameters = new VectorizedART2Parameters(
+            0.75,    // vigilance
+            0.1,     // theta (contrast enhancement)
+            0.001,   // epsilon (noise suppression)
+            2,       // parallelismLevel
+            true     // enableSIMD
+        );
+        algorithm = new VectorizedART2(parameters);
+        super.setUp();
+    }
+    
+    @Override
+    protected VectorizedART2Parameters createParametersWithVigilance(double vigilance) {
+        return new VectorizedART2Parameters(
+            vigilance,
+            0.1,     // theta (contrast enhancement)
+            0.001,   // epsilon (noise suppression)
+            2,       // parallelismLevel
+            true     // enableSIMD
+        );
     }
     
     @Test
@@ -74,51 +91,10 @@ class VectorizedART2Test {
             () -> new VectorizedART2Parameters(0.5, 0.1, 0.001, 0, true));
     }
     
-    @Test
-    void testBasicLearning() {
-        var input1 = Pattern.of(0.8, 0.2, 0.5, 0.9);
-        var result = algorithm.learn(input1, params);
-        
-        assertInstanceOf(ActivationResult.Success.class, result);
-        var success = (ActivationResult.Success) result;
-        assertEquals(0, success.categoryIndex()); // First category
-        assertEquals(1, algorithm.getCategoryCount());
-    }
-    
-    @Test
-    void testMultiplePatternLearning() {
-        var input1 = Pattern.of(0.8, 0.2, 0.5, 0.9);
-        var input2 = Pattern.of(0.1, 0.9, 0.3, 0.7);
-        var input3 = Pattern.of(0.85, 0.15, 0.55, 0.95); // Similar to input1
-        
-        // Learn first pattern
-        var result1 = algorithm.learn(input1, params);
-        assertInstanceOf(ActivationResult.Success.class, result1);
-        assertEquals(1, algorithm.getCategoryCount());
-        
-        // Learn second pattern (should create new category due to vigilance)
-        var result2 = algorithm.learn(input2, params);
-        assertInstanceOf(ActivationResult.Success.class, result2);
-        assertTrue(algorithm.getCategoryCount() >= 1);
-        
-        // Learn similar pattern (should match existing or create new depending on vigilance)
-        var result3 = algorithm.learn(input3, params);
-        assertInstanceOf(ActivationResult.Success.class, result3);
-    }
-    
-    @Test
-    void testPrediction() {
-        var input1 = Pattern.of(0.8, 0.2, 0.5, 0.9);
-        
-        // First learn a pattern
-        algorithm.learn(input1, params);
-        
-        // Then predict on same pattern
-        var prediction = algorithm.predict(input1, params);
-        assertInstanceOf(ActivationResult.Success.class, prediction);
-        var success = (ActivationResult.Success) prediction;
-        assertEquals(0, success.categoryIndex());
-    }
+    // The following tests are covered by base class:
+    // - testBasicLearning()
+    // - testMultiplePatternLearning()
+    // - testPrediction()
     
     @Test
     void testContrastEnhancement() {
@@ -221,67 +197,23 @@ class VectorizedART2Test {
         }
     }
     
-    @Test
-    void testPerformanceTracking() {
-        var input = Pattern.of(0.8, 0.2, 0.5, 0.9);
-        
-        // Initial stats should be clean
-        var initialStats = algorithm.getPerformanceStats();
-        assertEquals(0, initialStats.totalVectorOperations());
-        assertEquals(0, initialStats.categoryCount());
-        
-        // Learn a pattern
-        algorithm.learn(input, params);
-        
-        // Stats should be updated
-        var updatedStats = algorithm.getPerformanceStats();
-        assertTrue(updatedStats.totalVectorOperations() > 0);
-        assertEquals(1, updatedStats.categoryCount());
-        
-        // Reset tracking
-        algorithm.resetPerformanceTracking();
-        var resetStats = algorithm.getPerformanceStats();
-        assertEquals(0, resetStats.totalVectorOperations());
-    }
+    // Removed - covered by base class testPerformanceTracking()
     
     @Test
     void testEmptyInput() {
         // Test with empty pattern
         assertThrows(IllegalArgumentException.class, () -> {
             var emptyInput = Pattern.of();
-            algorithm.learn(emptyInput, params);
+            algorithm.learn(emptyInput, parameters);
         });
     }
     
-    @Test
-    void testNullInputs() {
-        // AbstractVectorizedART handles null gracefully by using default parameters
-        assertDoesNotThrow(() -> 
-            algorithm.learn(null, params));
-        
-        assertDoesNotThrow(() -> 
-            algorithm.learn(Pattern.of(1.0, 2.0), null));
-        
-        assertDoesNotThrow(() -> 
-            algorithm.predict(null, params));
-    }
-    
-    @Test
-    void testResourceCleanup() {
-        var input = Pattern.of(0.8, 0.2, 0.5, 0.9);
-        algorithm.learn(input, params);
-        
-        // Should not throw when closing
-        assertDoesNotThrow(() -> algorithm.close());
-        
-        // Should be safe to call multiple times
-        assertDoesNotThrow(() -> algorithm.close());
-    }
+    // Removed - covered by base class testErrorHandling() and testResourceCleanup()
     
     @Test
     void testGetParameters() {
         var retrievedParams = algorithm.getParameters();
-        assertEquals(params, retrievedParams);
+        assertEquals(parameters, retrievedParams);
     }
     
     @Test
@@ -296,7 +228,7 @@ class VectorizedART2Test {
         };
         
         for (int i = 0; i < inputs.length; i++) {
-            var result = algorithm.learn(inputs[i], params);
+            var result = algorithm.learn(inputs[i], parameters);
             assertInstanceOf(ActivationResult.Success.class, result, 
                 "Failed to learn input " + i + ": " + inputs[i]);
         }

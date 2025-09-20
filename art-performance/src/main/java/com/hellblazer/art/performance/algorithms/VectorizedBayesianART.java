@@ -100,14 +100,12 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
+        var vParams = parameters;
         
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("VectorizedBayesianART requires DenseVector input");
@@ -121,14 +119,12 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
+        var vParams = parameters;
         
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("VectorizedBayesianART requires DenseVector input");
@@ -151,14 +147,12 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
+        var vParams = parameters;
         
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("VectorizedBayesianART requires DenseVector input");
@@ -170,13 +164,11 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, VectorizedParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedParameters");
-        }
+        var vParams = parameters;
         
         if (!(input instanceof DenseVector inputVector)) {
             throw new IllegalArgumentException("VectorizedBayesianART requires DenseVector input");
@@ -439,7 +431,7 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
             if (getCategoryCount() > params.parallelThreshold()) {
                 return parallelStepFitBayesian(input, params);
             } else {
-                var result = stepFit(input, (Object) params);
+                var result = stepFit(input, params);
                 return convertToBayesianResult(result);
             }
         } finally {
@@ -452,7 +444,7 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
      */
     private BayesianActivationResult parallelStepFitBayesian(Pattern input, VectorizedParameters params) {
         if (getCategoryCount() == 0) {
-            var result = stepFit(input, (Object) params);
+            var result = stepFit(input, params);
             return convertToBayesianResult(result);
         }
         
@@ -586,12 +578,10 @@ public class VectorizedBayesianART extends AbstractVectorizedART<VectorizedPerfo
         Objects.requireNonNull(params, "Parameters cannot be null");
     }
 
-    @Override
     protected Object performVectorizedLearning(Pattern input, VectorizedParameters params) {
         return stepFitBayesian(input, params);
     }
 
-    @Override
     protected Object performVectorizedPrediction(Pattern input, VectorizedParameters params) {
         return stepFit(input, params);
     }

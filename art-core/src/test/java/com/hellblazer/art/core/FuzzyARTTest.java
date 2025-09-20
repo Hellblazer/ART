@@ -2,6 +2,7 @@ package com.hellblazer.art.core;
 
 import com.hellblazer.art.core.algorithms.FuzzyART;
 import com.hellblazer.art.core.parameters.FuzzyParameters;
+import com.hellblazer.art.core.parameters.FuzzyParameterProvider;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.weights.FuzzyWeight;
 import org.junit.jupiter.api.Test;
@@ -241,8 +242,8 @@ class FuzzyARTTest {
         fuzzyART.stepFit(input, defaultParams);
         
         // Test invalid parameter types (now validation will occur)
-        assertThrows(IllegalArgumentException.class, 
-            () -> fuzzyART.stepFit(Pattern.of(0.6, 0.4), wrongParams));
+        assertThrows(ClassCastException.class,
+            () -> fuzzyART.stepFit(Pattern.of(0.6, 0.4), (FuzzyParameterProvider) wrongParams));
         
         // Test null parameters
         assertThrows(NullPointerException.class,

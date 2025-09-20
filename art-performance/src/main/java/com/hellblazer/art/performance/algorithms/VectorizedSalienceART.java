@@ -9,6 +9,8 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * High-performance vectorized implementation of Salience-Aware ART.
@@ -20,6 +22,7 @@ public class VectorizedSalienceART
     // Composition: Contains SalienceAwareART instead of extending it
     private final SalienceAwareART salienceART;
     private final VectorizedSalienceParameters parameters;
+    private final List<com.hellblazer.art.core.WeightVector> categories;
     private final AtomicLong totalVectorOperations = new AtomicLong(0);
     private final AtomicLong simdOperations = new AtomicLong(0);
     private final AtomicLong sparseVectorOperations = new AtomicLong(0);
@@ -35,6 +38,7 @@ public class VectorizedSalienceART
     
     public VectorizedSalienceART(VectorizedSalienceParameters parameters) {
         this.parameters = Objects.requireNonNull(parameters, "Parameters cannot be null");
+        this.categories = new ArrayList<>();
         
         // Build and configure SalienceAwareART using its Builder
         var builder = new SalienceAwareART.Builder()
@@ -50,7 +54,7 @@ public class VectorizedSalienceART
     
     // VectorizedARTAlgorithm interface methods
     @Override
-    public Object learn(Pattern input, VectorizedSalienceParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedSalienceParameters parameters) {
         validateInput(input, parameters);
         totalVectorOperations.incrementAndGet();
         
@@ -77,7 +81,7 @@ public class VectorizedSalienceART
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedSalienceParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedSalienceParameters parameters) {
         validateInput(input, parameters);
         
         // Find best match without learning
@@ -85,12 +89,22 @@ public class VectorizedSalienceART
             return new ActivationResult.NoMatch();
         }
         
-        // For now, just return a simple no-match since we can't access internal weights
-        // In a real implementation, we'd need to expose prediction methods in SalienceAwareART
-        return new ActivationResult.NoMatch();
+        // Use stepPredict to get prediction without learning
+        return salienceART.stepPredict(input, parameters);
     }
     
     @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        if (index < 0 || index >= categories.size()) {
+            throw new IndexOutOfBoundsException("Category index " + index + " out of bounds for " + categories.size() + " categories");
+        }
+        return categories.get(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return new ArrayList<>(categories);
+    }
     public int getCategoryCount() {
         return salienceART.getNumberOfCategories();
     }
@@ -184,10 +198,10 @@ public class VectorizedSalienceART
     // Validation helper
     private void validateInput(Pattern input, VectorizedSalienceParameters params) {
         if (input == null) {
-            throw new IllegalArgumentException("Input pattern cannot be null");
+            throw new NullPointerException("Input pattern cannot be null");
         }
         if (params == null) {
-            throw new IllegalArgumentException("Parameters cannot be null");
+            throw new NullPointerException("Parameters cannot be null");
         }
         ensureNotClosed();
     }
@@ -222,5 +236,12 @@ public class VectorizedSalienceART
         double sparseRatio = (double) sparseOps / totalOps;
         // Higher sparse ratio means better memory efficiency
         return 0.3 + (0.7 * sparseRatio); // Scale from 0.3 to 1.0
+    }
+
+    @Override
+    public void clear() {
+        categories.clear();
+        // Also clear the underlying salienceART
+        salienceART.clear();
     }
 }

@@ -27,7 +27,7 @@ import java.util.Objects;
  * - All channels must pass vigilance for resonance
  * - Independent learning in each channel
  */
-public class FusionART extends BaseART {
+public class FusionART extends BaseART<FusionParameters> {
     
     private final List<BaseART> modules;
     private final double[] gammaValues;
@@ -86,7 +86,7 @@ public class FusionART extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, FusionParameters parameters) {
         // For FusionART, we calculate a simple activation based on the composite weight
         // The actual fusion happens in checkVigilance
         var compositeWeight = (CompositeWeight) weight;
@@ -102,7 +102,7 @@ public class FusionART extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, FusionParameters parameters) {
         // For FusionART, we need all channels to pass vigilance
         // Since we can't directly call protected methods, we use a simplified approach
         var compositeWeight = (CompositeWeight) weight;
@@ -134,7 +134,7 @@ public class FusionART extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, FusionParameters parameters) {
         // Update weights using fuzzy learning rule
         var compositeWeight = (CompositeWeight) currentWeight;
         
@@ -171,7 +171,7 @@ public class FusionART extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, FusionParameters parameters) {
         // Create initial weight as copy of input (standard for fuzzy ART)
         var channelWeights = new ArrayList<WeightVector>();
         
@@ -330,14 +330,14 @@ public class FusionART extends BaseART {
         // Currently delegates to regular stepFit - channel skipping not yet implemented
         // This would require modifying the activation and vigilance calculations
         // to exclude specified channels from the fusion process
-        return stepFit(input, parameters);
+        return stepFit(input, (FusionParameters) parameters);
     }
     
     /**
      * Step predict - returns category index.
      * Renamed to avoid conflict with final method in BaseART.
      */
-    public int predictCategoryIndex(Pattern input, Object parameters) {
+    public int predictCategoryIndex(Pattern input, FusionParameters parameters) {
         var result = stepPredict(input, parameters);
         if (result instanceof ActivationResult.Success success) {
             return success.categoryIndex();
@@ -458,5 +458,10 @@ public class FusionART extends BaseART {
             // Should not be called directly - updates happen per channel
             throw new UnsupportedOperationException("Use channel-specific updates");
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

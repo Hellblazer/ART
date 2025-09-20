@@ -42,7 +42,7 @@ import java.util.*;
  * 
  * @author Hal Hildebrand
  */
-public class DualVigilanceART extends BaseART {
+public class DualVigilanceART extends BaseART<DualVigilanceParameters> {
     
     // Track which categories are boundary nodes
     private final Set<Integer> boundaryNodes = new HashSet<>();
@@ -75,8 +75,8 @@ public class DualVigilanceART extends BaseART {
     // ==================== CORE ART METHODS ====================
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
-        var params = validateAndCastParameters(parameters);
+    protected double calculateActivation(Pattern input, WeightVector weight, DualVigilanceParameters parameters) {
+        var params = parameters;
         
         // Fuzzy ART activation: |input ∧ weight| / |weight|
         var complementCoded = ensureComplementCoding(input, weight);
@@ -88,8 +88,8 @@ public class DualVigilanceART extends BaseART {
     
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
-        var params = validateAndCastParameters(parameters);
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, DualVigilanceParameters parameters) {
+        var params = parameters;
         
         // Calculate match value (fuzzy ART style)
         var complementCoded = ensureComplementCoding(input, weight);
@@ -142,8 +142,8 @@ public class DualVigilanceART extends BaseART {
     private int pendingBoundaryNodeIndex = -1;
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
-        var params = validateAndCastParameters(parameters);
+    protected WeightVector createInitialWeight(Pattern input, DualVigilanceParameters parameters) {
+        var params = parameters;
         var complementCoded = ensureComplementCoding(input, null);
         
         // Initialize new weight as the input (FuzzyART style)
@@ -184,7 +184,7 @@ public class DualVigilanceART extends BaseART {
     
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, DualVigilanceParameters parameters) {
         // Find the category index using the helper method
         int categoryIndex = findCategoryIndex(currentWeight);
         
@@ -194,7 +194,7 @@ public class DualVigilanceART extends BaseART {
         }
         
         // Normal weight update for core nodes
-        var params = validateAndCastParameters(parameters);
+        var params = parameters;
         var complementCoded = ensureComplementCoding(input, currentWeight);
         var weightData = ((FuzzyWeight)currentWeight).data();
         var beta = params.beta();
@@ -221,7 +221,7 @@ public class DualVigilanceART extends BaseART {
      * @param patterns array of input patterns
      * @param parameters DualVigilanceParameters
      */
-    public void fit(Pattern[] patterns, Object parameters) {
+    public void fit(Pattern[] patterns, DualVigilanceParameters parameters) {
         for (var pattern : patterns) {
             var result = stepFit(pattern, parameters);
             // Check if we need to mark a category as boundary after it was added
@@ -241,7 +241,7 @@ public class DualVigilanceART extends BaseART {
      * @param parameters DualVigilanceParameters
      * @return array of category indices
      */
-    public int[] predict(Pattern[] patterns, Object parameters) {
+    public int[] predict(Pattern[] patterns, DualVigilanceParameters parameters) {
         var predictions = new int[patterns.length];
         for (int i = 0; i < patterns.length; i++) {
             var result = stepFit(patterns[i], parameters);
@@ -256,14 +256,25 @@ public class DualVigilanceART extends BaseART {
     }
     
     /**
-     * Predict category for a single pattern.
+     * Predict category for a single pattern using DualVigilance.
+     * @param pattern input pattern
+     * @param parameters DualVigilanceParameters
+     * @return ActivationResult
+     */
+    public ActivationResult predictDV(Pattern pattern, DualVigilanceParameters parameters) {
+        var result = stepFit(pattern, parameters);
+        handlePendingBoundaryNode(result);
+        return result;
+    }
+    
+    /**
+     * Helper method to get category index from prediction
      * @param pattern input pattern
      * @param parameters DualVigilanceParameters
      * @return category index or -1 if no match
      */
-    public int predict(Pattern pattern, Object parameters) {
-        var result = stepFit(pattern, parameters);
-        handlePendingBoundaryNode(result);
+    public int predictCategory(Pattern pattern, DualVigilanceParameters parameters) {
+        var result = predictDV(pattern, parameters);
         if (result instanceof ActivationResult.Success success) {
             return success.categoryIndex();
         }
@@ -419,14 +430,6 @@ public class DualVigilanceART extends BaseART {
     
     // ==================== HELPER METHODS ====================
     
-    private DualVigilanceParameters validateAndCastParameters(Object parameters) {
-        if (!(parameters instanceof DualVigilanceParameters)) {
-            throw new IllegalArgumentException(
-                "Parameters must be DualVigilanceParameters, got: " + 
-                (parameters == null ? "null" : parameters.getClass().getSimpleName()));
-        }
-        return (DualVigilanceParameters) parameters;
-    }
     
     private Pattern ensureComplementCoding(Pattern input, WeightVector weight) {
         // Always apply complement coding
@@ -488,5 +491,10 @@ public class DualVigilanceART extends BaseART {
         // Score is ratio of boundary assignments to total boundary nodes
         // Higher score means boundary nodes are effectively isolating noise
         return (double) boundaryAssignments / (boundaryNodes.size() * labels.length);
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

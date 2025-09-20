@@ -68,14 +68,12 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedGaussianParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedGaussianParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedGaussianParameters");
-        }
+        var vParams = parameters;
         
         // Convert WeightVector to VectorizedGaussianWeight
         VectorizedGaussianWeight vWeight = convertToVectorizedGaussianWeight(weight);
@@ -86,14 +84,12 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedGaussianParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedGaussianParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedGaussianParameters");
-        }
+        var vParams = parameters;
         
         // Convert WeightVector to VectorizedGaussianWeight
         VectorizedGaussianWeight vWeight = convertToVectorizedGaussianWeight(weight);
@@ -106,14 +102,12 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedGaussianParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedGaussianParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedGaussianParameters");
-        }
+        var vParams = parameters;
         
         // Convert and update
         VectorizedGaussianWeight vWeight = convertToVectorizedGaussianWeight(currentWeight);
@@ -122,13 +116,11 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, VectorizedGaussianParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedGaussianParameters vParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedGaussianParameters");
-        }
+        var vParams = parameters;
         
         return VectorizedGaussianWeight.fromInput(input, vParams);
     }
@@ -140,51 +132,12 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
         params.validateForGaussianART();
     }
     
-    @Override
-    protected Object performVectorizedLearning(Pattern input, VectorizedGaussianParameters params) {
-        // Handle null input gracefully
-        if (input == null) {
-            // Match dimension of existing categories if any exist
-            if (getCategoryCount() > 0) {
-                var firstCategory = getCategories().get(0);
-                int dim = firstCategory.dimension();
-                double[] values = new double[dim];
-                Arrays.fill(values, 0.5);
-                input = Pattern.of(values);
-            } else {
-                // Use default 4-dimensional pattern for first category
-                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
-            }
-        }
-        return stepFitEnhanced(input, params);
-    }
-    
-    @Override
-    protected Object performVectorizedPrediction(Pattern input, VectorizedGaussianParameters params) {
-        // Handle null input gracefully
-        if (input == null) {
-            // Match dimension of existing categories if any exist
-            if (getCategoryCount() > 0) {
-                var firstCategory = getCategories().get(0);
-                int dim = firstCategory.dimension();
-                double[] values = new double[dim];
-                Arrays.fill(values, 0.5);
-                input = Pattern.of(values);
-            } else {
-                // Use default 4-dimensional pattern for first category
-                input = Pattern.of(0.5, 0.5, 0.5, 0.5);
-            }
-        }
-        if (params == null) {
-            params = VectorizedGaussianParameters.createDefault();
-        }
-        return stepPredict(input, params);
-    }
+    // Removed performVectorizedLearning and performVectorizedPrediction - no longer needed
     
     /**
      * Predict the best matching category without learning.
      */
-    private ActivationResult stepPredict(Pattern input, VectorizedGaussianParameters params) {
+    private ActivationResult stepPredictInternal(Pattern input, VectorizedGaussianParameters params) {
         if (getCategoryCount() == 0) {
             return ActivationResult.NoMatch.instance();
         }
@@ -257,7 +210,7 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
     /**
      * Enhanced stepFit with performance optimizations and parallel processing.
      */
-    public ActivationResult stepFitEnhanced(Pattern input, VectorizedGaussianParameters params) {
+    public ActivationResult performEnhancedStepFit(Pattern input, VectorizedGaussianParameters params) {
         // Handle null input gracefully
         if (input == null) {
             // Match dimension of existing categories if any exist
@@ -283,7 +236,7 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
             if (getCategoryCount() > 10 && params.parallelismLevel() > 1) {
                 return parallelStepFit(input, params);
             } else {
-                return stepFit(input, (Object) params);
+                return stepFit(input, params);
             }
         } finally {
             updatePerformanceMetrics(startTime);
@@ -295,7 +248,7 @@ public class VectorizedGaussianART extends AbstractVectorizedART<VectorizedPerfo
      */
     private ActivationResult parallelStepFit(Pattern input, VectorizedGaussianParameters params) {
         if (getCategoryCount() == 0) {
-            return stepFit(input, (Object) params);
+            return stepFit(input, params);
         }
         
         var task = new ParallelActivationTask(input, params, 0, getCategoryCount());

@@ -27,7 +27,7 @@ package com.hellblazer.art.core.parameters;
  * 
  * @author Hal Hildebrand
  */
-public class MutableFuzzyParameters {
+public class MutableFuzzyParameters implements FuzzyParameterProvider {
     private double vigilance;
     private final double alpha;
     private final double beta;

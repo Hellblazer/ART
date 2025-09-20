@@ -20,6 +20,7 @@ package com.hellblazer.art.performance;
 
 import com.hellblazer.art.core.BaseART;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jdk.incubator.vector.FloatVector;
@@ -53,7 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @param <T> the type of performance statistics returned by this algorithm
  * @param <P> the type of parameters used by this algorithm
  */
-public abstract class AbstractVectorizedART<T, P> extends BaseART 
+public abstract class AbstractVectorizedART<T, P> extends BaseART<P>
         implements VectorizedARTAlgorithm<T, P> {
     
     private static final Logger log = LoggerFactory.getLogger(AbstractVectorizedART.class);
@@ -95,20 +96,9 @@ public abstract class AbstractVectorizedART<T, P> extends BaseART
     }
     
     // === VectorizedARTAlgorithm Implementation ===
-    
-    @Override
-    public final Object learn(Pattern input, P parameters) {
-        learningCalls.incrementAndGet();
-        var effectiveParams = parameters != null ? parameters : defaultParameters;
-        return performVectorizedLearning(input, effectiveParams);
-    }
-    
-    @Override
-    public final Object predict(Pattern input, P parameters) {
-        activationCalls.incrementAndGet();
-        var effectiveParams = parameters != null ? parameters : defaultParameters;
-        return performVectorizedPrediction(input, effectiveParams);
-    }
+    // Note: learn() and predict() are already final in BaseART and use stepFit/stepPredict
+    // which delegate to the template methods below
+    // Note: stepFit and stepPredict are final in BaseART, so we track performance in the template methods
     
     @Override
     public final T getPerformanceStats() {
@@ -155,24 +145,11 @@ public abstract class AbstractVectorizedART<T, P> extends BaseART
     }
     
     // === Template Methods for Subclasses ===
-    
-    /**
-     * Perform algorithm-specific vectorized learning.
-     * 
-     * @param input the input pattern
-     * @param parameters the learning parameters
-     * @return the learning result (typically category index)
-     */
-    protected abstract Object performVectorizedLearning(Pattern input, P parameters);
-    
-    /**
-     * Perform algorithm-specific vectorized prediction.
-     * 
-     * @param input the input pattern
-     * @param parameters the prediction parameters
-     * @return the prediction result
-     */
-    protected abstract Object performVectorizedPrediction(Pattern input, P parameters);
+    // Note: Subclasses should override the BaseART template methods:
+    // - calculateActivation(Pattern, WeightVector, P)
+    // - checkVigilance(Pattern, WeightVector, P) 
+    // - updateWeights(Pattern, WeightVector, P)
+    // - createInitialWeight(Pattern, P)
     
     /**
      * Create algorithm-specific performance statistics.

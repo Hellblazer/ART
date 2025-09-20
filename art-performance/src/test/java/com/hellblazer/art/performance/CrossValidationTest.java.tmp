@@ -1,0 +1,386 @@
+package com.hellblazer.art.performance;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+
+import com.hellblazer.art.core.*;
+import com.hellblazer.art.core.algorithms.*;
+import com.hellblazer.art.core.parameters.*;
+import com.hellblazer.art.performance.algorithms.*;
+
+/**
+ * Comprehensive cross-validation tests comparing vanilla ART algorithms 
+ * (from art-core) against their vectorized counterparts (from art-performance).
+ * 
+ * These tests ensure that vectorized implementations produce identical or 
+ * statistically equivalent results to their vanilla counterparts while 
+ * providing performance improvements.
+ */
+@DisplayName("Core vs Vectorized ART Cross-Validation")
+class CrossValidationTest {
+
+    private Pattern[] testPatterns;
+    private Pattern[] validationPatterns;
+    private Random random;
+    
+    @BeforeEach
+    void setUp() {
+        random = new Random(42); // Fixed seed for reproducibility
+        
+        // Create diverse test patterns
+        testPatterns = generateTestPatterns(100, 8); // 100 patterns, 8 dimensions
+        validationPatterns = generateTestPatterns(50, 8); // 50 validation patterns, 8 dimensions
+    }
+    
+    @Test
+    @DisplayName("FuzzyART vs VectorizedFuzzyART Cross-Validation")
+    void testFuzzyARTCrossValidation() throws Exception {
+        // Core FuzzyART with parameters
+        var coreFuzzyART = new FuzzyART();
+        var coreParams = new FuzzyParameters(0.7, 0.1, 0.9);
+        
+        // Vectorized FuzzyART
+        var vectorizedParams = new VectorizedParameters(
+            0.7,    // vigilanceThreshold
+            0.9,    // learningRate  
+            0.1,    // alpha
+            1,      // parallelismLevel (single thread for fair comparison)
+            1000,   // parallelThreshold
+            1000,   // maxCacheSize
+            true,   // enableSIMD
+            true,   // enableJOML
+            0.8     // memoryOptimizationThreshold
+        );
+        var vectorizedFuzzyART = new VectorizedFuzzyART(vectorizedParams);
+        
+        try {
+            // Train both networks with identical data
+            var corePredictions = new ArrayList<Integer>();
+            var vectorizedPredictions = new ArrayList<Integer>();
+            
+            // Training phase
+            for (var pattern : testPatterns) {
+                // Core FuzzyART
+                var coreResult = coreFuzzyART.stepFit(pattern, coreParams);
+                corePredictions.add(coreResult.getCategoryIndex());
+                
+                // Vectorized FuzzyART  
+                var vectorizedResult = (Integer) vectorizedFuzzyART.learn(pattern, vectorizedParams);
+                vectorizedPredictions.add(vectorizedResult);
+            }
+            
+            // Validation phase - test predictions
+            var coreValidationPredictions = new ArrayList<Integer>();
+            var vectorizedValidationPredictions = new ArrayList<Integer>();
+            
+            for (var pattern : validationPatterns) {
+                // Core predictions
+                var coreActivationResult = coreFuzzyART.stepPredict(pattern, coreParams);
+                coreValidationPredictions.add(coreActivationResult.getCategoryIndex());
+                
+                // Vectorized predictions
+                var vectorizedResult = (Integer) vectorizedFuzzyART.predict(pattern, vectorizedParams);
+                vectorizedValidationPredictions.add(vectorizedResult);
+            }
+            
+            // Compare results
+            validateResults("FuzzyART", 
+                           corePredictions, vectorizedPredictions,
+                           coreValidationPredictions, vectorizedValidationPredictions,
+                           coreFuzzyART.getCategoryCount(), vectorizedFuzzyART.getCategoryCount());
+                           
+        } finally {
+            vectorizedFuzzyART.close();
+        }
+    }
+    
+    @Test
+    @DisplayName("GaussianART vs VectorizedGaussianART Cross-Validation")
+    void testGaussianARTCrossValidation() throws Exception {
+        // Core GaussianART with parameters
+        var coreGaussianART = new GaussianART();
+        var coreParams = new GaussianParameters(0.7, 0.1, 0.1);
+        
+        // Vectorized GaussianART
+        var vectorizedParams = new VectorizedGaussianParameters(
+            0.7,    // vigilance
+            0.1,    // gamma (learning rate)
+            1.0,    // rho_a
+            0.1,    // rho_b  
+            1,      // parallelismLevel
+            true    // enableSIMD
+        );
+        var vectorizedGaussianART = new VectorizedGaussianART(vectorizedParams);
+        
+        try {
+            var corePredictions = new ArrayList<Integer>();
+            var vectorizedPredictions = new ArrayList<Integer>();
+            
+            // Training phase
+            for (var pattern : testPatterns) {
+                var coreResult = coreGaussianART.stepFit(pattern, coreParams);
+                corePredictions.add(coreResult.getCategoryIndex());
+                
+                var vectorizedResult = (Integer) vectorizedGaussianART.learn(pattern, vectorizedParams);
+                vectorizedPredictions.add(vectorizedResult);
+            }
+            
+            // Validation phase
+            var coreValidationPredictions = new ArrayList<Integer>();
+            var vectorizedValidationPredictions = new ArrayList<Integer>();
+            
+            for (var pattern : validationPatterns) {
+                var coreResult = coreGaussianART.stepPredict(pattern, coreParams);
+                coreValidationPredictions.add(coreResult.getCategoryIndex());
+                
+                var vectorizedResult = (Integer) vectorizedGaussianART.predict(pattern, vectorizedParams);
+                vectorizedValidationPredictions.add(vectorizedResult);
+            }
+            
+            validateResults("GaussianART", 
+                           corePredictions, vectorizedPredictions,
+                           coreValidationPredictions, vectorizedValidationPredictions,
+                           coreGaussianART.getCategoryCount(), vectorizedGaussianART.getCategoryCount());
+                           
+        } finally {
+            vectorizedGaussianART.close();
+        }
+    }
+    
+    @Test 
+    @DisplayName("HypersphereART vs VectorizedHypersphereART Cross-Validation")
+    void testHypersphereARTCrossValidation() throws Exception {
+        // Core HypersphereART with parameters
+        var coreHypersphereART = new HypersphereART();
+        var coreParams = new HypersphereParameters(0.7, 0.1);
+        
+        // Vectorized HypersphereART
+        var vectorizedParams = new VectorizedHypersphereParameters(
+            0.7,    // vigilance
+            0.1,    // learningRate  
+            8,      // inputDimensions
+            1000,   // maxCategories
+            true,   // enableSIMD
+            16,     // simdThreshold
+            1,      // parallelismLevel
+            true,   // enableCaching
+            1000,   // cacheSize
+            0.1     // initialRadius
+        );
+        var vectorizedHypersphereART = new VectorizedHypersphereART(vectorizedParams);
+        
+        try {
+            var corePredictions = new ArrayList<Integer>();
+            var vectorizedPredictions = new ArrayList<Integer>();
+            
+            // Training phase
+            for (var pattern : testPatterns) {
+                var coreResult = coreHypersphereART.stepFit(pattern, coreParams);
+                corePredictions.add(coreResult.getCategoryIndex());
+                
+                var vectorizedResult = (Integer) vectorizedHypersphereART.learn(pattern, vectorizedParams);
+                vectorizedPredictions.add(vectorizedResult);
+            }
+            
+            // Validation phase
+            var coreValidationPredictions = new ArrayList<Integer>();
+            var vectorizedValidationPredictions = new ArrayList<Integer>();
+            
+            for (var pattern : validationPatterns) {
+                var coreResult = coreHypersphereART.stepPredict(pattern, coreParams);
+                coreValidationPredictions.add(coreResult.getCategoryIndex());
+                
+                var vectorizedResult = (Integer) vectorizedHypersphereART.predict(pattern, vectorizedParams);
+                vectorizedValidationPredictions.add(vectorizedResult);
+            }
+            
+            validateResults("HypersphereART", 
+                           corePredictions, vectorizedPredictions,
+                           coreValidationPredictions, vectorizedValidationPredictions,
+                           coreHypersphereART.getCategoryCount(), vectorizedHypersphereART.getCategoryCount());
+                           
+        } finally {
+            vectorizedHypersphereART.close();
+        }
+    }
+    
+    @Test
+    @DisplayName("BinaryFuzzyART vs VectorizedBinaryFuzzyART Cross-Validation")
+    void testBinaryFuzzyARTCrossValidation() throws Exception {
+        // Generate binary patterns for this test
+        var binaryPatterns = generateBinaryPatterns(100, 8);
+        var binaryValidationPatterns = generateBinaryPatterns(50, 8);
+        
+        // Core BinaryFuzzyART with parameters
+        var coreBinaryFuzzyART = new BinaryFuzzyART();
+        var coreParams = new FuzzyParameters(0.7, 0.1, 0.9);
+        
+        // Vectorized BinaryFuzzyART  
+        var vectorizedParams = new VectorizedBinaryFuzzyParameters(
+            0.7,    // vigilance
+            0.1,    // alpha
+            0.9,    // beta (learning rate)
+            0.1,    // binaryThreshold
+            1,      // parallelismLevel
+            1000,   // parallelThreshold
+            1000,   // maxCacheSize
+            true,   // enableSIMD
+            true    // enableBinaryOptimization
+        );
+        var vectorizedBinaryFuzzyART = new VectorizedBinaryFuzzyART(vectorizedParams);
+        
+        try {
+            var corePredictions = new ArrayList<Integer>();
+            var vectorizedPredictions = new ArrayList<Integer>();
+            
+            // Training phase
+            for (var pattern : binaryPatterns) {
+                var coreResult = coreBinaryFuzzyART.stepFit(pattern, coreParams);
+                corePredictions.add(coreResult.getCategoryIndex());
+                
+                var vectorizedResult = (Integer) vectorizedBinaryFuzzyART.learn(pattern, vectorizedParams);
+                vectorizedPredictions.add(vectorizedResult);
+            }
+            
+            // Validation phase
+            var coreValidationPredictions = new ArrayList<Integer>();
+            var vectorizedValidationPredictions = new ArrayList<Integer>();
+            
+            for (var pattern : binaryValidationPatterns) {
+                var coreResult = coreBinaryFuzzyART.stepPredict(pattern, coreParams);
+                coreValidationPredictions.add(coreResult.getCategoryIndex());
+                
+                var vectorizedResult = (Integer) vectorizedBinaryFuzzyART.predict(pattern, vectorizedParams);
+                vectorizedValidationPredictions.add(vectorizedResult);
+            }
+            
+            validateResults("BinaryFuzzyART", 
+                           corePredictions, vectorizedPredictions,
+                           coreValidationPredictions, vectorizedValidationPredictions,
+                           coreBinaryFuzzyART.getCategoryCount(), vectorizedBinaryFuzzyART.getCategoryCount());
+                           
+        } finally {
+            vectorizedBinaryFuzzyART.close();
+        }
+    }
+    
+    /**
+     * Validates that core and vectorized implementations produce equivalent results
+     */
+    private void validateResults(String algorithmName,
+                               List<Integer> coreTrainingPredictions,
+                               List<Integer> vectorizedTrainingPredictions,
+                               List<Integer> coreValidationPredictions, 
+                               List<Integer> vectorizedValidationPredictions,
+                               int coreCategoryCount,
+                               int vectorizedCategoryCount) {
+        
+        System.out.printf("\n=== %s Cross-Validation Results ===\n", algorithmName);
+        
+        // Training accuracy comparison
+        int trainingMatches = 0;
+        for (int i = 0; i < coreTrainingPredictions.size(); i++) {
+            if (coreTrainingPredictions.get(i).equals(vectorizedTrainingPredictions.get(i))) {
+                trainingMatches++;
+            }
+        }
+        double trainingAccuracy = (double) trainingMatches / coreTrainingPredictions.size();
+        
+        // Validation accuracy comparison
+        int validationMatches = 0;
+        for (int i = 0; i < coreValidationPredictions.size(); i++) {
+            if (coreValidationPredictions.get(i).equals(vectorizedValidationPredictions.get(i))) {
+                validationMatches++;
+            }
+        }
+        double validationAccuracy = (double) validationMatches / coreValidationPredictions.size();
+        
+        System.out.printf("Training Agreement: %.2f%% (%d/%d)\n", 
+                         trainingAccuracy * 100, trainingMatches, coreTrainingPredictions.size());
+        System.out.printf("Validation Agreement: %.2f%% (%d/%d)\n", 
+                         validationAccuracy * 100, validationMatches, coreValidationPredictions.size());
+        System.out.printf("Category Counts - Core: %d, Vectorized: %d\n", 
+                         coreCategoryCount, vectorizedCategoryCount);
+        
+        // Assertions for test validation
+        assertTrue(trainingAccuracy >= 0.80, 
+                  String.format("%s training agreement too low: %.2f%% < 80%%", algorithmName, trainingAccuracy * 100));
+        assertTrue(validationAccuracy >= 0.75, 
+                  String.format("%s validation agreement too low: %.2f%% < 75%%", algorithmName, validationAccuracy * 100));
+        
+        // Category counts should be reasonably close
+        double categoryRatio = Math.min(coreCategoryCount, vectorizedCategoryCount) / 
+                              (double) Math.max(coreCategoryCount, vectorizedCategoryCount);
+        assertTrue(categoryRatio >= 0.8, 
+                  String.format("%s category count difference too large: %d vs %d", 
+                               algorithmName, coreCategoryCount, vectorizedCategoryCount));
+        
+        System.out.printf("✅ %s cross-validation PASSED\n", algorithmName);
+    }
+    
+    /**
+     * Generate diverse test patterns for algorithm validation
+     */
+    private Pattern[] generateTestPatterns(int count, int dimensions) {
+        var patterns = new Pattern[count];
+        
+        for (int i = 0; i < count; i++) {
+            var values = new double[dimensions];
+            
+            // Create patterns with different characteristics
+            if (i % 4 == 0) {
+                // Cluster 1: low values
+                for (int j = 0; j < dimensions; j++) {
+                    values[j] = random.nextGaussian() * 0.1 + 0.2;
+                    values[j] = Math.max(0.0, Math.min(1.0, values[j])); // Clamp to [0,1]
+                }
+            } else if (i % 4 == 1) {
+                // Cluster 2: high values  
+                for (int j = 0; j < dimensions; j++) {
+                    values[j] = random.nextGaussian() * 0.1 + 0.8;
+                    values[j] = Math.max(0.0, Math.min(1.0, values[j])); // Clamp to [0,1]
+                }
+            } else if (i % 4 == 2) {
+                // Cluster 3: mixed values
+                for (int j = 0; j < dimensions; j++) {
+                    values[j] = random.nextGaussian() * 0.15 + 0.5;
+                    values[j] = Math.max(0.0, Math.min(1.0, values[j])); // Clamp to [0,1]
+                }
+            } else {
+                // Cluster 4: random uniform
+                for (int j = 0; j < dimensions; j++) {
+                    values[j] = random.nextDouble();
+                }
+            }
+            
+            patterns[i] = Pattern.of(values);
+        }
+        
+        return patterns;
+    }
+    
+    /**
+     * Generate binary patterns (0.0 or 1.0 values only)
+     */
+    private Pattern[] generateBinaryPatterns(int count, int dimensions) {
+        var patterns = new Pattern[count];
+        
+        for (int i = 0; i < count; i++) {
+            var values = new double[dimensions];
+            for (int j = 0; j < dimensions; j++) {
+                values[j] = random.nextBoolean() ? 1.0 : 0.0;
+            }
+            patterns[i] = Pattern.of(values);
+        }
+        
+        return patterns;
+    }
+}

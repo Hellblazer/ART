@@ -45,7 +45,7 @@ Expected output on macOS M4:
 === LWJGL Headless Platform Validation ===
 Platform: macOS (MACOSX)
 Architecture: ARM64 (64-bit: true)
-✅ Headless platform validation PASSED - Framework safe to use!
+Headless platform validation PASSED - Framework safe to use!
 ```
 
 ### 2. Basic Usage
@@ -243,7 +243,7 @@ Successful GPU discovery and testing:
 [INFO] Found 1 device(s) on platform Apple:
 [INFO]   Apple M4 [GPU] - 10 CUs, 21474.8 MB mem
 [INFO] Testing GPU vector addition on: Apple M4 [GPU] - 10 CUs, 21474.8 MB mem
-[INFO] ✅ GPU vector addition test PASSED - 1024 elements processed
+[INFO] GPU vector addition test PASSED - 1024 elements processed
 ```
 
 ## Integration with ART Project

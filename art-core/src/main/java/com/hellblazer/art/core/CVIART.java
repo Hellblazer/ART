@@ -738,4 +738,9 @@ public class CVIART extends CVIEnabledART {
         public Map<String, Double> getCVIThresholds() { return cviThresholds; }
         public void setCVIThresholds(Map<String, Double> t) { this.cviThresholds = new HashMap<>(t); }
     }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
+    }
 }

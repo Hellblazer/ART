@@ -19,6 +19,8 @@
 package com.hellblazer.art.performance;
 
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.ARTAlgorithm;
+import com.hellblazer.art.core.results.ActivationResult;
 
 /**
  * Common interface for high-performance vectorized ART algorithm implementations.
@@ -45,38 +47,12 @@ import com.hellblazer.art.core.Pattern;
  * 
  * @author Hal Hildebrand
  */
-public interface VectorizedARTAlgorithm<T, P> extends AutoCloseable {
+public interface VectorizedARTAlgorithm<T, P> extends ARTAlgorithm<P> {
     
     // === Core Learning Interface ===
-    
-    /**
-     * Learn from a single pattern, updating the algorithm's internal state.
-     * This is the primary learning method for unsupervised algorithms.
-     * 
-     * @param input the input pattern to learn from
-     * @param parameters the learning parameters
-     * @return the category index that was activated/created, or result object
-     */
-    Object learn(Pattern input, P parameters);
-    
-    /**
-     * Process a pattern for prediction/classification without learning.
-     * Returns the best matching category or prediction result.
-     * 
-     * @param input the input pattern to process
-     * @param parameters the processing parameters
-     * @return the prediction result or category index
-     */
-    Object predict(Pattern input, P parameters);
-    
+    // Methods learn(), predict(), getCategoryCount() inherited from ARTAlgorithm<P>
+
     // === Category Management ===
-    
-    /**
-     * Get the current number of categories/clusters learned by the algorithm.
-     * 
-     * @return the number of categories
-     */
-    int getCategoryCount();
     
     /**
      * Check if the algorithm has been trained/initialized with data.
@@ -152,38 +128,5 @@ public interface VectorizedARTAlgorithm<T, P> extends AutoCloseable {
     }
     
     // === Optional Batch Operations ===
-    
-    /**
-     * Learn from multiple patterns in a batch operation.
-     * Default implementation processes patterns sequentially.
-     * Vectorized implementations may override for parallel batch processing.
-     * 
-     * @param patterns array of input patterns
-     * @param parameters the learning parameters
-     * @return array of learning results
-     */
-    default Object[] learnBatch(Pattern[] patterns, P parameters) {
-        Object[] results = new Object[patterns.length];
-        for (int i = 0; i < patterns.length; i++) {
-            results[i] = learn(patterns[i], parameters);
-        }
-        return results;
-    }
-    
-    /**
-     * Predict for multiple patterns in a batch operation.
-     * Default implementation processes patterns sequentially.
-     * Vectorized implementations may override for parallel batch processing.
-     * 
-     * @param patterns array of input patterns
-     * @param parameters the processing parameters
-     * @return array of prediction results
-     */
-    default Object[] predictBatch(Pattern[] patterns, P parameters) {
-        Object[] results = new Object[patterns.length];
-        for (int i = 0; i < patterns.length; i++) {
-            results[i] = predict(patterns[i], parameters);
-        }
-        return results;
-    }
+    // Batch methods learnBatch() and predictBatch() inherited from ARTAlgorithm<P>
 }

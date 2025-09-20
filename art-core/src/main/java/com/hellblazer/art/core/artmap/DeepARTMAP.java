@@ -656,7 +656,7 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
             Arrays.fill(initialWeights, 1.0);
             
             var initialPattern = Pattern.of(initialWeights);
-            var params = FuzzyParameters.defaults();
+            var params = DeepARTMAPParameters.DEFAULT;
             
             // Use BaseART's stepFit to properly initialize the category
             stepFit(initialPattern, params);
@@ -681,28 +681,28 @@ public final class DeepARTMAP extends AbstractDeepARTMAP {
     // BaseART abstract method implementations
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, DeepARTMAPParameters parameters) {
         // DeepARTMAP doesn't use traditional activation calculation
         // Return a default value that works for the framework
         return 1.0;
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, DeepARTMAPParameters parameters) {
         // DeepARTMAP uses its own hierarchical vigilance checking
         // Always accept for compatibility
         return new MatchResult.Accepted(1.0, 0.0);
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, DeepARTMAPParameters parameters) {
         // DeepARTMAP doesn't update weights directly - this is handled by internal layers
         // Return the current weight unchanged
         return currentWeight;
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, DeepARTMAPParameters parameters) {
         // Create a simple initial weight for compatibility
         // This won't be used in practice since DeepARTMAP manages its own hierarchical structure
         // Create initial weight with complement coding

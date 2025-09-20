@@ -374,5 +374,10 @@ class BaseARTTest {
         public CategoryResult findWinner(double[] activations) {
             return super.findWinner(activations);
         }
+
+        @Override
+        public void close() {
+            // No resources to close in test implementation
+        }
     }
 }

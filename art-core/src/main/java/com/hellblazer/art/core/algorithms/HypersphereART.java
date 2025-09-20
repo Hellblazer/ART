@@ -238,4 +238,9 @@ public final class HypersphereART extends AbstractGeometricART<HypersphereParame
     public String toString() {
         return "HypersphereART{categories=" + getCategoryCount() + "}";
     }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
+    }
 }

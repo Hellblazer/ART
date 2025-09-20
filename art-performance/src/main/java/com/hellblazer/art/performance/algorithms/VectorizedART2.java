@@ -68,14 +68,9 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(weight, "Weight cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
-        }
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedART2Parameters parameters) {
+        // BaseART already checks for null inputs
+        var art2Params = parameters;
         
         // Convert WeightVector to VectorizedART2Weight
         VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(weight);
@@ -85,14 +80,9 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(weight, "Weight cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
-        }
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedART2Parameters parameters) {
+        // BaseART already checks for null inputs
+        var art2Params = parameters;
         
         // Convert WeightVector to VectorizedART2Weight
         VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(weight);
@@ -106,14 +96,9 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(currentWeight, "Current weight cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
-        }
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedART2Parameters parameters) {
+        // BaseART already checks for null inputs
+        var art2Params = parameters;
         
         // Convert and update
         VectorizedART2Weight art2Weight = convertToVectorizedART2Weight(currentWeight);
@@ -122,13 +107,9 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
-        Objects.requireNonNull(input, "Input cannot be null");
-        Objects.requireNonNull(parameters, "Parameters cannot be null");
-        
-        if (!(parameters instanceof VectorizedART2Parameters art2Params)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedART2Parameters");
-        }
+    protected WeightVector createInitialWeight(Pattern input, VectorizedART2Parameters parameters) {
+        // BaseART already checks for null inputs
+        var art2Params = parameters;
         
         trackVectorOperation();
         return VectorizedART2Weight.fromInput(input, art2Params);
@@ -158,12 +139,12 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
         );
     }
     
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedLearning(Pattern input, VectorizedART2Parameters params) {
         return stepFitEnhanced(input, params);
     }
     
-    @Override
+    // Not @Override - parent doesn't have this method
     protected Object performVectorizedPrediction(Pattern input, VectorizedART2Parameters params) {
         // Handle null gracefully by using defaults
         if (input == null) {
@@ -197,7 +178,7 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
     /**
      * Enhanced stepFit with performance optimizations and parallel processing.
      */
-    public ActivationResult stepFitEnhanced(Pattern input, VectorizedART2Parameters params) {
+    public ActivationResult stepFitEnhancedVectorized(Pattern input, VectorizedART2Parameters params) {
         // Handle null gracefully by using defaults
         if (input == null) {
             // Match dimension of existing categories if any exist
@@ -223,7 +204,7 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
             if (getCategoryCount() > 50) { // Threshold for parallel processing
                 return parallelStepFit(input, params);
             } else {
-                return stepFit(input, (Object) params);
+                return stepFit(input, params);
             }
         } finally {
             updatePerformanceMetrics(startTime);
@@ -235,7 +216,7 @@ public class VectorizedART2 extends AbstractVectorizedART<VectorizedPerformanceS
      */
     private ActivationResult parallelStepFit(Pattern input, VectorizedART2Parameters params) {
         if (getCategoryCount() == 0) {
-            return stepFit(input, (Object) params);
+            return stepFit(input, params);
         }
         
         var task = new ParallelActivationTask(input, params, 0, getCategoryCount());

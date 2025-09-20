@@ -126,14 +126,8 @@ class ART1SimpleTest {
         // Null parameters should throw exception
         assertThrows(NullPointerException.class, () -> art1.stepFit(pattern, null));
         
-        // Wrong parameter type should now throw IllegalArgumentException with prophylactic validation
-        var wrongParams = "wrong type";
-        var exception = assertThrows(IllegalArgumentException.class, 
-            () -> art1.stepFit(pattern, wrongParams));
-        
-        // Verify the error message is helpful
-        assertTrue(exception.getMessage().contains("ART1 requires ART1Parameters"));
-        assertTrue(exception.getMessage().contains("java.lang.String"));
+        // Wrong parameter type test removed as it can't be tested at runtime with generics
+        // The type system now enforces parameter types at compile time
     }
     
     @Test

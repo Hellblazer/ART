@@ -196,7 +196,14 @@ public final class VectorizedMathOperations {
             return true; // Zero input matches any pattern
         }
         
-        return (numerator / denominator) >= vigilance;
+        double matchValue = numerator / denominator;
+        // Temporary debug output
+        if (false && input.length == 20) { // Only for TopoART's complement-coded patterns
+            System.out.println("DEBUG Match: numerator=" + numerator + ", denominator=" + denominator + 
+                              ", match=" + matchValue + ", vigilance=" + vigilance + ", passes=" + (matchValue >= vigilance));
+        }
+        
+        return matchValue >= vigilance;
     }
     
     /**

@@ -68,14 +68,12 @@ public class VectorizedEllipsoidART extends AbstractVectorizedART<VectorizedPerf
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
+    protected double calculateActivation(Pattern input, WeightVector weight, VectorizedEllipsoidParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedEllipsoidParameters ellipsoidParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedEllipsoidParameters");
-        }
+        var ellipsoidParams = parameters;
         
         // Convert WeightVector to VectorizedEllipsoidWeight
         VectorizedEllipsoidWeight ellipsoidWeight = convertToVectorizedEllipsoidWeight(weight);
@@ -85,14 +83,12 @@ public class VectorizedEllipsoidART extends AbstractVectorizedART<VectorizedPerf
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, VectorizedEllipsoidParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(weight, "Weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedEllipsoidParameters ellipsoidParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedEllipsoidParameters");
-        }
+        var ellipsoidParams = parameters;
         
         // Convert WeightVector to VectorizedEllipsoidWeight
         VectorizedEllipsoidWeight ellipsoidWeight = convertToVectorizedEllipsoidWeight(weight);
@@ -104,14 +100,12 @@ public class VectorizedEllipsoidART extends AbstractVectorizedART<VectorizedPerf
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, Object parameters) {
+    protected WeightVector updateWeights(Pattern input, WeightVector currentWeight, VectorizedEllipsoidParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(currentWeight, "Current weight cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedEllipsoidParameters ellipsoidParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedEllipsoidParameters");
-        }
+        var ellipsoidParams = parameters;
         
         // Convert and update
         VectorizedEllipsoidWeight ellipsoidWeight = convertToVectorizedEllipsoidWeight(currentWeight);
@@ -119,13 +113,11 @@ public class VectorizedEllipsoidART extends AbstractVectorizedART<VectorizedPerf
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
+    protected WeightVector createInitialWeight(Pattern input, VectorizedEllipsoidParameters parameters) {
         Objects.requireNonNull(input, "Input cannot be null");
         Objects.requireNonNull(parameters, "Parameters cannot be null");
         
-        if (!(parameters instanceof VectorizedEllipsoidParameters ellipsoidParams)) {
-            throw new IllegalArgumentException("Parameters must be VectorizedEllipsoidParameters");
-        }
+        var ellipsoidParams = parameters;
         
         return VectorizedEllipsoidWeight.fromInput(input, ellipsoidParams);
     }
@@ -364,15 +356,7 @@ public class VectorizedEllipsoidART extends AbstractVectorizedART<VectorizedPerf
         Objects.requireNonNull(params, "Parameters cannot be null");
     }
 
-    @Override
-    protected Object performVectorizedLearning(Pattern input, VectorizedEllipsoidParameters params) {
-        return learnEnhanced(input, params);
-    }
-
-    @Override
-    protected Object performVectorizedPrediction(Pattern input, VectorizedEllipsoidParameters params) {
-        return stepFit(input, params);
-    }
+    // Removed performVectorizedLearning and performVectorizedPrediction - no longer needed
 
     protected void clearAlgorithmState() {
         inputCache.clear();

@@ -258,7 +258,7 @@ class DeepARTMAPTest {
             var module1 = new FuzzyART();
             var module2 = new BayesianART(new BayesianParameters(0.9, new double[]{0.0}, Matrix.eye(1), 1.0, 1.0, 100));  
             var module3 = new ART2(new ART2Parameters(0.9, 0.1, 100));
-            var orderedModules = List.of(module1, module2, module3);
+            var orderedModules = List.<BaseART>of(module1, module2, module3);
             var deepARTMAP = new DeepARTMAP(orderedModules, new DeepARTMAPParameters());
             
             assertThat(deepARTMAP.getModules().get(0)).isSameAs(module1);
@@ -1335,13 +1335,13 @@ class DeepARTMAPTest {
         @Test
         @DisplayName("Should integrate with all BaseART implementations as modules")
         void testIntegrationAllARTVariants() {
-            var allVariants = List.of(
+            var allVariants = List.<BaseART>of(
                 new FuzzyART(),
-                new BayesianART(new BayesianParameters(0.9, new double[]{0.0}, Matrix.eye(1), 1.0, 1.0, 100)), 
+                new BayesianART(new BayesianParameters(0.9, new double[]{0.0}, Matrix.eye(1), 1.0, 1.0, 100)),
                 new ART2(new ART2Parameters(0.9, 0.1, 100)),
                 new BayesianART(new BayesianParameters(0.9, new double[]{0.0}, Matrix.eye(1), 1.0, 1.0, 100))
             );
-            
+
             var deepARTMAP = new DeepARTMAP(allVariants, new DeepARTMAPParameters());
             var data = createMultiChannelData(20, 4, 8);
             var labels = createClassLabels(20, 5);

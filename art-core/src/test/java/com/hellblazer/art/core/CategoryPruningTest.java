@@ -358,5 +358,10 @@ class CategoryPruningTest {
                 return new SimpleWeight(input);
             }
         }
+
+        @Override
+        public void close() {
+            // No resources to close in test implementation
+        }
     }
 }

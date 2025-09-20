@@ -2,8 +2,8 @@ package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.*;
 import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,14 +15,16 @@ import java.util.ArrayList;
  * Comprehensive test suite for VectorizedDualVigilanceART implementation.
  * Tests dual vigilance threshold mechanism with vectorized operations.
  */
-public class VectorizedDualVigilanceARTTest {
+public class VectorizedDualVigilanceARTTest extends BaseVectorizedARTTest<VectorizedDualVigilanceART, VectorizedDualVigilanceParameters> {
     
-    private VectorizedDualVigilanceART algorithm;
-    private VectorizedDualVigilanceParameters params;
+    @Override
+    protected VectorizedDualVigilanceART createAlgorithm(VectorizedDualVigilanceParameters params) {
+        return new VectorizedDualVigilanceART(params);
+    }
     
-    @BeforeEach
-    void setUp() {
-        params = new VectorizedDualVigilanceParameters(
+    @Override
+    protected VectorizedDualVigilanceParameters createDefaultParameters() {
+        return new VectorizedDualVigilanceParameters(
             0.5,    // rhoLower - lower vigilance threshold
             0.9,    // rhoUpper - upper vigilance threshold  
             0.1,    // alpha - choice parameter
@@ -32,29 +34,39 @@ public class VectorizedDualVigilanceARTTest {
             1000,   // maxCacheSize
             true    // enableSIMD
         );
-        algorithm = new VectorizedDualVigilanceART(params);
     }
     
-    @AfterEach
-    void tearDown() {
-        if (algorithm != null) {
-            algorithm.close();
-        }
+    @BeforeEach
+    protected void setUp() {
+        parameters = createDefaultParameters();
+        algorithm = createAlgorithm(parameters);
+        super.setUp();
     }
     
-    @Test
-    @DisplayName("Should create dual vigilance categories correctly")
-    void testDualVigilanceCategoryCreation() {
-        var pattern1 = Pattern.of(0.8, 0.2);
-        var pattern2 = Pattern.of(0.3, 0.7);
-        
-        var result1 = algorithm.learn(pattern1, params);
-        var result2 = algorithm.learn(pattern2, params);
-        
-        assertEquals(2, algorithm.getCategoryCount());
-        assertTrue(result1 instanceof ActivationResult.Success);
-        assertTrue(result2 instanceof ActivationResult.Success);
+    @Override
+    protected VectorizedDualVigilanceParameters createParametersWithVigilance(double vigilance) {
+        // For dual vigilance, we scale both thresholds proportionally
+        double lowerVigilance = vigilance * 0.8; // Lower threshold is 80% of requested
+        double upperVigilance = Math.min(vigilance * 1.2, 0.99); // Upper is 120% but capped
+        return new VectorizedDualVigilanceParameters(
+            lowerVigilance,
+            upperVigilance,
+            0.1,    // alpha - choice parameter
+            0.9,    // beta - learning rate
+            4,      // parallelismLevel
+            50,     // parallelThreshold
+            1000,   // maxCacheSize
+            true    // enableSIMD
+        );
     }
+    
+    // The following tests are covered by base class:
+    // - testBasicLearning()
+    // - testMultiplePatternLearning()
+    // - testPrediction()
+    // - testPerformanceTracking()
+    // - testErrorHandling()
+    // - testResourceCleanup()
     
     @Test
     @DisplayName("Should handle dual vigilance thresholds correctly")
@@ -65,19 +77,19 @@ public class VectorizedDualVigilanceARTTest {
         var farPattern = Pattern.of(0.9, 0.1);       // Should fail both thresholds
         
         // Train with center pattern
-        algorithm.learn(centerPattern, params);
+        algorithm.learn(centerPattern, parameters);
         assertEquals(1, algorithm.getCategoryCount());
         
         // Close pattern should match existing category (passes lower threshold)
-        var closeResult = algorithm.predict(closePattern, params);
+        var closeResult = algorithm.predict(closePattern, parameters);
         assertTrue(closeResult instanceof ActivationResult.Success);
         
         // Medium pattern behavior depends on dual vigilance logic
-        var mediumResult = algorithm.predict(mediumPattern, params);
+        var mediumResult = algorithm.predict(mediumPattern, parameters);
         assertNotNull(mediumResult);
         
         // Far pattern should create new category or have low activation
-        var farResult = algorithm.predict(farPattern, params);
+        var farResult = algorithm.predict(farPattern, parameters);
         assertNotNull(farResult);
     }
     
@@ -87,14 +99,14 @@ public class VectorizedDualVigilanceARTTest {
         var center = Pattern.of(0.5, 0.5);
         var testPattern = Pattern.of(0.7, 0.3);
         
-        algorithm.learn(center, params);
+        algorithm.learn(center, parameters);
         
         // Test with different patterns at different vigilance levels
-        var result = algorithm.predict(testPattern, params);
+        var result = algorithm.predict(testPattern, parameters);
         assertNotNull(result);
         
         // Verify that lower threshold is indeed lower than upper threshold
-        assertTrue(params.rhoLower() < params.rhoUpper());
+        assertTrue(parameters.rhoLower() < parameters.rhoUpper());
     }
     
     @Test
@@ -172,15 +184,15 @@ public class VectorizedDualVigilanceARTTest {
         var similar4D = Pattern.of(0.52, 0.28, 0.82, 0.18);
         var different4D = Pattern.of(0.1, 0.9, 0.1, 0.9);
         
-        algorithm.learn(pattern4D, params);
+        algorithm.learn(pattern4D, parameters);
         assertEquals(1, algorithm.getCategoryCount());
         
         // Similar pattern should be handled by dual vigilance
-        var similarResult = algorithm.predict(similar4D, params);
+        var similarResult = algorithm.predict(similar4D, parameters);
         assertTrue(similarResult instanceof ActivationResult.Success);
         
         // Different pattern may create new category
-        var differentResult = algorithm.learn(different4D, params);
+        var differentResult = algorithm.learn(different4D, parameters);
         assertNotNull(differentResult);
     }
     
@@ -197,26 +209,9 @@ public class VectorizedDualVigilanceARTTest {
         }
         var largePattern = Pattern.of(largeDim);
         
-        var result = algorithm.learn(largePattern, params);
+        var result = algorithm.learn(largePattern, parameters);
         assertNotNull(result);
         assertEquals(1, algorithm.getCategoryCount());
-    }
-    
-    @Test
-    @DisplayName("Should provide performance statistics")
-    void testPerformanceTracking() {
-        var initialStats = algorithm.getPerformanceStats();
-        assertNotNull(initialStats);
-        
-        // Perform some operations
-        for (int i = 0; i < 5; i++) {
-            var pattern = Pattern.of(Math.random(), Math.random());
-            algorithm.learn(pattern, params);
-        }
-        
-        var finalStats = algorithm.getPerformanceStats();
-        assertNotNull(finalStats);
-        assertTrue(finalStats.totalVectorOperations() >= initialStats.totalVectorOperations());
     }
     
     @Test
@@ -225,7 +220,7 @@ public class VectorizedDualVigilanceARTTest {
         // Generate some activity
         for (int i = 0; i < 3; i++) {
             var pattern = Pattern.of(Math.random(), Math.random());
-            algorithm.learn(pattern, params);
+            algorithm.learn(pattern, parameters);
         }
         
         algorithm.resetPerformanceTracking();
@@ -266,36 +261,19 @@ public class VectorizedDualVigilanceARTTest {
     void testEdgeCases() {
         // Zero pattern
         var zeroPattern = Pattern.of(0.0, 0.0);
-        var zeroResult = algorithm.learn(zeroPattern, params);
+        var zeroResult = algorithm.learn(zeroPattern, parameters);
         assertNotNull(zeroResult);
         
         // Unit pattern
         var unitPattern = Pattern.of(1.0, 1.0);
-        var unitResult = algorithm.learn(unitPattern, params);
+        var unitResult = algorithm.learn(unitPattern, parameters);
         assertNotNull(unitResult);
         
         // Single dimension - needs separate algorithm instance
-        var singleDimAlgorithm = new VectorizedDualVigilanceART(params);
+        var singleDimAlgorithm = new VectorizedDualVigilanceART(parameters);
         var singleDim = Pattern.of(0.5);
-        var singleResult = singleDimAlgorithm.learn(singleDim, params);
+        var singleResult = singleDimAlgorithm.learn(singleDim, parameters);
         assertNotNull(singleResult);
         singleDimAlgorithm.close();
-    }
-    
-    @Test
-    @DisplayName("Should implement AutoCloseable correctly")
-    void testResourceManagement() {
-        var tempAlgorithm = new VectorizedDualVigilanceART(params);
-        
-        // Use the algorithm
-        var pattern = Pattern.of(0.5, 0.5);
-        tempAlgorithm.learn(pattern, params);
-        assertEquals(1, tempAlgorithm.getCategoryCount());
-        
-        // Close should not throw
-        assertDoesNotThrow(() -> tempAlgorithm.close());
-        
-        // Multiple closes should be safe
-        assertDoesNotThrow(() -> tempAlgorithm.close());
     }
 }

@@ -382,7 +382,7 @@ public class SalienceAwareART extends BaseART {
     
     public WeightVector getPrototype(int index) {
         if (index >= 0 && index < categories.size()) {
-            return categories.get(index);
+            return (WeightVector) categories.get(index);
         }
         return null;
     }
@@ -474,5 +474,10 @@ public class SalienceAwareART extends BaseART {
             art.sparsityThreshold = this.sparsityThreshold;
             return art;
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

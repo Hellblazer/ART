@@ -335,12 +335,10 @@ public class VectorizedARTMAP implements VectorizedARTAlgorithm<VectorizedARTMAP
     private Optional<CategoryMatch> findBestARTaMatchVectorized(Pattern input) {
         // Use the predict method to find best matching category
         var result = vectorizedArtA.predict(input, vectorizedParams.artAParams());
-        
-        // VectorizedART returns an integer category index, -1 if no match
-        if (result instanceof Integer categoryIndex && categoryIndex >= 0) {
-            // For now, use a default activation value since we can't access the protected method
-            // The actual activation value isn't critical for basic prediction functionality
-            return Optional.of(new CategoryMatch(categoryIndex, 1.0));
+
+        // VectorizedART returns an ActivationResult
+        if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+            return Optional.of(new CategoryMatch(success.categoryIndex(), success.activationValue()));
         }
 
         return Optional.empty();
@@ -650,7 +648,7 @@ public class VectorizedARTMAP implements VectorizedARTAlgorithm<VectorizedARTMAP
     // VectorizedARTAlgorithm interface implementation
     
     @Override
-    public Object learn(Pattern input, VectorizedARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedARTMAPParameters parameters) {
         // For single input pattern learning without target, use unsupervised mode
         // This provides compatibility with the VectorizedARTAlgorithm interface
         if (input == null) {
@@ -665,22 +663,46 @@ public class VectorizedARTMAP implements VectorizedARTAlgorithm<VectorizedARTMAP
         var result = train(input, input);
         
         if (result instanceof VectorizedARTMAPResult.Success success) {
-            return success.artAIndex();
+            int categoryIndex = success.artAIndex();
+            return new com.hellblazer.art.core.results.ActivationResult.Success(
+                categoryIndex, 1.0, vectorizedArtA.getCategory(categoryIndex)
+            );
         } else {
-            // Log the failure but return a default category to maintain interface compatibility
-            log.warn("ARTMAP training failed: {}", result);
-            return 0;
+            // Return NoMatch for failure cases
+            return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
         }
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedARTMAPParameters parameters) {
-        return predict(input);
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedARTMAPParameters parameters) {
+        var predictionResult = predict(input);
+        if (predictionResult.isPresent()) {
+            var prediction = predictionResult.get();
+            int categoryIndex = prediction.artAIndex();
+            if (categoryIndex >= 0 && categoryIndex < vectorizedArtA.getCategoryCount()) {
+                return new com.hellblazer.art.core.results.ActivationResult.Success(
+                    categoryIndex, 1.0, vectorizedArtA.getCategory(categoryIndex)
+                );
+            }
+        }
+        return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
     }
     
     @Override
     public int getCategoryCount() {
         return Math.max(vectorizedArtA.getCategoryCount(), vectorizedArtB.getCategoryCount());
+    }
+    
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        // Return from ARTa as the primary module
+        return vectorizedArtA.getCategory(index);
+    }
+    
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        // Return from ARTa as the primary module
+        return vectorizedArtA.getCategories();
     }
     
     @Override

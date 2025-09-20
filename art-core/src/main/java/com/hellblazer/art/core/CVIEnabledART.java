@@ -147,7 +147,7 @@ public abstract class CVIEnabledART extends BaseART {
                 var weight = categories.get(i);
                 // Convert weight to Pattern
                 // This is a simplified approach - subclasses may override
-                centroids.add(weightToPattern(weight));
+                centroids.add(weightToPattern((WeightVector) weight));
             } else {
                 centroids.add(null);
             }

@@ -16,7 +16,7 @@ import java.util.List;
  * to create a symmetric representation. It combines fuzzy set operations with
  * binary constraints for robust pattern recognition.
  */
-public class BinaryFuzzyART extends BaseART {
+public class BinaryFuzzyART extends BaseART<BinaryFuzzyART.BinaryFuzzyARTParameters> {
     
     public static class BinaryFuzzyARTParameters {
         private final double rho;    // vigilance parameter
@@ -109,7 +109,9 @@ public class BinaryFuzzyART extends BaseART {
         
         @Override
         public WeightVector update(Pattern input, Object parameters) {
-            var params = (BinaryFuzzyARTParameters) parameters;
+            if (!(parameters instanceof BinaryFuzzyARTParameters params)) {
+                throw new IllegalArgumentException("Parameters must be BinaryFuzzyARTParameters");
+            }
             var complemented = complementCode(input);
             var newValues = new double[values.length];
             
@@ -182,8 +184,9 @@ public class BinaryFuzzyART extends BaseART {
     }
     
     @Override
-    protected WeightVector createInitialWeight(Pattern input, Object parameters) {
-        var params = (BinaryFuzzyARTParameters) parameters;
+    protected WeightVector createInitialWeight(Pattern input, BinaryFuzzyARTParameters parameters) {
+        validateBinaryInput(input);
+        var params = parameters;
         
         // Initialize with complement coded input
         var complemented = complementCode(input);
@@ -196,8 +199,9 @@ public class BinaryFuzzyART extends BaseART {
     }
     
     @Override
-    protected double calculateActivation(Pattern input, WeightVector weight, Object parameters) {
-        var params = (BinaryFuzzyARTParameters) parameters;
+    protected double calculateActivation(Pattern input, WeightVector weight, BinaryFuzzyARTParameters parameters) {
+        validateBinaryInput(input);
+        var params = parameters;
         var complemented = complementCode(input);
         
         // Calculate fuzzy AND (minimum) between input and weight
@@ -217,8 +221,9 @@ public class BinaryFuzzyART extends BaseART {
     }
     
     @Override
-    protected MatchResult checkVigilance(Pattern input, WeightVector weight, Object parameters) {
-        var params = (BinaryFuzzyARTParameters) parameters;
+    protected MatchResult checkVigilance(Pattern input, WeightVector weight, BinaryFuzzyARTParameters parameters) {
+        validateBinaryInput(input);
+        var params = parameters;
         var complemented = complementCode(input);
         
         // Calculate fuzzy AND (minimum) between input and weight
@@ -244,8 +249,9 @@ public class BinaryFuzzyART extends BaseART {
     }
     
     @Override
-    protected WeightVector updateWeights(Pattern input, WeightVector weight, Object parameters) {
-        var params = (BinaryFuzzyARTParameters) parameters;
+    protected WeightVector updateWeights(Pattern input, WeightVector weight, BinaryFuzzyARTParameters parameters) {
+        validateBinaryInput(input);
+        var params = parameters;
         var complemented = complementCode(input);
         var newValues = new double[weight.dimension()];
         
@@ -259,8 +265,10 @@ public class BinaryFuzzyART extends BaseART {
         return new BinaryFuzzyART.BinaryFuzzyARTWeight(newValues);
     }
     
-    public ActivationResult stepFit(Pattern input, BinaryFuzzyARTParameters parameters) {
-        validateBinaryInput(input);
-        return super.stepFit(input, parameters);
+    // Binary validation is handled in the protected template methods
+
+    @Override
+    public void close() throws Exception {
+        // No-op for vanilla implementation
     }
 }

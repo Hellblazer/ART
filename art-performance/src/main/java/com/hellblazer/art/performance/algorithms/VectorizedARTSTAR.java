@@ -1,6 +1,7 @@
 package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.WeightVector;
 import com.hellblazer.art.core.algorithms.ARTSTAR;
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.results.EllipsoidActivationResult;
@@ -84,7 +85,7 @@ public class VectorizedARTSTAR implements VectorizedARTAlgorithm<VectorizedARTST
     }
     
     @Override
-    public Object learn(Pattern input, VectorizedARTSTARParameters params) {
+    public ActivationResult learn(Pattern input, VectorizedARTSTARParameters params) {
         lock.writeLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -111,15 +112,8 @@ public class VectorizedARTSTAR implements VectorizedARTAlgorithm<VectorizedARTST
                 // In real implementation would prune weakest categories
             }
             
-            // Convert result
-            return switch (result) {
-                case ActivationResult.Success success -> 
-                    success.categoryIndex();
-                case ActivationResult.NoMatch noMatch ->
-                    artstar.getCategoryCount();
-                case EllipsoidActivationResult ellipsoid ->
-                    ellipsoid.categoryIndex();
-            };
+            // Return result directly
+            return result;
             
         } finally {
             lock.writeLock().unlock();
@@ -128,11 +122,15 @@ public class VectorizedARTSTAR implements VectorizedARTAlgorithm<VectorizedARTST
     
     public int predict(double[] input) {
         var result = predict(Pattern.of(input), defaultParams);
-        return result instanceof Integer ? (Integer) result : -1;
+        return switch (result) {
+            case ActivationResult.Success success -> success.categoryIndex();
+            case ActivationResult.NoMatch noMatch -> -1;
+            default -> -1;
+        };
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedARTSTARParameters params) {
+    public ActivationResult predict(Pattern input, VectorizedARTSTARParameters params) {
         lock.readLock().lock();
         try {
             totalOperations.incrementAndGet();
@@ -145,11 +143,7 @@ public class VectorizedARTSTAR implements VectorizedARTAlgorithm<VectorizedARTST
             var artstarParams = params.toParameters();
             var result = artstar.stepPredict(input, artstarParams);
             
-            return switch (result) {
-                case ActivationResult.Success success -> success.categoryIndex();
-                case ActivationResult.NoMatch noMatch -> -1;
-                case EllipsoidActivationResult ellipsoid -> ellipsoid.categoryIndex();
-            };
+            return result;
             
         } finally {
             lock.readLock().unlock();
@@ -161,6 +155,26 @@ public class VectorizedARTSTAR implements VectorizedARTAlgorithm<VectorizedARTST
         lock.readLock().lock();
         try {
             return artstar.getCategoryCount();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    @Override
+    public WeightVector getCategory(int index) {
+        lock.readLock().lock();
+        try {
+            return artstar.getCategory(index);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    @Override
+    public java.util.List<WeightVector> getCategories() {
+        lock.readLock().lock();
+        try {
+            return artstar.getCategories();
         } finally {
             lock.readLock().unlock();
         }
@@ -285,6 +299,19 @@ public class VectorizedARTSTAR implements VectorizedARTAlgorithm<VectorizedARTST
             return currentAdaptability;
         } finally {
             lock.readLock().unlock();
+        }
+    }
+    
+    @Override
+    public void clear() {
+        lock.writeLock().lock();
+        try {
+            artstar.clear();
+            resetPerformanceTracking();
+            currentStability = 0.5;
+            currentAdaptability = 0.5;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
     

@@ -89,12 +89,12 @@ public class VectorizedSimpleARTMAP implements VectorizedARTAlgorithm<Vectorized
     // VectorizedARTAlgorithm interface implementation
     
     @Override
-    public Object learn(Pattern input, VectorizedSimpleARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult learn(Pattern input, VectorizedSimpleARTMAPParameters parameters) {
         throw new UnsupportedOperationException("SimpleARTMAP requires both input and label. Use train(Pattern, int) instead.");
     }
     
     @Override
-    public Object predict(Pattern input, VectorizedSimpleARTMAPParameters parameters) {
+    public com.hellblazer.art.core.results.ActivationResult predict(Pattern input, VectorizedSimpleARTMAPParameters parameters) {
         ensureNotClosed();
         Objects.requireNonNull(input, "input cannot be null");
         Objects.requireNonNull(parameters, "parameters cannot be null");
@@ -105,8 +105,12 @@ public class VectorizedSimpleARTMAP implements VectorizedARTAlgorithm<Vectorized
             
             // Use the base SimpleARTMAP for prediction
             int result = baseSimpleARTMAP.predict(input, parameters.artAParams());
-            
-            return result;
+
+            if (result >= 0) {
+                return new com.hellblazer.art.core.results.ActivationResult.Success(result, 1.0, null);
+            } else {
+                return com.hellblazer.art.core.results.ActivationResult.NoMatch.instance();
+            }
         } finally {
             var elapsedTime = (System.nanoTime() - startTime) / 1_000_000.0; // ms
             lock.writeLock().lock();
@@ -292,7 +296,12 @@ public class VectorizedSimpleARTMAP implements VectorizedARTAlgorithm<Vectorized
         
         var predictions = new int[data.length];
         for (int i = 0; i < data.length; i++) {
-            predictions[i] = (Integer) predict(data[i], vectorizedParams);
+            var result = predict(data[i], vectorizedParams);
+            if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+                predictions[i] = success.categoryIndex();
+            } else {
+                predictions[i] = -1;
+            }
         }
         return predictions;
     }
@@ -330,5 +339,15 @@ public class VectorizedSimpleARTMAP implements VectorizedARTAlgorithm<Vectorized
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    @Override
+    public com.hellblazer.art.core.WeightVector getCategory(int index) {
+        return vectorizedArtA.getCategory(index);
+    }
+
+    @Override
+    public java.util.List<com.hellblazer.art.core.WeightVector> getCategories() {
+        return vectorizedArtA.getCategories();
     }
 }

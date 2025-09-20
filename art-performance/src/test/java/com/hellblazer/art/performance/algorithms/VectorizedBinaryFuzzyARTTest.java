@@ -2,7 +2,7 @@ package com.hellblazer.art.performance.algorithms;
 
 import com.hellblazer.art.core.results.ActivationResult;
 import com.hellblazer.art.core.Pattern;
-import org.junit.jupiter.api.AfterEach;
+import com.hellblazer.art.performance.BaseVectorizedARTTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,16 +21,24 @@ import static org.junit.jupiter.api.Assertions.*;
  * @version 1.0
  */
 @DisplayName("VectorizedBinaryFuzzyART Tests")
-class VectorizedBinaryFuzzyARTTest {
+class VectorizedBinaryFuzzyARTTest extends BaseVectorizedARTTest<VectorizedBinaryFuzzyART, VectorizedParameters> {
 
-    private VectorizedParameters params;
-    private VectorizedBinaryFuzzyART algorithm;
     private static final Random RANDOM = new Random(42);
 
     @BeforeEach
-    void setUp() {
-        // Create params manually since withAlpha doesn't exist
-        params = new VectorizedParameters(
+    @Override
+    protected void setUp() {
+        super.setUp();
+    }
+    
+    @Override
+    protected VectorizedBinaryFuzzyART createAlgorithm(VectorizedParameters params) {
+        return new VectorizedBinaryFuzzyART(params);
+    }
+    
+    @Override
+    protected VectorizedParameters createDefaultParameters() {
+        return new VectorizedParameters(
             0.8,    // vigilance
             1.0,    // learningRate
             0.01,   // alpha
@@ -41,15 +49,6 @@ class VectorizedBinaryFuzzyARTTest {
             true,   // enableJOML
             0.8     // memoryOptimizationThreshold
         );
-
-        algorithm = new VectorizedBinaryFuzzyART(params);
-    }
-
-    @AfterEach
-    void tearDown() {
-        if (algorithm != null) {
-            algorithm.close();
-        }
     }
 
     @Test
@@ -59,8 +58,8 @@ class VectorizedBinaryFuzzyARTTest {
         var pattern1 = Pattern.of(1.0, 1.0, 1.0, 1.0); // All ones
         var pattern2 = Pattern.of(0.0, 0.0, 0.0, 0.0); // All zeros
 
-        var result1 = algorithm.learn(pattern1, params);
-        var result2 = algorithm.learn(pattern2, params);
+        var result1 = algorithm.learn(pattern1, parameters);
+        var result2 = algorithm.learn(pattern2, parameters);
 
         assertTrue(result1 instanceof ActivationResult.Success);
         assertTrue(result2 instanceof ActivationResult.Success);
@@ -73,7 +72,7 @@ class VectorizedBinaryFuzzyARTTest {
     void testComplementCoding() {
         var basePattern = Pattern.of(1.0, 0.0, 1.0); // Odd length - needs complement coding
 
-        var result = algorithm.learn(basePattern, params);
+        var result = algorithm.learn(basePattern, parameters);
 
         assertTrue(result instanceof ActivationResult.Success);
         assertEquals(1, algorithm.getCategoryCount());
@@ -85,8 +84,8 @@ class VectorizedBinaryFuzzyARTTest {
         var binaryPattern = Pattern.of(1.0, 0.0, 1.0, 0.0, 1.0, 0.0);
         var nonBinaryPattern = Pattern.of(0.5, 0.5, 0.5, 0.5, 0.5, 0.5); // Very different pattern
 
-        var binaryResult = algorithm.learn(binaryPattern, params);
-        var nonBinaryResult = algorithm.learn(nonBinaryPattern, params);
+        var binaryResult = algorithm.learn(binaryPattern, parameters);
+        var nonBinaryResult = algorithm.learn(nonBinaryPattern, parameters);
 
         assertTrue(binaryResult instanceof ActivationResult.Success);
         assertTrue(nonBinaryResult instanceof ActivationResult.Success);
@@ -98,7 +97,7 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should respect vigilance parameter for binary patterns")
     void testVigilanceWithBinaryPatterns() {
-        var strictParams = params.withVigilance(0.99); // Extremely strict vigilance
+        var strictParams = parameters.withVigilance(0.99); // Extremely strict vigilance
 
         var pattern1 = Pattern.of(1.0, 1.0, 0.0, 0.0);
         var pattern2 = Pattern.of(0.0, 0.0, 1.0, 1.0); // Completely different
@@ -113,7 +112,7 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should handle fast learning (beta = 1.0)")
     void testFastLearning() {
-        var fastParams = params.withLearningRate(1.0);
+        var fastParams = parameters.withLearningRate(1.0);
 
         var pattern1 = Pattern.of(1.0, 0.0, 1.0, 0.0);
         var pattern2 = Pattern.of(1.0, 0.0, 1.0, 0.0); // Identical pattern
@@ -129,7 +128,7 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should handle slow learning (beta < 1.0)")
     void testSlowLearning() {
-        var slowParams = params.withLearningRate(0.5);
+        var slowParams = parameters.withLearningRate(0.5);
 
         var pattern1 = Pattern.of(1.0, 0.0, 1.0, 0.0);
         var pattern2 = Pattern.of(1.0, 0.0, 1.0, 0.0); // Identical pattern
@@ -148,11 +147,11 @@ class VectorizedBinaryFuzzyARTTest {
         var pattern = Pattern.of(1.0, 0.0, 1.0, 0.0);
 
         // Learn the pattern
-        algorithm.learn(pattern, params);
+        algorithm.learn(pattern, parameters);
         assertEquals(1, algorithm.getCategoryCount());
 
         // Predict on same pattern
-        var prediction = algorithm.predict(pattern, params);
+        var prediction = algorithm.predict(pattern, parameters);
         assertTrue(prediction instanceof ActivationResult.Success);
 
         if (prediction instanceof ActivationResult.Success success) {
@@ -166,16 +165,16 @@ class VectorizedBinaryFuzzyARTTest {
     void testAlphaParameter() {
         // Create parameters with different alpha values manually
         var lowAlphaParams = new VectorizedParameters(
-            params.vigilanceThreshold(), params.learningRate(), 0.001, // low alpha
-            params.parallelismLevel(), params.parallelThreshold(),
-            params.maxCacheSize(), params.enableSIMD(), params.enableJOML(),
-            params.memoryOptimizationThreshold()
+            parameters.vigilanceThreshold(), parameters.learningRate(), 0.001, // low alpha
+            parameters.parallelismLevel(), parameters.parallelThreshold(),
+            parameters.maxCacheSize(), parameters.enableSIMD(), parameters.enableJOML(),
+            parameters.memoryOptimizationThreshold()
         );
         var highAlphaParams = new VectorizedParameters(
-            params.vigilanceThreshold(), params.learningRate(), 1.0, // high alpha
-            params.parallelismLevel(), params.parallelThreshold(),
-            params.maxCacheSize(), params.enableSIMD(), params.enableJOML(),
-            params.memoryOptimizationThreshold()
+            parameters.vigilanceThreshold(), parameters.learningRate(), 1.0, // high alpha
+            parameters.parallelismLevel(), parameters.parallelThreshold(),
+            parameters.maxCacheSize(), parameters.enableSIMD(), parameters.enableJOML(),
+            parameters.memoryOptimizationThreshold()
         );
 
         var pattern = Pattern.of(1.0, 0.0, 1.0, 0.0);
@@ -185,50 +184,20 @@ class VectorizedBinaryFuzzyARTTest {
         assertTrue(lowResult instanceof ActivationResult.Success);
 
         algorithm.close();
-        algorithm = new VectorizedBinaryFuzzyART(params);
+        algorithm = new VectorizedBinaryFuzzyART(parameters);
 
         // Test with high alpha
         var highResult = algorithm.learn(pattern, highAlphaParams);
         assertTrue(highResult instanceof ActivationResult.Success);
     }
 
-    @Test
-    @DisplayName("Should track performance statistics")
-    void testPerformanceTracking() {
-        var patterns = generateBinaryPatterns(5, 4);
-
-        for (var pattern : patterns) {
-            algorithm.learn(pattern, params);
-        }
-
-        var stats = algorithm.getPerformanceStats();
-        assertTrue(stats.totalVectorOperations() > 0);
-        assertTrue(stats.categoryCount() >= 1);
-        assertEquals(algorithm.getCategoryCount(), stats.categoryCount());
-    }
-
-    @Test
-    @DisplayName("Should reset performance tracking")
-    void testPerformanceReset() {
-        var pattern = Pattern.of(1.0, 0.0, 1.0, 0.0);
-        algorithm.learn(pattern, params);
-
-        var statsBefore = algorithm.getPerformanceStats();
-        assertTrue(statsBefore.totalVectorOperations() >= 0);
-
-        algorithm.resetPerformanceTracking();
-
-        var statsAfter = algorithm.getPerformanceStats();
-        assertEquals(0, statsAfter.totalVectorOperations());
-        // cacheSize may be the maxCacheSize parameter, not actual cache contents
-        assertTrue(statsAfter.cacheSize() >= 0);
-    }
+    // Removed - covered by base class testPerformanceTracking()
 
     @Test
     @DisplayName("Should enable/disable SIMD optimization")
     void testSIMDToggle() {
-        var simdParams = params.withCacheSettings(1000, true, true);
-        var noSimdParams = params.withCacheSettings(1000, false, true);
+        var simdParams = parameters.withCacheSettings(1000, true, true);
+        var noSimdParams = parameters.withCacheSettings(1000, false, true);
 
         var pattern = Pattern.of(1.0, 0.0, 1.0, 0.0);
 
@@ -237,7 +206,7 @@ class VectorizedBinaryFuzzyARTTest {
         assertTrue(simdResult instanceof ActivationResult.Success);
 
         algorithm.close();
-        algorithm = new VectorizedBinaryFuzzyART(params);
+        algorithm = new VectorizedBinaryFuzzyART(parameters);
 
         var noSimdResult = algorithm.learn(pattern, noSimdParams);
         assertTrue(noSimdResult instanceof ActivationResult.Success);
@@ -246,7 +215,7 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should handle parallel processing")
     void testParallelProcessing() {
-        var parallelParams = params.withParallelismLevel(2);
+        var parallelParams = parameters.withParallelismLevel(2);
         var patterns = generateBinaryPatterns(10, 6);
 
         for (var pattern : patterns) {
@@ -261,7 +230,7 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should handle caching efficiently")
     void testInputCaching() {
-        var cachingParams = params.withCacheSettings(10, true, true);
+        var cachingParams = parameters.withCacheSettings(10, true, true);
         var pattern = Pattern.of(1.0, 0.0, 1.0, 0.0);
 
         // Learn same pattern multiple times
@@ -290,16 +259,7 @@ class VectorizedBinaryFuzzyARTTest {
             VectorizedParameters.createDefault().withLearningRate(-0.1));
     }
 
-    @Test
-    @DisplayName("Should handle null inputs gracefully")
-    void testNullInputHandling() {
-        // AbstractVectorizedART handles null gracefully by using defaults
-        assertDoesNotThrow(() ->
-            algorithm.learn(null, params));
-
-        assertDoesNotThrow(() ->
-            algorithm.predict(Pattern.of(1.0, 0.0), null));
-    }
+    // Removed - covered by base class testErrorHandling()
 
     @Test
     @DisplayName("Should handle edge case patterns")
@@ -313,7 +273,7 @@ class VectorizedBinaryFuzzyARTTest {
         };
 
         for (var pattern : sameDimEdgeCases) {
-            var result = algorithm.learn(pattern, params);
+            var result = algorithm.learn(pattern, parameters);
             assertTrue(result instanceof ActivationResult.Success);
         }
 
@@ -321,10 +281,10 @@ class VectorizedBinaryFuzzyARTTest {
 
         // Test different dimensions in separate instances
         algorithm.close();
-        algorithm = new VectorizedBinaryFuzzyART(params);
+        algorithm = new VectorizedBinaryFuzzyART(parameters);
 
         var singleElement = Pattern.of(1.0);
-        var result = algorithm.learn(singleElement, params);
+        var result = algorithm.learn(singleElement, parameters);
         assertTrue(result instanceof ActivationResult.Success);
         assertEquals(1, algorithm.getCategoryCount());
     }
@@ -332,19 +292,19 @@ class VectorizedBinaryFuzzyARTTest {
     @Test
     @DisplayName("Should return current parameters")
     void testParameterRetrieval() {
-        algorithm.learn(Pattern.of(1.0, 0.0), params);
+        algorithm.learn(Pattern.of(1.0, 0.0), parameters);
         var retrievedParams = algorithm.getParameters();
 
         assertNotNull(retrievedParams);
-        assertEquals(params.vigilanceThreshold(), retrievedParams.vigilanceThreshold());
-        assertEquals(params.alpha(), retrievedParams.alpha());
-        assertEquals(params.learningRate(), retrievedParams.learningRate());
+        assertEquals(parameters.vigilanceThreshold(), retrievedParams.vigilanceThreshold());
+        assertEquals(parameters.alpha(), retrievedParams.alpha());
+        assertEquals(parameters.learningRate(), retrievedParams.learningRate());
     }
 
     @Test
     @DisplayName("Should provide meaningful string representation")
     void testStringRepresentation() {
-        algorithm.learn(Pattern.of(1.0, 0.0, 1.0, 0.0), params);
+        algorithm.learn(Pattern.of(1.0, 0.0, 1.0, 0.0), parameters);
 
         var str = algorithm.toString();
         assertNotNull(str);
