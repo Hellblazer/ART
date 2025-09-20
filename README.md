@@ -10,7 +10,7 @@ An implementation of Adaptive Resonance Theory (ART) neural networks for Java 24
 ## Features
 
 - **High Performance**: SIMD vectorization via Java 24 Vector API (4-8x speedup)
-- **Comprehensive Coverage**: 15+ ART algorithm variants implemented including Salience-Aware ART
+- **Comprehensive Coverage**: 35+ ART algorithm variants with vectorized implementations
 - **Modern Java**: Full Java 24 feature utilization
 - **Production Ready**: Extensive testing (250+ tests), benchmarking, and documentation
 - **Data Preprocessing**: Complete data preprocessing pipeline with normalization and missing value handling
@@ -107,28 +107,51 @@ var vectorizedNetwork = new VectorizedFuzzyART(parameters);
 - **[Architecture Guide](docs/ARCHITECTURE.md)** - System design and architecture
 - **[API Reference](docs/API.md)** - Complete API documentation
 - **[Developer Guide](CLAUDE.md)** - Build configuration and development
+- **[Performance Report](PERFORMANCE_REPORT.md)** - Detailed performance benchmarks
+- **[FALCON Porting Plan](FALCON_PORTING_PLAN.md)** - Reinforcement learning implementation
 
 ## Algorithms
 
 ### Unsupervised Learning
-| Algorithm | Use Case | Key Feature |
-|-----------|----------|-------------|
-| FuzzyART | General pattern recognition | Fuzzy set operations |
-| DualVigilanceART | Noise-robust clustering | Dual threshold system |
-| TopoART | Topology learning | Edge formation, clustering |
-| BayesianART | Uncertainty quantification | Confidence estimates |
-| GaussianART | Statistical clustering | Gaussian distributions |
-| HypersphereART | Geometric clustering | Rotation invariant |
-| ART-2 | Preprocessing integration | Noise filtering |
-| SalienceART | Feature-weighted learning | Dynamic salience weighting |
+| Algorithm | Use Case | Key Feature | Vectorized |
+|-----------|----------|-------------|------------|
+| ART1 | Binary pattern recognition | Binary resonance | ✅ |
+| ART2 | Continuous pattern recognition | Noise filtering | ✅ |
+| FuzzyART | General pattern recognition | Fuzzy set operations | ✅ |
+| DualVigilanceART | Noise-robust clustering | Dual threshold system | ✅ |
+| TopoART | Topology learning | Edge formation, clustering | ✅ |
+| BayesianART | Uncertainty quantification | Confidence estimates | ✅ |
+| GaussianART | Statistical clustering | Gaussian distributions | ✅ |
+| HypersphereART | Geometric clustering | Rotation invariant | ✅ |
+| EllipsoidART | Ellipsoidal clustering | Orientation adaptive | ✅ |
+| QuadraticNeuronART | Non-linear boundaries | Quadratic activation | ✅ |
+| SalienceART | Feature-weighted learning | Dynamic salience weighting | ✅ |
+| BinaryFuzzyART | Binary fuzzy patterns | Fuzzy binary operations | ✅ |
+| FusionART | Multi-channel fusion | Channel integration | ✅ |
+| ARTA | Time-series patterns | Temporal processing | ✅ |
+| ARTE | Extended ART | Enhanced stability | ✅ |
+| ARTSTAR | Star topology | Hub-based clustering | ✅ |
+| iCVIFuzzyART | Incremental validity | CVI optimization | ✅ |
 
 ### Supervised Learning
-| Algorithm | Use Case | Key Feature |
-|-----------|----------|-------------|
-| ARTMAP | Classification | Match tracking |
-| FuzzyARTMAP | Fuzzy classification | Fuzzy match tracking |
-| DeepARTMAP | Hierarchical learning | Multi-layer processing |
-| SalienceARTMAP | Weighted classification | Cross-module salience adaptation |
+| Algorithm | Use Case | Key Feature | Vectorized |
+|-----------|----------|-------------|------------|
+| ARTMAP | Classification | Match tracking | ✅ |
+| SimpleARTMAP | Fast classification | Simplified map field | ✅ |
+| FuzzyARTMAP | Fuzzy classification | Fuzzy match tracking | ✅ |
+| BinaryFuzzyARTMAP | Binary fuzzy classification | Binary fuzzy tracking | ✅ |
+| GaussianARTMAP | Statistical classification | Gaussian map field | ✅ |
+| HypersphereARTMAP | Geometric classification | Spherical boundaries | ✅ |
+| DeepARTMAP | Hierarchical learning | Multi-layer processing | ✅ |
+| SalienceARTMAP | Weighted classification | Cross-module salience | ✅ |
+| BARTMAP | Bayesian classification | Probabilistic map field | ✅ |
+| SMART | Sequential mapping | Memory-based learning | ✅ |
+
+### Reinforcement Learning
+| Algorithm | Use Case | Key Feature | Vectorized |
+|-----------|----------|-------------|------------|
+| FALCON | Q-learning integration | State-action-reward mapping | ✅ |
+| TD-FALCON | Temporal difference learning | SARSA with eligibility traces | ✅ |
 
 ## Performance
 
