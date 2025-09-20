@@ -75,8 +75,8 @@ public class RealWorldPerformanceTest {
             }
         }
         
-        // Write report to file
-        var reportFile = "PERFORMANCE_REPORT_" + System.currentTimeMillis() + ".md";
+        // Write report to target directory
+        var reportFile = "target/PERFORMANCE_REPORT_" + System.currentTimeMillis() + ".md";
         try (var writer = new FileWriter(reportFile)) {
             writer.write(performanceReport.toString());
         }

@@ -2,3 +2,9 @@
 .idea
 .claude
 logs
+
+# Performance test reports
+**/PERFORMANCE_*.md
+**/ACTUAL_PERFORMANCE_*.md
+**/PARAMETERIZED_PERFORMANCE_*.md
+**/PERFORMANCE_CELEBRATION_*.md

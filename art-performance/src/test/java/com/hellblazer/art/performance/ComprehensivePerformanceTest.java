@@ -98,8 +98,8 @@ public class ComprehensivePerformanceTest {
         
         fullReport.append("\n").append(performanceReport);
         
-        // Write report to file
-        var reportFile = "ACTUAL_PERFORMANCE_RESULTS_" + System.currentTimeMillis() + ".md";
+        // Write report to target directory
+        var reportFile = "target/ACTUAL_PERFORMANCE_RESULTS_" + System.currentTimeMillis() + ".md";
         try (var writer = new FileWriter(reportFile)) {
             writer.write(fullReport.toString());
         }

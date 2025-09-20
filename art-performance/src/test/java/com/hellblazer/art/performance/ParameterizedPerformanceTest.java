@@ -177,8 +177,8 @@ public class ParameterizedPerformanceTest {
         performanceReport.append("- Both algorithms scale well up to ").append(testScale.maxDimensions).append(" dimensions\n");
         performanceReport.append("- Performance remains acceptable with ").append(testScale.maxDataSize).append(" samples\n");
         
-        // Write report
-        var reportFile = "PARAMETERIZED_PERFORMANCE_" + testScale + "_" + System.currentTimeMillis() + ".md";
+        // Write report to target directory
+        var reportFile = "target/PARAMETERIZED_PERFORMANCE_" + testScale + "_" + System.currentTimeMillis() + ".md";
         try (var writer = new FileWriter(reportFile)) {
             writer.write(performanceReport.toString());
         }
