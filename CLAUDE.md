@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an **Adaptive Resonance Theory (ART)** implementation in Java 24. ART is a neural network architecture for unsupervised learning and pattern recognition. The project is structured as a multi-module Maven build with focus on performance, graphics visualization, and mathematical operations.
+This is a comprehensive **Adaptive Resonance Theory (ART)** implementation in Java 24, featuring 60+ ART algorithm variants with both standard and high-performance vectorized implementations. ART is a neural network architecture for unsupervised and supervised learning, pattern recognition, and clustering. The project is structured as a multi-module Maven build with extensive test coverage (1,408 tests, 100% pass rate), SIMD optimization via Java Vector API, and GPU acceleration support.
 
 ## Build System & Commands
 
@@ -79,7 +79,10 @@ This is an **Adaptive Resonance Theory (ART)** implementation in Java 24. ART is
 - Use try-with-resources for resource management
 
 ### Maven Module Structure
-- Multi-module build with `<modules>` in parent POM
+- Multi-module build with 3 active modules:
+  - **art-core**: Core algorithm implementations (818 tests)
+  - **art-performance**: Vectorized implementations (582 tests)
+  - **gpu-test-framework**: GPU acceleration experiments (8 tests)
 - Generated sources go in `target/generated-sources/`
 - Protocol Buffers sources in `src/main/proto` and `src/test/proto`
 - JOOQ generated classes in `target/generated-sources/jooq`
@@ -114,19 +117,54 @@ When working with ART performance algorithms:
 - Resource management via `AutoCloseable` for proper cleanup
 - Performance tracking methods: `resetPerformanceTracking()`, `getPerformanceStats()`
 
-### Algorithm Types
-- **VectorizedART** - basic competitive learning with SIMD optimization
-- **VectorizedFuzzyART** - fuzzy set theory with complement coding
-- **VectorizedHypersphereART** - spherical category representation
-- **VectorizedTopoART** - topological neighborhood preservation
-- **VectorizedARTMAP** - supervised learning with map field
-- **VectorizedDeepARTMAP** - multi-layer hierarchical processing
+### Algorithm Types (60+ Implementations)
+
+#### Core ART Algorithms
+- **ART1** - Binary pattern recognition (original model)
+- **ART2/ART2A** - Continuous-valued patterns
+- **ARTA/ARTE/ARTSTAR** - Enhanced ART variants
+- **FuzzyART** - Fuzzy set theory with complement coding
+- **BinaryFuzzyART** - Binary inputs with fuzzy operations
+- **DualVigilanceART** - Dual vigilance for boundary/cluster control
+- **FusionART** - Multi-channel fusion learning
+
+#### Geometric Models
+- **EllipsoidART** - Ellipsoidal category geometry
+- **HypersphereART** - Spherical categories
+- **QuadraticNeuronART** - Quadratic activation functions
+
+#### Probabilistic Models
+- **BayesianART** - Probabilistic category assignment
+- **GaussianART** - Gaussian probability distributions
+
+#### Topological & Advanced
+- **TopoART** - Topology-preserving dual networks
+- **SalienceART** - Feature importance weighting
+- **iCVIFuzzyART** - Incremental cluster validity
+- **SMART** - Self-organizing map ART hybrid
+
+#### Supervised ARTMAP Family
+- **ARTMAP/FuzzyARTMAP** - Supervised classification
+- **SimpleARTMAP/BARTMAP** - Simplified variants
+- **BinaryFuzzyARTMAP** - Binary supervised learning
+- **HypersphereARTMAP** - Geometric supervised
+- **DeepARTMAP** - Multi-layer hierarchical
+
+#### Vectorized Performance Versions
+All above algorithms have vectorized implementations with "Vectorized" prefix using Java Vector API for 10-100x speedup
 
 ### Testing Strategy
-- Unit tests for individual ART components
-- Integration tests for full network behavior
-- Performance tests using JMH for critical paths
-- Visual tests for JavaFX components
+- **Total Tests**: 1,408 (100% pass rate)
+  - art-core: 818 tests
+  - art-performance: 582 tests  
+  - gpu-test-framework: 8 tests
+- **Test Types**:
+  - Unit tests for individual ART components
+  - Integration tests for full network behavior
+  - Performance tests using JMH for critical paths
+  - Visual tests for JavaFX components
+  - Regression tests for historical bug prevention
+- **BaseVectorizedARTTest** - Shared test framework (83% code reduction)
 
 ## Project-Specific Notes
 
