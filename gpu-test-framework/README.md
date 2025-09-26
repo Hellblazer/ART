@@ -1,18 +1,19 @@
 # GPU Test Framework
 
-A comprehensive, reusable headless GPU testing framework for Java 24 projects using LWJGL and OpenCL. Based on the LWJGL headless testing patterns and designed specifically for the ART (Adaptive Resonance Theory) project's GPU compute testing needs.
+A comprehensive, reusable GPU testing framework for Java projects with automatic backend selection, performance benchmarking, and CI/CD compatibility. Built with LWJGL 3.3.6 for multi-platform GPU compute testing.
 
 ## Features
 
+- **Multi-Backend Support**: OpenCL, OpenGL Compute, Metal 3 (via bgfx)
 - **Headless Operation**: Runs without display or windowing systems - perfect for CI/CD
-- **CI/CD Compatible**: Graceful handling of missing OpenCL libraries in CI environments
-- **Platform Detection**: Automatic detection of macOS, Linux, Windows with ARM64/AMD64 support  
-- **GPU Discovery**: Automatic OpenCL platform and device enumeration
-- **Memory Management**: Safe LWJGL memory operations with automatic cleanup
-- **JUnit 5 Integration**: Modern testing with conditional execution and assumptions
+- **CI/CD Compatible**: Automatic mock fallback in CI environments
+- **Performance Benchmarking**: Built-in CPU vs GPU comparison with JMH
+- **Memory Analysis**: Transfer overhead profiling and optimization guidance
+- **Cross-Validation**: Ensure GPU and CPU implementations match
+- **Platform Detection**: Automatic capability discovery across OS and architectures
+- **GPU Discovery**: Automatic device enumeration and selection
 - **Graceful Degradation**: Tests skip gracefully when GPU hardware is unavailable
-- **Mock Platform Support**: Provides mock platforms when real OpenCL is unavailable
-- **Comprehensive Logging**: Detailed logging for debugging GPU issues
+- **Mock Platform Support**: Provides mock platforms when real hardware is unavailable
 
 ## Architecture
 
@@ -45,7 +46,7 @@ Expected output on macOS M4:
 === LWJGL Headless Platform Validation ===
 Platform: macOS (MACOSX)
 Architecture: ARM64 (64-bit: true)
-Headless platform validation PASSED - Framework safe to use!
+✅ Headless platform validation PASSED - Framework safe to use!
 ```
 
 ### 2. Basic Usage
@@ -127,7 +128,7 @@ The framework automatically handles platform-specific native libraries:
 
 ```xml
 <dependency>
-    <groupId>com.hellblazer.art</groupId>
+    <groupId>com.hellblazer.luciferase</groupId>
     <artifactId>gpu-test-framework</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <scope>test</scope>
@@ -243,16 +244,17 @@ Successful GPU discovery and testing:
 [INFO] Found 1 device(s) on platform Apple:
 [INFO]   Apple M4 [GPU] - 10 CUs, 21474.8 MB mem
 [INFO] Testing GPU vector addition on: Apple M4 [GPU] - 10 CUs, 21474.8 MB mem
-[INFO] GPU vector addition test PASSED - 1024 elements processed
+[INFO] ✅ GPU vector addition test PASSED - 1024 elements processed
 ```
 
-## Integration with ART Project
+## Integration with Luciferase
 
-This framework is designed specifically for testing ART neural network GPU acceleration:
+This framework is designed for testing GPU acceleration in the Luciferase project:
 
-- Vector operations (addition, multiplication, dot products)
-- Matrix operations for weight updates
-- Parallel pattern matching computations
-- Memory bandwidth testing for large datasets
+- **ESVO ray traversal** - Efficient sparse voxel octree GPU kernels
+- **Spatial index operations** - Parallel tree traversal and queries
+- **Collision detection** - GPU-accelerated broad and narrow phase
+- **Rendering pipeline** - Compute shaders for voxel rendering
+- **Memory bandwidth testing** - Profiling large octree structures
 
-The framework provides the foundation for testing GPU-accelerated ART algorithms in a headless CI/CD environment.
+The framework provides the foundation for testing GPU-accelerated spatial algorithms in a headless CI/CD environment.
