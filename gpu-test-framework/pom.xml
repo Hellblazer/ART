@@ -22,62 +22,9 @@
         and mock fallback for CI/CD environments.
     </description>
     
-    <properties>
-        <!-- LWJGL Platform Detection -->
-        <lwjgl.natives>natives-macos-arm64</lwjgl.natives> <!-- Default for Apple Silicon -->
-    </properties>
-    
+    <!-- LWJGL native platform detection is handled by parent POM profiles -->
+
     <profiles>
-        <!-- Platform-specific native library selection -->
-        <profile>
-            <id>lwjgl-natives-linux-amd64</id>
-            <activation>
-                <os>
-                    <name>linux</name>
-                    <arch>amd64</arch>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-linux</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-linux-arm64</id>
-            <activation>
-                <os>
-                    <name>linux</name>
-                    <arch>aarch64</arch>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-linux</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-windows-amd64</id>
-            <activation>
-                <os>
-                    <family>windows</family>
-                    <arch>amd64</arch>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-windows</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-macos-amd64</id>
-            <activation>
-                <os>
-                    <family>mac</family>
-                    <arch>x86_64</arch>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-macos</lwjgl.natives>
-            </properties>
-        </profile>
-        
         <!-- GPU Testing Profile -->
         <profile>
             <id>gpu-tests</id>
