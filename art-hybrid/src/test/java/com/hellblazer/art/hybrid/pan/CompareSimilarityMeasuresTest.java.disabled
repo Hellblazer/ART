@@ -1,0 +1,152 @@
+package com.hellblazer.art.hybrid.pan;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import org.junit.jupiter.api.Test;
+
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Test to compare Fuzzy ART vs Dot Product similarity measures.
+ */
+class CompareSimilarityMeasuresTest {
+
+    @Test
+    void compareSimilarityMeasures() {
+        System.out.println("=== Comparing Similarity Measures ===\n");
+
+        // Create test patterns
+        Random rand = new Random(42);
+        Pattern[] patterns = new Pattern[3];
+
+        for (int i = 0; i < 3; i++) {
+            double[] data = new double[784];
+            for (int j = 0; j < 784; j++) {
+                // Create distinct patterns
+                data[j] = rand.nextDouble() * (i + 1) / 3.0;
+            }
+            patterns[i] = new DenseVector(data);
+        }
+
+        // Test with Fuzzy ART (default)
+        System.out.println("1. Testing with Fuzzy ART similarity (default):");
+        PANParameters fuzzyParams = PANParameters.defaultParameters();
+        assertEquals(SimilarityMeasures.FUZZY_ART, fuzzyParams.similarityMeasure());
+
+        int fuzzyCategories;
+        double fuzzyAccuracy;
+
+        try (PAN pan = new PAN(fuzzyParams)) {
+            // Learn patterns
+            for (Pattern p : patterns) {
+                pan.learn(p, fuzzyParams);
+            }
+
+            fuzzyCategories = pan.getCategoryCount();
+            System.out.println("  Categories created: " + fuzzyCategories);
+
+            // Test prediction accuracy
+            int correct = 0;
+            for (int i = 0; i < patterns.length; i++) {
+                var result = pan.predict(patterns[i], fuzzyParams);
+                if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+                    if (success.categoryIndex() == i) correct++;
+                }
+            }
+            fuzzyAccuracy = (double) correct / patterns.length;
+            System.out.println("  Prediction accuracy: " + (fuzzyAccuracy * 100) + "%");
+        }
+
+        // Test with Dot Product (paper-compliant)
+        System.out.println("\n2. Testing with Dot Product similarity (paper-compliant):");
+        PANParameters dotParams = PANParameters.paperCompliantParameters();
+        assertEquals(SimilarityMeasures.DOT_PRODUCT, dotParams.similarityMeasure());
+
+        int dotCategories;
+        double dotAccuracy;
+
+        try (PAN pan = new PAN(dotParams)) {
+            // Learn patterns
+            for (Pattern p : patterns) {
+                pan.learn(p, dotParams);
+            }
+
+            dotCategories = pan.getCategoryCount();
+            System.out.println("  Categories created: " + dotCategories);
+
+            // Test prediction accuracy
+            int correct = 0;
+            for (int i = 0; i < patterns.length; i++) {
+                var result = pan.predict(patterns[i], dotParams);
+                if (result instanceof com.hellblazer.art.core.results.ActivationResult.Success success) {
+                    if (success.categoryIndex() == i) correct++;
+                }
+            }
+            dotAccuracy = (double) correct / patterns.length;
+            System.out.println("  Prediction accuracy: " + (dotAccuracy * 100) + "%");
+        }
+
+        // Compare results
+        System.out.println("\n=== Comparison Results ===");
+        System.out.println("Fuzzy ART: " + fuzzyCategories + " categories, " +
+                          (fuzzyAccuracy * 100) + "% accuracy");
+        System.out.println("Dot Product: " + dotCategories + " categories, " +
+                          (dotAccuracy * 100) + "% accuracy");
+
+        // Both should create reasonable categories
+        assertTrue(fuzzyCategories >= 1 && fuzzyCategories <= 10);
+        assertTrue(dotCategories >= 1 && dotCategories <= 10);
+    }
+
+    @Test
+    void testVigilanceRanges() {
+        System.out.println("\n=== Testing Vigilance Ranges ===\n");
+
+        // Test patterns
+        Random rand = new Random(42);
+        Pattern pattern = new DenseVector(new double[784]);
+        for (int i = 0; i < 784; i++) {
+            pattern.get(i);  // Initialize with random values
+        }
+
+        // Test different vigilance values with Fuzzy ART
+        System.out.println("Fuzzy ART vigilance test:");
+        double[] fuzzyVigilances = {0.3, 0.5, 0.7, 0.9};
+        for (double vigilance : fuzzyVigilances) {
+            PANParameters params = new PANParameters(
+
+                vigilance, 10, PANParameters.defaultParameters().cnnConfig(), false,
+0.01, 0.9, 0.0001, true, 64,
+0.95, 0.8, 100, 10, 0.1, 0.1, SimilarityMeasures.FUZZY_ART
+);
+
+            try (PAN pan = new PAN(params)) {
+                pan.learn(pattern, params);
+                System.out.printf("  Vigilance %.1f: %d categories\n",
+                                 vigilance, pan.getCategoryCount());
+            }
+        }
+
+        // Test different vigilance values with Dot Product
+        System.out.println("\nDot Product vigilance test:");
+        double[] dotVigilances = {0.5, 1.0, 2.0, 5.0};  // Higher range for unbounded
+        for (double vigilance : dotVigilances) {
+            PANParameters params = new PANParameters(
+
+                vigilance, 10, PANParameters.defaultParameters().cnnConfig(), false,
+0.01, 0.9, 0.0001, true, 64,
+0.95, 0.8, 100, 10, 0.1, 0.1, SimilarityMeasures.DOT_PRODUCT
+);
+
+            try (PAN pan = new PAN(params)) {
+                pan.learn(pattern, params);
+                System.out.printf("  Vigilance %.1f: %d categories\n",
+                                 vigilance, pan.getCategoryCount());
+            }
+        }
+    }
+}

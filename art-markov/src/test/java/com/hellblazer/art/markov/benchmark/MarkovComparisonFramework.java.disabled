@@ -1,0 +1,471 @@
+package com.hellblazer.art.hybrid.markov.benchmark;
+
+import com.hellblazer.art.hybrid.markov.HybridARTMarkov;
+import com.hellblazer.art.hybrid.markov.baseline.StandardMarkovChain;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Comprehensive comparison framework for validating hybrid ART-Markov approaches
+ * against standard Markov chain implementations.
+ *
+ * This framework provides statistical validation, correctness testing, and
+ * performance comparison across multiple benchmark problems.
+ */
+public class MarkovComparisonFramework {
+
+    /**
+     * Statistical test result
+     */
+    public static record StatisticalTestResult(
+        String testName,
+        double pValue,
+        boolean isSignificant,
+        double effectSize,
+        String interpretation
+    ) {}
+
+    /**
+     * Comparison result between two approaches
+     */
+    public static record ComparisonResult(
+        String problemName,
+        String metric,
+        double standardMarkovValue,
+        double hybridARTMarkovValue,
+        double improvement,
+        double improvementPercentage,
+        StatisticalTestResult significance,
+        Map<String, Object> additionalMetrics
+    ) {}
+
+    /**
+     * Comprehensive benchmark result
+     */
+    public static record BenchmarkResult(
+        String problemName,
+        List<ComparisonResult> comparisons,
+        Map<String, Double> accuracyMetrics,
+        Map<String, Double> performanceMetrics,
+        List<String> validationErrors,
+        double overallScore
+    ) {}
+
+    private static final double SIGNIFICANCE_LEVEL = 0.05;
+    private static final int REPLICATIONS = 50; // Number of independent runs for statistical testing
+
+    @Test
+    void testRandomWalkComparison() {
+        System.out.println("=== Random Walk Benchmark ===\n");
+
+        var problem = new ClassicMarkovProblems.RandomWalkProblem(-10, 10, 0.5);
+        var result = runComprehensiveBenchmark(
+            "Random Walk",
+            problem::createTrueModel,
+            problem::generateTestSequence,
+            (state) -> problem.getAnalyticalSteadyStateProbability(state),
+            1000
+        );
+
+        printBenchmarkResult(result);
+
+        // Validate results
+        assertTrue(result.overallScore() > 0.7, "Random walk benchmark should achieve > 70% overall score");
+        assertTrue(result.validationErrors().size() < 3, "Should have minimal validation errors");
+    }
+
+    @Test
+    void testBirthDeathComparison() {
+        System.out.println("=== Birth-Death Process Benchmark ===\n");
+
+        var problem = new ClassicMarkovProblems.BirthDeathProblem(20, 0.3, 0.2);
+        var result = runComprehensiveBenchmark(
+            "Birth-Death Process",
+            problem::createTrueModel,
+            () -> problem.generateTestSequence(5, 500),
+            (state) -> problem.getAnalyticalSteadyStateProbability(state),
+            500
+        );
+
+        printBenchmarkResult(result);
+
+        assertTrue(result.overallScore() > 0.6, "Birth-death benchmark should achieve > 60% overall score");
+    }
+
+    @Test
+    void testWeatherModelComparison() {
+        System.out.println("=== Weather Model Benchmark ===\n");
+
+        var problem = new ClassicMarkovProblems.WeatherProblem();
+        var result = runComprehensiveBenchmark(
+            "Weather Model",
+            problem::createTrueModel,
+            () -> problem.generateTestSequence(ClassicMarkovProblems.WeatherProblem.Weather.SUNNY, 1000),
+            (state) -> problem.getAnalyticalSteadyStateProbability(state),
+            1000
+        );
+
+        printBenchmarkResult(result);
+
+        assertTrue(result.overallScore() > 0.8, "Weather model should achieve > 80% overall score");
+    }
+
+    @Test
+    void testPageRankComparison() {
+        System.out.println("=== PageRank Benchmark ===\n");
+
+        var problem = ClassicMarkovProblems.PageRankProblem.createSimpleGraph();
+        var result = runComprehensiveBenchmark(
+            "PageRank",
+            problem::createTrueModel,
+            () -> problem.generateTestSequence(0, 800),
+            (state) -> problem.getAnalyticalPageRank(state),
+            800
+        );
+
+        printBenchmarkResult(result);
+
+        assertTrue(result.overallScore() > 0.7, "PageRank benchmark should achieve > 70% overall score");
+    }
+
+    @Test
+    void testQueueingSystemComparison() {
+        System.out.println("=== Queueing System Benchmark ===\n");
+
+        var problem = new ClassicMarkovProblems.QueueingProblem(0.4, 0.6, 15);
+        var result = runComprehensiveBenchmark(
+            "M/M/1/K Queue",
+            problem::createTrueModel,
+            () -> problem.generateTestSequence(0, 600),
+            (state) -> problem.getAnalyticalSteadyStateProbability(state),
+            600
+        );
+
+        printBenchmarkResult(result);
+
+        assertTrue(result.overallScore() > 0.6, "Queueing system should achieve > 60% overall score");
+    }
+
+    @Test
+    void testCorrectnessValidation() {
+        System.out.println("=== Correctness Validation ===\n");
+
+        // Test transition matrix properties
+        var problem = new ClassicMarkovProblems.WeatherProblem();
+        var trueModel = problem.createTrueModel();
+        var hybridModel = new HybridARTMarkov<>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        // Train hybrid model
+        var sequence = problem.generateTestSequence(ClassicMarkovProblems.WeatherProblem.Weather.SUNNY, 500);
+        for (var state : sequence) {
+            hybridModel.processObservation(state);
+        }
+
+        // Validate stochastic properties
+        var trueValidation = trueModel.validateStochasticProperties();
+        var hybridValidation = hybridModel.validateModel();
+
+        System.out.println("True model validation: " + trueValidation);
+        System.out.println("Hybrid model validation: " + hybridValidation);
+
+        assertTrue(trueValidation.isValid(), "True model should have valid stochastic properties");
+        // Hybrid model may have some issues due to state discovery process
+        assertTrue(hybridValidation.violations().size() <= 5, "Hybrid model should have minimal violations");
+
+        hybridModel.close();
+    }
+
+    @Test
+    void testConvergenceComparison() {
+        System.out.println("=== Convergence Analysis ===\n");
+
+        var problem = new ClassicMarkovProblems.WeatherProblem();
+        var sequence = problem.generateTestSequence(ClassicMarkovProblems.WeatherProblem.Weather.SUNNY, 1000);
+
+        // Test different sequence lengths
+        int[] sequenceLengths = {50, 100, 200, 500, 1000};
+
+        for (int length : sequenceLengths) {
+            var subSequence = sequence.subList(0, Math.min(length, sequence.size()));
+
+            // Standard Markov
+            var standardModel = new StandardMarkovChain<ClassicMarkovProblems.WeatherProblem.Weather>();
+            for (int i = 1; i < subSequence.size(); i++) {
+                standardModel.observeTransition(subSequence.get(i-1), subSequence.get(i));
+            }
+
+            // Hybrid ART-Markov
+            var hybridModel = new HybridARTMarkov<ClassicMarkovProblems.WeatherProblem.Weather>(
+                HybridARTMarkov.HybridConfig.defaultConfig()
+            );
+            for (var state : subSequence) {
+                hybridModel.processObservation(state);
+            }
+
+            // Calculate steady-state accuracy
+            var trueSteady = new double[]{
+                problem.getAnalyticalSteadyStateProbability(ClassicMarkovProblems.WeatherProblem.Weather.SUNNY),
+                problem.getAnalyticalSteadyStateProbability(ClassicMarkovProblems.WeatherProblem.Weather.CLOUDY),
+                problem.getAnalyticalSteadyStateProbability(ClassicMarkovProblems.WeatherProblem.Weather.RAINY)
+            };
+
+            var standardSteady = standardModel.getSteadyStateDistribution();
+            var hybridSteady = hybridModel.getSteadyStateDistribution();
+
+            var standardError = calculateL2Error(trueSteady, standardSteady);
+            var hybridError = calculateL2Error(trueSteady, hybridSteady);
+
+            System.out.printf("Length %d: Standard error=%.6f, Hybrid error=%.6f\n",
+                             length, standardError, hybridError);
+
+            hybridModel.close();
+        }
+    }
+
+    // Private helper methods
+
+    private <S> BenchmarkResult runComprehensiveBenchmark(
+            String problemName,
+            java.util.function.Supplier<StandardMarkovChain<S>> trueModelSupplier,
+            java.util.function.Supplier<List<S>> sequenceGenerator,
+            Function<S, Double> analyticalSolution,
+            int sequenceLength) {
+
+        var comparisons = new ArrayList<ComparisonResult>();
+        var accuracyMetrics = new HashMap<String, Double>();
+        var performanceMetrics = new HashMap<String, Double>();
+        var validationErrors = new ArrayList<String>();
+
+        // Run multiple replications for statistical validity
+        var standardErrors = new ArrayList<Double>();
+        var hybridErrors = new ArrayList<Double>();
+        var standardTimes = new ArrayList<Long>();
+        var hybridTimes = new ArrayList<Long>();
+
+        for (int rep = 0; rep < REPLICATIONS; rep++) {
+            // Generate test sequence
+            var sequence = sequenceGenerator.get();
+
+            // Standard Markov Chain
+            var standardModel = trueModelSupplier.get();
+            long startTime = System.nanoTime();
+
+            for (int i = 1; i < sequence.size(); i++) {
+                standardModel.observeTransition(sequence.get(i-1), sequence.get(i));
+            }
+            long standardTime = System.nanoTime() - startTime;
+            standardTimes.add(standardTime);
+
+            // Hybrid ART-Markov
+            var hybridModel = new HybridARTMarkov<S>(HybridARTMarkov.HybridConfig.defaultConfig());
+            startTime = System.nanoTime();
+
+            for (var state : sequence) {
+                hybridModel.processObservation(state);
+            }
+            long hybridTime = System.nanoTime() - startTime;
+            hybridTimes.add(hybridTime);
+
+            // Calculate accuracy metrics
+            var standardSteady = standardModel.getSteadyStateDistribution();
+            var hybridSteady = hybridModel.getSteadyStateDistribution();
+
+            // Calculate analytical steady state for comparison
+            var uniqueStates = new HashSet<>(sequence);
+            var analyticalSteady = uniqueStates.stream()
+                .mapToDouble(analyticalSolution::apply)
+                .toArray();
+
+            var standardError = calculateL2Error(analyticalSteady, standardSteady);
+            var hybridError = calculateL2Error(analyticalSteady, hybridSteady);
+
+            standardErrors.add(standardError);
+            hybridErrors.add(hybridError);
+
+            // Validate models
+            var standardValidation = standardModel.validateStochasticProperties();
+            var hybridValidation = hybridModel.validateModel();
+
+            if (!standardValidation.isValid()) {
+                validationErrors.addAll(standardValidation.violations().stream()
+                    .map(v -> "Standard model rep " + rep + ": " + v)
+                    .toList());
+            }
+
+            if (!hybridValidation.isValid()) {
+                validationErrors.addAll(hybridValidation.violations().stream()
+                    .map(v -> "Hybrid model rep " + rep + ": " + v)
+                    .toList());
+            }
+
+            hybridModel.close();
+        }
+
+        // Statistical analysis
+        var accuracyComparison = createComparisonResult(
+            problemName, "Steady-State L2 Error",
+            calculateMean(standardErrors), calculateMean(hybridErrors),
+            performTTest(standardErrors, hybridErrors)
+        );
+        comparisons.add(accuracyComparison);
+
+        var performanceComparison = createComparisonResult(
+            problemName, "Training Time (ns)",
+            calculateMean(standardTimes), calculateMean(hybridTimes),
+            performTTest(standardTimes.stream().mapToDouble(Long::doubleValue).boxed().toList(),
+                        hybridTimes.stream().mapToDouble(Long::doubleValue).boxed().toList())
+        );
+        comparisons.add(performanceComparison);
+
+        // Accuracy metrics
+        accuracyMetrics.put("standardErrorMean", calculateMean(standardErrors));
+        accuracyMetrics.put("standardErrorStd", calculateStandardDeviation(standardErrors));
+        accuracyMetrics.put("hybridErrorMean", calculateMean(hybridErrors));
+        accuracyMetrics.put("hybridErrorStd", calculateStandardDeviation(hybridErrors));
+
+        // Performance metrics
+        performanceMetrics.put("standardTimeMean", calculateMean(standardTimes) / 1_000_000.0); // Convert to ms
+        performanceMetrics.put("hybridTimeMean", calculateMean(hybridTimes) / 1_000_000.0);
+        performanceMetrics.put("speedupRatio", calculateMean(standardTimes) / calculateMean(hybridTimes));
+
+        // Overall score (higher is better)
+        var errorImprovement = Math.max(0, (calculateMean(standardErrors) - calculateMean(hybridErrors)) / calculateMean(standardErrors));
+        var validationScore = Math.max(0, 1.0 - validationErrors.size() / 10.0);
+        var overallScore = (errorImprovement + validationScore) / 2.0;
+
+        return new BenchmarkResult(
+            problemName, comparisons, accuracyMetrics, performanceMetrics, validationErrors, overallScore
+        );
+    }
+
+    private ComparisonResult createComparisonResult(String problemName, String metric,
+                                                   double standardValue, double hybridValue,
+                                                   StatisticalTestResult significance) {
+        var improvement = standardValue - hybridValue;
+        var improvementPercentage = standardValue != 0 ? (improvement / standardValue) * 100 : 0;
+
+        return new ComparisonResult(
+            problemName, metric, standardValue, hybridValue,
+            improvement, improvementPercentage, significance,
+            Map.of()
+        );
+    }
+
+    private StatisticalTestResult performTTest(List<Double> sample1, List<Double> sample2) {
+        // Simplified t-test implementation
+        var mean1 = calculateMean(sample1);
+        var mean2 = calculateMean(sample2);
+        var std1 = calculateStandardDeviation(sample1);
+        var std2 = calculateStandardDeviation(sample2);
+        var n1 = sample1.size();
+        var n2 = sample2.size();
+
+        var pooledStd = Math.sqrt(((n1 - 1) * std1 * std1 + (n2 - 1) * std2 * std2) / (n1 + n2 - 2));
+        var standardError = pooledStd * Math.sqrt(1.0/n1 + 1.0/n2);
+        var tStatistic = (mean1 - mean2) / standardError;
+        var effectSize = Math.abs(mean1 - mean2) / pooledStd; // Cohen's d
+
+        // Simplified p-value calculation (assuming normal distribution)
+        var pValue = 2 * (1 - normalCDF(Math.abs(tStatistic)));
+        var isSignificant = pValue < SIGNIFICANCE_LEVEL;
+
+        var interpretation = isSignificant ?
+            (effectSize > 0.8 ? "Large effect" : effectSize > 0.5 ? "Medium effect" : "Small effect") :
+            "No significant difference";
+
+        return new StatisticalTestResult("Two-sample t-test", pValue, isSignificant, effectSize, interpretation);
+    }
+
+    private double calculateMean(List<? extends Number> values) {
+        return values.stream().mapToDouble(Number::doubleValue).average().orElse(0.0);
+    }
+
+    private double calculateStandardDeviation(List<? extends Number> values) {
+        var mean = calculateMean(values);
+        var variance = values.stream()
+            .mapToDouble(Number::doubleValue)
+            .map(x -> (x - mean) * (x - mean))
+            .average()
+            .orElse(0.0);
+        return Math.sqrt(variance);
+    }
+
+    private double calculateL2Error(double[] expected, double[] actual) {
+        if (expected.length == 0 || actual.length == 0) {
+            return Double.MAX_VALUE;
+        }
+
+        var minLength = Math.min(expected.length, actual.length);
+        var sumSquaredError = 0.0;
+
+        for (int i = 0; i < minLength; i++) {
+            var error = expected[i] - (i < actual.length ? actual[i] : 0.0);
+            sumSquaredError += error * error;
+        }
+
+        return Math.sqrt(sumSquaredError / minLength);
+    }
+
+    private double normalCDF(double x) {
+        // Simplified normal CDF approximation
+        return 0.5 * (1 + erf(x / Math.sqrt(2)));
+    }
+
+    private double erf(double x) {
+        // Simplified error function approximation
+        var a1 = 0.254829592;
+        var a2 = -0.284496736;
+        var a3 = 1.421413741;
+        var a4 = -1.453152027;
+        var a5 = 1.061405429;
+        var p = 0.3275911;
+
+        var sign = x >= 0 ? 1 : -1;
+        x = Math.abs(x);
+
+        var t = 1.0 / (1.0 + p * x);
+        var y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+
+        return sign * y;
+    }
+
+    private void printBenchmarkResult(BenchmarkResult result) {
+        System.out.println("Problem: " + result.problemName());
+        System.out.printf("Overall Score: %.3f\n\n", result.overallScore());
+
+        System.out.println("Comparisons:");
+        for (var comparison : result.comparisons()) {
+            System.out.printf("  %s:\n", comparison.metric());
+            System.out.printf("    Standard: %.6f\n", comparison.standardMarkovValue());
+            System.out.printf("    Hybrid: %.6f\n", comparison.hybridARTMarkovValue());
+            System.out.printf("    Improvement: %.6f (%.1f%%)\n",
+                             comparison.improvement(), comparison.improvementPercentage());
+            System.out.printf("    Significance: %s (p=%.4f, effect=%.3f)\n\n",
+                             comparison.significance().interpretation(),
+                             comparison.significance().pValue(),
+                             comparison.significance().effectSize());
+        }
+
+        System.out.println("Accuracy Metrics:");
+        result.accuracyMetrics().forEach((key, value) ->
+            System.out.printf("  %s: %.6f\n", key, value));
+
+        System.out.println("\nPerformance Metrics:");
+        result.performanceMetrics().forEach((key, value) ->
+            System.out.printf("  %s: %.6f\n", key, value));
+
+        if (!result.validationErrors().isEmpty()) {
+            System.out.println("\nValidation Errors:");
+            result.validationErrors().forEach(error -> System.out.println("  " + error));
+        }
+
+        System.out.println("\n" + "=".repeat(80) + "\n");
+    }
+}

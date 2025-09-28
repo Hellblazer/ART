@@ -466,7 +466,7 @@ try (var bayesianART = new BayesianART(parameters)) {
 
 The art-core module includes comprehensive testing:
 
-- **394 total tests** covering all algorithms and edge cases
+- **Comprehensive test coverage** covering all algorithms and edge cases
 - **Unit tests** for individual components
 - **Integration tests** for complete workflows  
 - **Property-based tests** for mathematical invariants

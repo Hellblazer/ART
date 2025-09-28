@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a comprehensive **Adaptive Resonance Theory (ART)** implementation in Java 24, featuring 60+ ART algorithm variants with both standard and high-performance vectorized implementations. ART is a neural network architecture for unsupervised and supervised learning, pattern recognition, and clustering. The project is structured as a multi-module Maven build with extensive test coverage (1,408 tests, 100% pass rate), SIMD optimization via Java Vector API, and GPU acceleration support.
+This is a comprehensive **Adaptive Resonance Theory (ART)** implementation featuring 60+ ART algorithm variants with both standard and high-performance vectorized implementations. ART is a neural network architecture for unsupervised and supervised learning, pattern recognition, and clustering. The project is structured as a multi-module Maven build with extensive test coverage (1,408 tests, 100% pass rate), SIMD optimization via Java Vector API, and GPU acceleration support.
 
 ## Build System & Commands
 
@@ -18,14 +18,14 @@ This is a comprehensive **Adaptive Resonance Theory (ART)** implementation in Ja
 - **Update versions**: `mvn versions:display-dependency-updates`
 
 ### Requirements
-- **Java 24+** (configured for Java 24 features)
+- **Java 24+**
 - **Maven 3.9.1+** (enforced)
 - **macOS ARM64** (LWJGL natives configured for Apple Silicon)
 
 ## Architecture & Technology Stack
 
 ### Core Technologies
-- **Java 24** with modern language features (var, records, pattern matching, virtual threads)
+- **Modern Java** with language features including var, records, pattern matching, virtual threads
 - **Maven multi-module** structure for component organization
 - **Protocol Buffers + gRPC** for serialization and communication
 - **JOOQ** for type-safe database operations
@@ -75,7 +75,7 @@ This is a comprehensive **Adaptive Resonance Theory (ART)** implementation in Ja
 - Use `var` for local variable type inference where type is obvious
 - Never use `synchronized` - prefer concurrent collections and lock-free patterns
 - Follow JavaFX Launcher pattern for Application.launch() calls
-- Leverage Java 24 features: records, pattern matching, virtual threads
+- Leverage modern Java features: records, pattern matching, virtual threads
 - Use try-with-resources for resource management
 
 ### Maven Module Structure
@@ -106,7 +106,7 @@ When creating new modules:
 - Use JMH for benchmarking neural network operations
 - ART algorithms are compute-intensive - consider parallel processing
 - LWJGL enables GPU acceleration via OpenGL/Vulkan
-- Virtual threads (Java 24) for concurrent pattern processing
+- Virtual threads for concurrent pattern processing
 
 ### Vectorized Algorithm Implementation
 When working with ART performance algorithms:

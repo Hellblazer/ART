@@ -1,0 +1,589 @@
+package com.hellblazer.art.hybrid.markov.benchmark;
+
+import com.hellblazer.art.hybrid.markov.HybridARTMarkov;
+import com.hellblazer.art.hybrid.markov.baseline.StandardMarkovChain;
+import org.junit.jupiter.api.Test;
+
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Robustness testing suite for Markov chain implementations.
+ *
+ * Tests how well standard and hybrid ART-Markov approaches handle:
+ * - Non-stationary environments (changing transition probabilities)
+ * - Noisy observations
+ * - Missing data
+ * - Outliers and anomalies
+ * - Concept drift
+ */
+public class RobustnessTestSuite {
+
+    /**
+     * Robustness test result
+     */
+    public static record RobustnessResult(
+        String testName,
+        double standardMarkovScore,
+        double hybridARTMarkovScore,
+        double robustnessImprovement,
+        Map<String, Double> detailedMetrics,
+        List<String> observations
+    ) {}
+
+    /**
+     * Non-stationary environment test result
+     */
+    public static record NonStationaryResult(
+        double adaptationSpeed,
+        double finalAccuracy,
+        double robustnessScore,
+        List<Double> accuracyOverTime
+    ) {}
+
+    @Test
+    void testNonStationaryEnvironment() {
+        System.out.println("=== Non-Stationary Environment Test ===\n");
+
+        // Create environment where transition probabilities change over time
+        var result = testConceptDrift();
+        printRobustnessResult(result);
+
+        // Hybrid approach should adapt better to changes
+        assertTrue(result.hybridARTMarkovScore() >= result.standardMarkovScore(),
+                  "Hybrid approach should handle concept drift better");
+    }
+
+    @Test
+    void testNoisyObservations() {
+        System.out.println("=== Noisy Observations Test ===\n");
+
+        double[] noiselevels = {0.0, 0.1, 0.2, 0.3, 0.5};
+        var results = new ArrayList<RobustnessResult>();
+
+        for (double noiseLevel : noiselevels) {
+            var result = testObservationNoise(noiseLevel);
+            results.add(result);
+            System.out.printf("Noise level %.1f: Standard=%.3f, Hybrid=%.3f\n",
+                             noiseLevel, result.standardMarkovScore(), result.hybridARTMarkovScore());
+        }
+
+        // Hybrid should degrade more gracefully
+        var finalResult = results.get(results.size() - 1);
+        assertTrue(finalResult.robustnessImprovement() > -0.1,
+                  "Hybrid approach should not degrade significantly worse than standard");
+    }
+
+    @Test
+    void testMissingData() {
+        System.out.println("=== Missing Data Test ===\n");
+
+        double[] missingRates = {0.0, 0.1, 0.2, 0.5};
+        var results = new ArrayList<RobustnessResult>();
+
+        for (double missingRate : missingRates) {
+            var result = testMissingDataHandling(missingRate);
+            results.add(result);
+            System.out.printf("Missing rate %.1f: Standard=%.3f, Hybrid=%.3f\n",
+                             missingRate, result.standardMarkovScore(), result.hybridARTMarkovScore());
+        }
+
+        // Check that both approaches handle missing data reasonably
+        var highMissingResult = results.get(results.size() - 1);
+        assertTrue(highMissingResult.standardMarkovScore() > 0.3,
+                  "Standard approach should handle some missing data");
+        assertTrue(highMissingResult.hybridARTMarkovScore() > 0.3,
+                  "Hybrid approach should handle some missing data");
+    }
+
+    @Test
+    void testOutlierResilience() {
+        System.out.println("=== Outlier Resilience Test ===\n");
+
+        double[] outlierRates = {0.0, 0.05, 0.1, 0.2};
+        var results = new ArrayList<RobustnessResult>();
+
+        for (double outlierRate : outlierRates) {
+            var result = testOutlierHandling(outlierRate);
+            results.add(result);
+            System.out.printf("Outlier rate %.2f: Standard=%.3f, Hybrid=%.3f\n",
+                             outlierRate, result.standardMarkovScore(), result.hybridARTMarkovScore());
+        }
+
+        // Hybrid should be more resilient to outliers due to ART's vigilance mechanism
+        var highOutlierResult = results.get(results.size() - 1);
+        assertTrue(highOutlierResult.robustnessImprovement() >= 0,
+                  "Hybrid approach should be more resilient to outliers");
+    }
+
+    @Test
+    void testBurstyTraffic() {
+        System.out.println("=== Bursty Traffic Test ===\n");
+
+        var result = testBurstyPatterns();
+        printRobustnessResult(result);
+
+        // Test that both approaches can handle non-uniform arrival patterns
+        assertTrue(result.standardMarkovScore() > 0.4,
+                  "Standard approach should handle bursty patterns");
+        assertTrue(result.hybridARTMarkovScore() > 0.4,
+                  "Hybrid approach should handle bursty patterns");
+    }
+
+    @Test
+    void testMultipleConceptDrifts() {
+        System.out.println("=== Multiple Concept Drifts Test ===\n");
+
+        var result = testMultipleShifts();
+        printRobustnessResult(result);
+
+        // Hybrid should adapt better to multiple changes
+        assertTrue(result.robustnessImprovement() > -0.2,
+                  "Hybrid should handle multiple concept drifts reasonably well");
+    }
+
+    @Test
+    void testScalabilityUnderStress() {
+        System.out.println("=== Scalability Under Stress Test ===\n");
+
+        int[] stateCounts = {10, 50, 100, 500};
+        var results = new ArrayList<RobustnessResult>();
+
+        for (int stateCount : stateCounts) {
+            var result = testLargeStateSpace(stateCount);
+            results.add(result);
+            System.out.printf("State count %d: Standard=%.3f, Hybrid=%.3f\n",
+                             stateCount, result.standardMarkovScore(), result.hybridARTMarkovScore());
+        }
+
+        // Both should maintain reasonable performance at moderate scales
+        var mediumScale = results.get(2); // 100 states
+        assertTrue(mediumScale.standardMarkovScore() > 0.3,
+                  "Standard approach should handle medium-scale problems");
+        assertTrue(mediumScale.hybridARTMarkovScore() > 0.3,
+                  "Hybrid approach should handle medium-scale problems");
+    }
+
+    // Private test implementation methods
+
+    private RobustnessResult testConceptDrift() {
+        var random = new Random(42);
+        var standardModel = new StandardMarkovChain<Integer>();
+        var hybridModel = new HybridARTMarkov<Integer>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        var standardAccuracies = new ArrayList<Double>();
+        var hybridAccuracies = new ArrayList<Double>();
+
+        // Phase 1: Initial pattern (states 0->1->2->0)
+        var phase1Sequence = generateCyclicSequence(0, 3, 200, 0.9);
+        trainAndEvaluate(standardModel, hybridModel, phase1Sequence, standardAccuracies, hybridAccuracies);
+
+        // Phase 2: Drift to new pattern (states 0->2->1->0)
+        var phase2Sequence = generateCyclicSequence(0, 3, 200, 0.8);
+        Collections.shuffle(phase2Sequence.subList(1, phase2Sequence.size()), random); // Shuffle transitions
+        trainAndEvaluate(standardModel, hybridModel, phase2Sequence, standardAccuracies, hybridAccuracies);
+
+        // Phase 3: Return to original pattern
+        var phase3Sequence = generateCyclicSequence(0, 3, 200, 0.9);
+        trainAndEvaluate(standardModel, hybridModel, phase3Sequence, standardAccuracies, hybridAccuracies);
+
+        var standardScore = calculateAdaptationScore(standardAccuracies);
+        var hybridScore = calculateAdaptationScore(hybridAccuracies);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Concept Drift",
+            standardScore,
+            hybridScore,
+            hybridScore - standardScore,
+            Map.of(
+                "phase1_standard", standardAccuracies.get(0),
+                "phase1_hybrid", hybridAccuracies.get(0),
+                "final_standard", standardAccuracies.get(standardAccuracies.size() - 1),
+                "final_hybrid", hybridAccuracies.get(hybridAccuracies.size() - 1)
+            ),
+            List.of("Tested 3-phase concept drift scenario")
+        );
+    }
+
+    private RobustnessResult testObservationNoise(double noiseLevel) {
+        var cleanSequence = generateWeatherSequence(500);
+        var noisySequence = addObservationNoise(cleanSequence, noiseLevel);
+
+        var standardModel = new StandardMarkovChain<String>();
+        var hybridModel = new HybridARTMarkov<String>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        // Train on noisy data
+        trainModels(standardModel, hybridModel, noisySequence);
+
+        // Test on clean data
+        var testSequence = generateWeatherSequence(100);
+        var standardAccuracy = evaluateAccuracy(standardModel, testSequence);
+        var hybridAccuracy = evaluateAccuracy(hybridModel, testSequence);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Observation Noise " + noiseLevel,
+            standardAccuracy,
+            hybridAccuracy,
+            hybridAccuracy - standardAccuracy,
+            Map.of("noise_level", noiseLevel),
+            List.of("Added " + (int)(noiseLevel * 100) + "% noise to observations")
+        );
+    }
+
+    private RobustnessResult testMissingDataHandling(double missingRate) {
+        var fullSequence = generateWeatherSequence(500);
+        var incompleteSequence = removeMissingData(fullSequence, missingRate);
+
+        var standardModel = new StandardMarkovChain<String>();
+        var hybridModel = new HybridARTMarkov<String>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        trainModels(standardModel, hybridModel, incompleteSequence);
+
+        var testSequence = generateWeatherSequence(100);
+        var standardAccuracy = evaluateAccuracy(standardModel, testSequence);
+        var hybridAccuracy = evaluateAccuracy(hybridModel, testSequence);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Missing Data " + missingRate,
+            standardAccuracy,
+            hybridAccuracy,
+            hybridAccuracy - standardAccuracy,
+            Map.of(
+                "missing_rate", missingRate,
+                "original_length", fullSequence.size(),
+                "reduced_length", incompleteSequence.size()
+            ),
+            List.of("Removed " + (int)(missingRate * 100) + "% of observations")
+        );
+    }
+
+    private RobustnessResult testOutlierHandling(double outlierRate) {
+        var baseSequence = generateWeatherSequence(500);
+        var outlierSequence = addOutliers(baseSequence, outlierRate);
+
+        var standardModel = new StandardMarkovChain<String>();
+        var hybridModel = new HybridARTMarkov<String>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        trainModels(standardModel, hybridModel, outlierSequence);
+
+        var testSequence = generateWeatherSequence(100);
+        var standardAccuracy = evaluateAccuracy(standardModel, testSequence);
+        var hybridAccuracy = evaluateAccuracy(hybridModel, testSequence);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Outlier Handling " + outlierRate,
+            standardAccuracy,
+            hybridAccuracy,
+            hybridAccuracy - standardAccuracy,
+            Map.of("outlier_rate", outlierRate),
+            List.of("Added " + (int)(outlierRate * 100) + "% outlier observations")
+        );
+    }
+
+    private RobustnessResult testBurstyPatterns() {
+        var burstySequence = generateBurstySequence(1000);
+
+        var standardModel = new StandardMarkovChain<Integer>();
+        var hybridModel = new HybridARTMarkov<Integer>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        trainModels(standardModel, hybridModel, burstySequence);
+
+        var testSequence = generateCyclicSequence(0, 5, 100, 0.8);
+        var standardAccuracy = evaluateAccuracy(standardModel, testSequence);
+        var hybridAccuracy = evaluateAccuracy(hybridModel, testSequence);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Bursty Traffic",
+            standardAccuracy,
+            hybridAccuracy,
+            hybridAccuracy - standardAccuracy,
+            Map.of("burst_factor", 3.0),
+            List.of("Tested with bursty arrival patterns")
+        );
+    }
+
+    private RobustnessResult testMultipleShifts() {
+        var random = new Random(42);
+        var standardModel = new StandardMarkovChain<Integer>();
+        var hybridModel = new HybridARTMarkov<Integer>(HybridARTMarkov.HybridConfig.defaultConfig());
+
+        var sequences = new ArrayList<List<Integer>>();
+
+        // Generate 5 different patterns
+        for (int phase = 0; phase < 5; phase++) {
+            var pattern = random.nextInt(3); // Different cyclic patterns
+            var sequence = generateCyclicSequence(pattern, pattern + 3, 100, 0.8);
+            sequences.add(sequence);
+        }
+
+        var standardAccuracies = new ArrayList<Double>();
+        var hybridAccuracies = new ArrayList<Double>();
+
+        for (var sequence : sequences) {
+            trainAndEvaluate(standardModel, hybridModel, sequence, standardAccuracies, hybridAccuracies);
+        }
+
+        var standardScore = calculateAdaptationScore(standardAccuracies);
+        var hybridScore = calculateAdaptationScore(hybridAccuracies);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Multiple Concept Drifts",
+            standardScore,
+            hybridScore,
+            hybridScore - standardScore,
+            Map.of("num_shifts", 5),
+            List.of("Tested 5 consecutive concept drifts")
+        );
+    }
+
+    private RobustnessResult testLargeStateSpace(int stateCount) {
+        var largeSequence = generateRandomWalk(stateCount, 1000);
+
+        var standardModel = new StandardMarkovChain<Integer>();
+        var hybridModel = new HybridARTMarkov<Integer>(
+            new HybridARTMarkov.HybridConfig(0.3, stateCount, 0.1, true, false)
+        );
+
+        var startTime = System.nanoTime();
+        trainModels(standardModel, hybridModel, largeSequence);
+        var trainTime = (System.nanoTime() - startTime) / 1_000_000.0; // ms
+
+        var testSequence = generateRandomWalk(stateCount, 100);
+        var standardAccuracy = evaluateAccuracy(standardModel, testSequence);
+        var hybridAccuracy = evaluateAccuracy(hybridModel, testSequence);
+
+        hybridModel.close();
+
+        return new RobustnessResult(
+            "Large State Space " + stateCount,
+            standardAccuracy,
+            hybridAccuracy,
+            hybridAccuracy - standardAccuracy,
+            Map.of(
+                "state_count", (double) stateCount,
+                "train_time_ms", trainTime
+            ),
+            List.of("Tested with " + stateCount + " states")
+        );
+    }
+
+    // Helper methods
+
+    private List<Integer> generateCyclicSequence(int start, int length, int count, double fidelity) {
+        var sequence = new ArrayList<Integer>();
+        var random = new Random(42);
+
+        for (int i = 0; i < count; i++) {
+            if (random.nextDouble() < fidelity) {
+                // Follow the cycle
+                sequence.add(start + (i % length));
+            } else {
+                // Random deviation
+                sequence.add(random.nextInt(length));
+            }
+        }
+
+        return sequence;
+    }
+
+    private List<String> generateWeatherSequence(int length) {
+        var weather = new ClassicMarkovProblems.WeatherProblem();
+        return weather.generateTestSequence(
+            ClassicMarkovProblems.WeatherProblem.Weather.SUNNY, length
+        ).stream().map(Enum::name).toList();
+    }
+
+    private List<String> addObservationNoise(List<String> sequence, double noiseLevel) {
+        var noisySequence = new ArrayList<String>();
+        var random = new Random(42);
+        var weatherStates = new String[]{"SUNNY", "CLOUDY", "RAINY", "FOGGY", "WINDY"};
+
+        for (var observation : sequence) {
+            if (random.nextDouble() < noiseLevel) {
+                // Replace with random noise
+                noisySequence.add(weatherStates[random.nextInt(weatherStates.length)]);
+            } else {
+                noisySequence.add(observation);
+            }
+        }
+
+        return noisySequence;
+    }
+
+    private <T> List<T> removeMissingData(List<T> sequence, double missingRate) {
+        var random = new Random(42);
+        return sequence.stream()
+            .filter(item -> random.nextDouble() >= missingRate)
+            .toList();
+    }
+
+    private List<String> addOutliers(List<String> sequence, double outlierRate) {
+        var outlierSequence = new ArrayList<String>();
+        var random = new Random(42);
+        var outliers = new String[]{"TORNADO", "BLIZZARD", "HURRICANE", "EARTHQUAKE"};
+
+        for (var observation : sequence) {
+            if (random.nextDouble() < outlierRate) {
+                outlierSequence.add(outliers[random.nextInt(outliers.length)]);
+            } else {
+                outlierSequence.add(observation);
+            }
+        }
+
+        return outlierSequence;
+    }
+
+    private List<Integer> generateBurstySequence(int length) {
+        var sequence = new ArrayList<Integer>();
+        var random = new Random(42);
+
+        for (int i = 0; i < length; i++) {
+            if (random.nextDouble() < 0.3) { // 30% chance of burst
+                // Generate burst of same state
+                var state = random.nextInt(5);
+                var burstLength = 3 + random.nextInt(7); // 3-9 items
+                for (int j = 0; j < burstLength && i + j < length; j++) {
+                    sequence.add(state);
+                }
+                i += burstLength - 1;
+            } else {
+                sequence.add(random.nextInt(5));
+            }
+        }
+
+        return sequence;
+    }
+
+    private List<Integer> generateRandomWalk(int stateCount, int length) {
+        var sequence = new ArrayList<Integer>();
+        var random = new Random(42);
+        var currentState = random.nextInt(stateCount);
+
+        sequence.add(currentState);
+
+        for (int i = 1; i < length; i++) {
+            // Random walk: 40% stay, 30% move +1, 30% move -1
+            var r = random.nextDouble();
+            if (r < 0.4) {
+                // Stay
+            } else if (r < 0.7 && currentState < stateCount - 1) {
+                currentState++;
+            } else if (currentState > 0) {
+                currentState--;
+            }
+            sequence.add(currentState);
+        }
+
+        return sequence;
+    }
+
+    private <T> void trainModels(StandardMarkovChain<T> standardModel,
+                                HybridARTMarkov<T> hybridModel,
+                                List<T> sequence) {
+        // Train standard model
+        for (int i = 1; i < sequence.size(); i++) {
+            standardModel.observeTransition(sequence.get(i-1), sequence.get(i));
+        }
+
+        // Train hybrid model
+        for (var observation : sequence) {
+            hybridModel.processObservation(observation);
+        }
+    }
+
+    private <T> void trainAndEvaluate(StandardMarkovChain<T> standardModel,
+                                     HybridARTMarkov<T> hybridModel,
+                                     List<T> sequence,
+                                     List<Double> standardAccuracies,
+                                     List<Double> hybridAccuracies) {
+        trainModels(standardModel, hybridModel, sequence);
+
+        // Evaluate on a test sequence
+        var testSequence = sequence.subList(Math.max(0, sequence.size() - 50), sequence.size());
+        var standardAccuracy = evaluateAccuracy(standardModel, testSequence);
+        var hybridAccuracy = evaluateAccuracy(hybridModel, testSequence);
+
+        standardAccuracies.add(standardAccuracy);
+        hybridAccuracies.add(hybridAccuracy);
+    }
+
+    private <T> double evaluateAccuracy(StandardMarkovChain<T> model, List<T> testSequence) {
+        if (testSequence.size() < 2) return 0.0;
+
+        var correctPredictions = 0;
+        for (int i = 1; i < testSequence.size(); i++) {
+            var predicted = model.predictNextState(testSequence.get(i-1));
+            if (Objects.equals(predicted, testSequence.get(i))) {
+                correctPredictions++;
+            }
+        }
+
+        return (double) correctPredictions / (testSequence.size() - 1);
+    }
+
+    private <T> double evaluateAccuracy(HybridARTMarkov<T> model, List<T> testSequence) {
+        if (testSequence.size() < 2) return 0.0;
+
+        var correctPredictions = 0;
+        for (int i = 1; i < testSequence.size(); i++) {
+            var prediction = model.predictNextState(testSequence.get(i-1));
+            if (prediction.predictedState() != null &&
+                Objects.equals(prediction.predictedState().observation(), testSequence.get(i))) {
+                correctPredictions++;
+            }
+        }
+
+        return (double) correctPredictions / (testSequence.size() - 1);
+    }
+
+    private double calculateAdaptationScore(List<Double> accuracies) {
+        if (accuracies.isEmpty()) return 0.0;
+
+        // Weight later accuracies more heavily (adaptation)
+        var weightedSum = 0.0;
+        var totalWeight = 0.0;
+
+        for (int i = 0; i < accuracies.size(); i++) {
+            var weight = 1.0 + i; // Linear weighting
+            weightedSum += accuracies.get(i) * weight;
+            totalWeight += weight;
+        }
+
+        return weightedSum / totalWeight;
+    }
+
+    private void printRobustnessResult(RobustnessResult result) {
+        System.out.printf("Test: %s\n", result.testName());
+        System.out.printf("  Standard Score: %.4f\n", result.standardMarkovScore());
+        System.out.printf("  Hybrid Score: %.4f\n", result.hybridARTMarkovScore());
+        System.out.printf("  Improvement: %.4f\n", result.robustnessImprovement());
+
+        if (!result.detailedMetrics().isEmpty()) {
+            System.out.println("  Detailed Metrics:");
+            result.detailedMetrics().forEach((key, value) ->
+                System.out.printf("    %s: %.4f\n", key, value));
+        }
+
+        if (!result.observations().isEmpty()) {
+            System.out.println("  Observations:");
+            result.observations().forEach(obs -> System.out.println("    " + obs));
+        }
+
+        System.out.println();
+    }
+}

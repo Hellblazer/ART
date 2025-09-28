@@ -1,0 +1,837 @@
+package com.hellblazer.art.hybrid.pan.testing;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.decision.DualCriterionDecisionSystem;
+import com.hellblazer.art.hybrid.pan.learning.BackpropagationUpdater;
+import com.hellblazer.art.hybrid.pan.learning.LightInduction;
+import com.hellblazer.art.hybrid.pan.memory.DualMemoryManager;
+import com.hellblazer.art.hybrid.pan.memory.ExperienceReplayBuffer;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.preprocessing.CNNPreprocessor;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import com.hellblazer.art.hybrid.pan.weight.BPARTWeight;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * Comprehensive unit tests for all PAN core components.
+ * Tests individual components in isolation using mocks and controlled inputs.
+ * Focuses on edge cases, parameter boundary testing, and component interactions.
+ */
+class PANUnitTestSuite extends BasePANTest {
+
+    @Nested
+    @DisplayName("BPARTWeight Unit Tests")
+    class BPARTWeightTests {
+
+        @Test
+        @DisplayName("Weight initialization with valid parameters")
+        void testWeightInitialization() {
+            var weight = new BPARTWeight(784, true);
+
+            assertNotNull(weight.forwardWeights());
+            assertNotNull(weight.backwardWeights());
+            assertEquals(784, weight.forwardWeights().length);
+            assertEquals(784, weight.backwardWeights().length);
+
+            // Test weight values are in reasonable range
+            var forward = weight.forwardWeights();
+            var backward = weight.backwardWeights();
+
+            for (double w : forward) {
+                assertFalse(Double.isNaN(w), "Forward weight cannot be NaN");
+                assertFalse(Double.isInfinite(w), "Forward weight cannot be infinite");
+                assertTrue(w >= -1.0 && w <= 1.0, "Forward weight should be in [-1, 1]");
+            }
+
+            for (double w : backward) {
+                assertFalse(Double.isNaN(w), "Backward weight cannot be NaN");
+                assertFalse(Double.isInfinite(w), "Backward weight cannot be infinite");
+                assertTrue(w >= -1.0 && w <= 1.0, "Backward weight should be in [-1, 1]");
+            }
+        }
+
+        @Test
+        @DisplayName("Weight creation from pattern")
+        void testCreateFromPattern() {
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            assertNotNull(weight);
+            assertEquals(784, weight.dimension());
+
+            // Verify weight is properly initialized from pattern
+            var forwardWeights = weight.forwardWeights();
+            for (int i = 0; i < pattern.dimension(); i++) {
+                assertFalse(Double.isNaN(forwardWeights[i]));
+                assertFalse(Double.isInfinite(forwardWeights[i]));
+            }
+        }
+
+        @ParameterizedTest
+        @EnumSource(SimilarityMeasures.class)
+        @DisplayName("Activation calculation with different similarity measures")
+        void testActivationCalculationWithSimilarityMeasures(SimilarityMeasures measure) {
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            double activation = weight.calculateActivation(pattern, measure);
+
+            assertFalse(Double.isNaN(activation), "Activation cannot be NaN");
+            assertFalse(Double.isInfinite(activation), "Activation cannot be infinite");
+            assertTrue(activation >= 0.0, "Activation should be non-negative");
+            assertTrue(activation <= 1.0, "Activation should not exceed 1.0");
+        }
+
+        @Test
+        @DisplayName("Resonance intensity calculation")
+        void testResonanceIntensityCalculation() {
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            double resonance = weight.calculateResonanceIntensity(pattern, SimilarityMeasures.FUZZY_ART);
+
+            assertFalse(Double.isNaN(resonance));
+            assertFalse(Double.isInfinite(resonance));
+            assertTrue(resonance >= 0.0);
+        }
+
+        @Test
+        @DisplayName("Location confidence calculation")
+        void testLocationConfidenceCalculation() {
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            double confidence = weight.calculateLocationConfidence(pattern, SimilarityMeasures.FUZZY_ART);
+
+            assertFalse(Double.isNaN(confidence));
+            assertFalse(Double.isInfinite(confidence));
+            assertTrue(confidence >= 0.0);
+            assertTrue(confidence <= 1.0);
+        }
+
+        @Test
+        @DisplayName("Weight array conversion")
+        void testWeightArrayConversion() {
+            var weight = new BPARTWeight(100, true);
+            var array = weight.toArray();
+
+            assertNotNull(array);
+            assertTrue(array.length > 0);
+
+            for (double value : array) {
+                assertFalse(Double.isNaN(value));
+                assertFalse(Double.isInfinite(value));
+            }
+        }
+
+        @Test
+        @DisplayName("Edge case: Zero-dimensional pattern")
+        void testZeroDimensionalPattern() {
+            assertThrows(IllegalArgumentException.class, () -> {
+                new BPARTWeight(0, true);
+            });
+        }
+
+        @Test
+        @DisplayName("Edge case: Negative weights disabled")
+        void testNegativeWeightsDisabled() {
+            var weight = new BPARTWeight(100, false);
+            var forward = weight.forwardWeights();
+            var backward = weight.backwardWeights();
+
+            // All weights should be non-negative
+            for (double w : forward) {
+                assertTrue(w >= 0.0, "Forward weight should be non-negative when negative weights disabled");
+            }
+
+            for (double w : backward) {
+                assertTrue(w >= 0.0, "Backward weight should be non-negative when negative weights disabled");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("DualMemoryManager Unit Tests")
+    class DualMemoryManagerTests {
+
+        @Test
+        @DisplayName("Memory manager initialization")
+        void testMemoryManagerInitialization() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+
+            assertNotNull(manager);
+            assertEquals(0.95, manager.getSTMDecayRate(), EPSILON);
+            assertEquals(0.8, manager.getLTMConsolidationThreshold(), EPSILON);
+
+            manager.close();
+        }
+
+        @Test
+        @DisplayName("Feature enhancement")
+        void testFeatureEnhancement() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            var enhanced = manager.enhanceFeatures(pattern, weight);
+
+            assertNotNull(enhanced);
+            assertEquals(pattern.dimension(), enhanced.dimension());
+
+            // Enhanced features should be different from original
+            boolean isDifferent = false;
+            for (int i = 0; i < pattern.dimension(); i++) {
+                if (Math.abs(pattern.get(i) - enhanced.get(i)) > EPSILON) {
+                    isDifferent = true;
+                    break;
+                }
+            }
+            assertTrue(isDifferent, "Enhanced features should differ from original");
+
+            manager.close();
+        }
+
+        @Test
+        @DisplayName("New category registration")
+        void testNewCategoryRegistration() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+            // Should not throw exception
+            assertDoesNotThrow(() -> {
+                manager.registerNewCategory(0, pattern);
+            });
+
+            manager.close();
+        }
+
+        @Test
+        @DisplayName("Category update")
+        void testCategoryUpdate() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+            // Register then update
+            manager.registerNewCategory(0, pattern);
+
+            assertDoesNotThrow(() -> {
+                manager.updateCategory(0, pattern);
+            });
+
+            manager.close();
+        }
+
+        @Test
+        @DisplayName("LTM confidence computation")
+        void testLTMConfidenceComputation() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+            manager.registerNewCategory(0, pattern);
+            double confidence = manager.computeLTMConfidence(0, pattern);
+
+            assertFalse(Double.isNaN(confidence));
+            assertFalse(Double.isInfinite(confidence));
+            assertTrue(confidence >= 0.0);
+            assertTrue(confidence <= 1.0);
+
+            manager.close();
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {0.1, 0.5, 0.9, 0.99})
+        @DisplayName("Different STM decay rates")
+        void testDifferentSTMDecayRates(double decayRate) {
+            var manager = new DualMemoryManager(decayRate, 0.8);
+
+            assertEquals(decayRate, manager.getSTMDecayRate(), EPSILON);
+
+            manager.close();
+        }
+
+        @Test
+        @DisplayName("Memory manager clearing")
+        void testMemoryManagerClearing() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+            manager.registerNewCategory(0, pattern);
+            manager.clear();
+
+            // Should still work after clearing
+            assertDoesNotThrow(() -> {
+                manager.registerNewCategory(0, pattern);
+            });
+
+            manager.close();
+        }
+
+        @Test
+        @DisplayName("Memory usage estimation")
+        void testMemoryUsageEstimation() {
+            var manager = new DualMemoryManager(0.95, 0.8);
+
+            long usage = manager.estimateMemoryUsage();
+            assertTrue(usage >= 0, "Memory usage should be non-negative");
+
+            manager.close();
+        }
+    }
+
+    @Nested
+    @DisplayName("ExperienceReplayBuffer Unit Tests")
+    class ExperienceReplayBufferTests {
+
+        @Test
+        @DisplayName("Buffer initialization")
+        void testBufferInitialization() {
+            var buffer = new ExperienceReplayBuffer(50, 10);
+
+            assertEquals(0, buffer.size());
+            assertEquals(50, buffer.getMaxSize());
+            assertEquals(10, buffer.getBatchSize());
+
+            buffer.close();
+        }
+
+        @Test
+        @DisplayName("Experience addition")
+        void testExperienceAddition() {
+            var buffer = new ExperienceReplayBuffer(5, 2);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            buffer.addExperience(pattern, pattern, weight, 1.0);
+            assertEquals(1, buffer.size());
+
+            // Add more experiences
+            for (int i = 1; i < 5; i++) {
+                var newPattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+                buffer.addExperience(newPattern, newPattern, weight, 1.0);
+            }
+            assertEquals(5, buffer.size());
+
+            // Add one more - should trigger replacement
+            var newPattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            buffer.addExperience(newPattern, newPattern, weight, 1.0);
+            assertEquals(5, buffer.size()); // Size should remain at max
+
+            buffer.close();
+        }
+
+        @Test
+        @DisplayName("Batch sampling")
+        void testBatchSampling() {
+            var buffer = new ExperienceReplayBuffer(10, 3);
+            var weight = new BPARTWeight(784, true);
+
+            // Add experiences
+            for (int i = 0; i < 7; i++) {
+                var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+                buffer.addExperience(pattern, pattern, weight, 1.0);
+            }
+
+            var batch = buffer.sampleBatch();
+            assertNotNull(batch);
+            assertEquals(3, batch.size()); // Should return batch size
+
+            buffer.close();
+        }
+
+        @Test
+        @DisplayName("Empty buffer sampling")
+        void testEmptyBufferSampling() {
+            var buffer = new ExperienceReplayBuffer(10, 3);
+
+            var batch = buffer.sampleBatch();
+            assertNotNull(batch);
+            assertTrue(batch.isEmpty());
+
+            buffer.close();
+        }
+
+        @Test
+        @DisplayName("Buffer clearing")
+        void testBufferClearing() {
+            var buffer = new ExperienceReplayBuffer(5, 2);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = new BPARTWeight(784, true);
+
+            buffer.addExperience(pattern, pattern, weight, 1.0);
+            assertEquals(1, buffer.size());
+
+            buffer.clear();
+            assertEquals(0, buffer.size());
+
+            buffer.close();
+        }
+
+        @Test
+        @DisplayName("Buffer with zero max size")
+        void testZeroMaxSizeBuffer() {
+            var buffer = new ExperienceReplayBuffer(0, 1);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = new BPARTWeight(784, true);
+
+            buffer.addExperience(pattern, pattern, weight, 1.0);
+            assertEquals(0, buffer.size()); // Should not add anything
+
+            buffer.close();
+        }
+
+        @Test
+        @DisplayName("Memory usage estimation")
+        void testBufferMemoryUsageEstimation() {
+            var buffer = new ExperienceReplayBuffer(10, 3);
+
+            long usage = buffer.estimateMemoryUsage();
+            assertTrue(usage >= 0, "Memory usage should be non-negative");
+
+            buffer.close();
+        }
+    }
+
+    @Nested
+    @DisplayName("LightInduction Unit Tests")
+    class LightInductionTests {
+
+        @Test
+        @DisplayName("Light induction initialization")
+        void testLightInductionInitialization() {
+            var lightInduction = new LightInduction(0.1);
+
+            assertNotNull(lightInduction);
+            // Should not throw exception
+            lightInduction.clear();
+        }
+
+        @Test
+        @DisplayName("Lambda computation")
+        void testLambdaComputation() {
+            var lightInduction = new LightInduction(0.1);
+
+            double lambda = lightInduction.computeLambda(0, 0.8, 0.6);
+
+            assertFalse(Double.isNaN(lambda));
+            assertFalse(Double.isInfinite(lambda));
+            assertTrue(lambda >= 0.0);
+        }
+
+        @Test
+        @DisplayName("Influence update")
+        void testInfluenceUpdate() {
+            var lightInduction = new LightInduction(0.1);
+
+            // Should not throw exception
+            assertDoesNotThrow(() -> {
+                lightInduction.updateInfluence(0, 0.5);
+                lightInduction.updateInfluence(1, -0.3);
+                lightInduction.updateInfluence(0, 0.2);
+            });
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {0.01, 0.05, 0.1, 0.2, 0.5})
+        @DisplayName("Different bias factors")
+        void testDifferentBiasFactors(double biasFactor) {
+            var lightInduction = new LightInduction(biasFactor);
+
+            double lambda = lightInduction.computeLambda(0, 0.8, 0.6);
+
+            assertFalse(Double.isNaN(lambda));
+            assertFalse(Double.isInfinite(lambda));
+            assertTrue(lambda >= 0.0);
+        }
+
+        @Test
+        @DisplayName("Light induction clearing")
+        void testLightInductionClearing() {
+            var lightInduction = new LightInduction(0.1);
+
+            lightInduction.updateInfluence(0, 0.5);
+            lightInduction.clear();
+
+            // Should still work after clearing
+            assertDoesNotThrow(() -> {
+                double lambda = lightInduction.computeLambda(0, 0.8, 0.6);
+                assertTrue(lambda >= 0.0);
+            });
+        }
+    }
+
+    @Nested
+    @DisplayName("BackpropagationUpdater Unit Tests")
+    class BackpropagationUpdaterTests {
+
+        @Test
+        @DisplayName("Updater initialization")
+        void testUpdaterInitialization() {
+            var updater = new BackpropagationUpdater(0.9);
+
+            assertNotNull(updater);
+        }
+
+        @Test
+        @DisplayName("Unsupervised backpropagation")
+        void testUnsupervisedBackpropagation() {
+            var updater = new BackpropagationUpdater(0.9);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            var updated = updater.applyBackpropagation(weight, pattern, 0.8, 0.5, 0.01);
+
+            assertNotNull(updated);
+            assertEquals(weight.dimension(), updated.dimension());
+            assertNotSame(weight, updated); // Should be a new instance
+        }
+
+        @Test
+        @DisplayName("Supervised backpropagation")
+        void testSupervisedBackpropagation() {
+            var updater = new BackpropagationUpdater(0.9);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var target = new DenseVector(new double[]{0, 0, 1, 0, 0, 0, 0, 0, 0, 0}); // one-hot
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            var updated = updater.applySupervisedBackpropagation(
+                weight, pattern, target, 0.5, 0.01, SimilarityMeasures.FUZZY_ART);
+
+            assertNotNull(updated);
+            assertEquals(weight.dimension(), updated.dimension());
+        }
+
+        @Test
+        @DisplayName("Momentum reset")
+        void testMomentumReset() {
+            var updater = new BackpropagationUpdater(0.9);
+
+            // Should not throw exception
+            assertDoesNotThrow(() -> {
+                updater.resetMomentum();
+            });
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {0.0, 0.5, 0.9, 0.99})
+        @DisplayName("Different momentum values")
+        void testDifferentMomentumValues(double momentum) {
+            var updater = new BackpropagationUpdater(momentum);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            var updated = updater.applyBackpropagation(weight, pattern, 0.8, 0.5, 0.01);
+
+            assertNotNull(updated);
+        }
+
+        @Test
+        @DisplayName("Edge case: Zero learning rate")
+        void testZeroLearningRate() {
+            var updater = new BackpropagationUpdater(0.9);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+            var weight = BPARTWeight.createFromPattern(pattern, testParameters);
+
+            var updated = updater.applyBackpropagation(weight, pattern, 0.8, 0.5, 0.0);
+
+            // With zero learning rate, weights should remain similar
+            var originalWeights = weight.toArray();
+            var updatedWeights = updated.toArray();
+
+            for (int i = 0; i < originalWeights.length; i++) {
+                assertEquals(originalWeights[i], updatedWeights[i], 1e-6);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("DualCriterionDecisionSystem Unit Tests")
+    class DualCriterionDecisionSystemTests {
+
+        @Test
+        @DisplayName("Decision system initialization")
+        void testDecisionSystemInitialization() {
+            var decisionSystem = new DualCriterionDecisionSystem(testParameters);
+
+            assertNotNull(decisionSystem);
+        }
+
+        @Test
+        @DisplayName("Decision making")
+        void testDecisionMaking() {
+            var decisionSystem = new DualCriterionDecisionSystem(testParameters);
+
+            var decision1 = decisionSystem.makeDecision(0.9, 0.8);
+            var decision2 = decisionSystem.makeDecision(0.3, 0.2);
+            var decision3 = decisionSystem.makeDecision(0.6, 0.9);
+
+            assertNotNull(decision1);
+            assertNotNull(decision2);
+            assertNotNull(decision3);
+
+            // Verify decisions are valid enum values
+            assertTrue(Arrays.asList(DualCriterionDecisionSystem.Decision.values()).contains(decision1));
+            assertTrue(Arrays.asList(DualCriterionDecisionSystem.Decision.values()).contains(decision2));
+            assertTrue(Arrays.asList(DualCriterionDecisionSystem.Decision.values()).contains(decision3));
+        }
+
+        @Test
+        @DisplayName("Decision consistency")
+        void testDecisionConsistency() {
+            var decisionSystem = new DualCriterionDecisionSystem(testParameters);
+
+            // Same inputs should produce same decisions
+            var decision1 = decisionSystem.makeDecision(0.7, 0.6);
+            var decision2 = decisionSystem.makeDecision(0.7, 0.6);
+
+            assertEquals(decision1, decision2);
+        }
+
+        @Test
+        @DisplayName("Edge case decisions")
+        void testEdgeCaseDecisions() {
+            var decisionSystem = new DualCriterionDecisionSystem(testParameters);
+
+            // Test boundary values
+            assertDoesNotThrow(() -> {
+                decisionSystem.makeDecision(0.0, 0.0);
+                decisionSystem.makeDecision(1.0, 1.0);
+                decisionSystem.makeDecision(0.5, 0.0);
+                decisionSystem.makeDecision(0.0, 0.5);
+            });
+        }
+    }
+
+    @Nested
+    @DisplayName("CNNPreprocessor Unit Tests")
+    class CNNPreprocessorTests {
+
+        @Test
+        @DisplayName("Preprocessor initialization")
+        void testPreprocessorInitialization() {
+            var preprocessor = new CNNPreprocessor(testParameters.cnnConfig(), false);
+
+            assertNotNull(preprocessor);
+            preprocessor.close();
+        }
+
+        @Test
+        @DisplayName("Feature extraction")
+        void testFeatureExtraction() {
+            var preprocessor = new CNNPreprocessor(testParameters.cnnConfig(), false);
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+            var features = preprocessor.extractFeatures(pattern);
+
+            assertNotNull(features);
+            assertTrue(features.dimension() > 0);
+
+            // Features should be finite
+            for (int i = 0; i < features.dimension(); i++) {
+                assertFalse(Double.isNaN(features.get(i)));
+                assertFalse(Double.isInfinite(features.get(i)));
+            }
+
+            preprocessor.close();
+        }
+
+        @Test
+        @DisplayName("Memory usage estimation")
+        void testPreprocessorMemoryUsage() {
+            var preprocessor = new CNNPreprocessor(testParameters.cnnConfig(), false);
+
+            long usage = preprocessor.estimateMemoryUsage();
+            assertTrue(usage >= 0);
+
+            preprocessor.close();
+        }
+
+        @Test
+        @DisplayName("Weight setting and getting")
+        void testWeightOperations() {
+            var preprocessor = new CNNPreprocessor(testParameters.cnnConfig(), false);
+
+            var conv1Weights = new double[32][1][5][5]; // Example weights
+            var conv2Weights = new double[64][32][5][5];
+
+            // Initialize with random values
+            for (int i = 0; i < conv1Weights.length; i++) {
+                for (int j = 0; j < conv1Weights[i].length; j++) {
+                    for (int k = 0; k < conv1Weights[i][j].length; k++) {
+                        for (int l = 0; l < conv1Weights[i][j][k].length; l++) {
+                            conv1Weights[i][j][k][l] = random.nextGaussian() * 0.1;
+                        }
+                    }
+                }
+            }
+
+            assertDoesNotThrow(() -> {
+                preprocessor.setConv1Weights(conv1Weights);
+                preprocessor.setConv2Weights(conv2Weights);
+            });
+
+            var retrieved1 = preprocessor.getConv1Weights();
+            var retrieved2 = preprocessor.getConv2Weights();
+
+            assertNotNull(retrieved1);
+            assertNotNull(retrieved2);
+
+            preprocessor.close();
+        }
+    }
+
+    @Nested
+    @DisplayName("Edge Cases and Error Handling")
+    class EdgeCasesAndErrorHandling {
+
+        @Test
+        @DisplayName("Null pattern handling")
+        void testNullPatternHandling() {
+            try (var pan = createTestPAN()) {
+                assertThrows(Exception.class, () -> {
+                    pan.learn(null, testParameters);
+                });
+
+                assertThrows(Exception.class, () -> {
+                    pan.predict(null, testParameters);
+                });
+            }
+        }
+
+        @Test
+        @DisplayName("Null parameters handling")
+        void testNullParametersHandling() {
+            try (var pan = createTestPAN()) {
+                var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+                assertThrows(Exception.class, () -> {
+                    pan.learn(pattern, null);
+                });
+
+                assertThrows(Exception.class, () -> {
+                    pan.predict(pattern, null);
+                });
+            }
+        }
+
+        @Test
+        @DisplayName("Empty pattern handling")
+        void testEmptyPatternHandling() {
+            try (var pan = createTestPAN()) {
+                var emptyPattern = new DenseVector(new double[0]);
+
+                assertThrows(Exception.class, () -> {
+                    pan.learn(emptyPattern, testParameters);
+                });
+            }
+        }
+
+        @Test
+        @DisplayName("Closed PAN handling")
+        void testClosedPANHandling() {
+            var pan = createTestPAN();
+            var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+
+            pan.close();
+
+            assertThrows(IllegalStateException.class, () -> {
+                pan.learn(pattern, testParameters);
+            });
+
+            assertThrows(IllegalStateException.class, () -> {
+                pan.predict(pattern, testParameters);
+            });
+        }
+
+        @Test
+        @DisplayName("Invalid category index access")
+        void testInvalidCategoryIndexAccess() {
+            try (var pan = createTestPAN()) {
+                assertThrows(IndexOutOfBoundsException.class, () -> {
+                    pan.getCategory(0); // No categories yet
+                });
+
+                assertThrows(IndexOutOfBoundsException.class, () -> {
+                    pan.getCategory(-1);
+                });
+            }
+        }
+
+        @Test
+        @DisplayName("Extreme parameter values")
+        void testExtremeParameterValues() {
+            // Test with extreme vigilance values
+            var extremeParams1 = new PANParameters(
+                0.0, testParameters.maxCategories(), testParameters.cnnConfig(),
+                testParameters.enableCNNPretraining(), testParameters.learningRate(),
+                testParameters.momentum(), testParameters.weightDecay(),
+                testParameters.allowNegativeWeights(), testParameters.hiddenUnits(),
+                testParameters.stmDecayRate(), testParameters.ltmConsolidationThreshold(),
+                testParameters.replayBufferSize(), testParameters.replayBatchSize(),
+                testParameters.replayFrequency(), testParameters.biasFactor(),
+                testParameters.similarityMeasure()
+            );
+
+            var extremeParams2 = new PANParameters(
+                1.0, testParameters.maxCategories(), testParameters.cnnConfig(),
+                testParameters.enableCNNPretraining(), testParameters.learningRate(),
+                testParameters.momentum(), testParameters.weightDecay(),
+                testParameters.allowNegativeWeights(), testParameters.hiddenUnits(),
+                testParameters.stmDecayRate(), testParameters.ltmConsolidationThreshold(),
+                testParameters.replayBufferSize(), testParameters.replayBatchSize(),
+                testParameters.replayFrequency(), testParameters.biasFactor(),
+                testParameters.similarityMeasure()
+            );
+
+            assertDoesNotThrow(() -> {
+                try (var pan1 = createTestPAN(extremeParams1)) {
+                    var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+                    pan1.learn(pattern, extremeParams1);
+                }
+
+                try (var pan2 = createTestPAN(extremeParams2)) {
+                    var pattern = new DenseVector(generateRandomData(1, 784, 0, 1)[0]);
+                    pan2.learn(pattern, extremeParams2);
+                }
+            });
+        }
+
+        @Test
+        @DisplayName("Concurrent access safety")
+        void testConcurrentAccessSafety() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(10, 28, 0.1);
+
+                // Test that concurrent learning doesn't cause exceptions
+                assertDoesNotThrow(() -> {
+                    patterns.parallelStream().forEach(pattern -> {
+                        pan.learn(pattern, testParameters);
+                    });
+                });
+
+                // Test that concurrent prediction doesn't cause exceptions
+                assertDoesNotThrow(() -> {
+                    patterns.parallelStream().forEach(pattern -> {
+                        pan.predict(pattern, testParameters);
+                    });
+                });
+            }
+        }
+    }
+}

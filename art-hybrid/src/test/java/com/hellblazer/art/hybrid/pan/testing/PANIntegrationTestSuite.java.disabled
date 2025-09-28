@@ -1,0 +1,825 @@
+package com.hellblazer.art.hybrid.pan.testing;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.datasets.MNISTDataset;
+import com.hellblazer.art.hybrid.pan.datasets.SyntheticDataGenerator;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.serialization.PANSerializer;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Comprehensive integration tests for the PAN hybrid ART-Markov system.
+ * Tests end-to-end functionality, component interactions, real-world scenarios,
+ * performance characteristics, and system robustness under various conditions.
+ */
+class PANIntegrationTestSuite extends BasePANTest {
+
+    @Nested
+    @DisplayName("End-to-End Learning Scenarios")
+    class EndToEndLearningScenarios {
+
+        @Test
+        @DisplayName("Complete unsupervised learning pipeline")
+        @Timeout(value = 30, unit = TimeUnit.SECONDS)
+        void testCompleteUnsupervisedLearningPipeline() {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(50, 5, 784, 2.0);
+
+                // Phase 1: Initial learning
+                var learningResults = new ArrayList<ActivationResult>();
+                for (var pattern : dataset.patterns()) {
+                    var result = pan.learn(pattern, testParameters);
+                    learningResults.add(result);
+                }
+
+                // Verify all learning succeeded
+                assertTrue(learningResults.stream().allMatch(r -> r instanceof ActivationResult.Success));
+
+                // Phase 2: Test prediction consistency
+                for (int i = 0; i < dataset.patterns().size(); i++) {
+                    var pattern = dataset.patterns().get(i);
+                    var learnResult = (ActivationResult.Success) learningResults.get(i);
+                    var predictResult = pan.predict(pattern, testParameters);
+
+                    assertInstanceOf(ActivationResult.Success.class, predictResult);
+                    var predictSuccess = (ActivationResult.Success) predictResult;
+
+                    assertEquals(learnResult.categoryIndex(), predictSuccess.categoryIndex(),
+                        "Prediction should be consistent with learning for pattern " + i);
+                }
+
+                // Phase 3: Verify system state
+                assertTrue(pan.getCategoryCount() > 0, "Should have created categories");
+                assertTrue(pan.getCategoryCount() <= testParameters.maxCategories(),
+                    "Should not exceed max categories");
+
+                var stats = pan.getPerformanceStats();
+                assertEquals(dataset.patterns().size(), stats.get("totalSamples"));
+                assertTrue((Long) stats.get("trainingTimeMs") >= 0);
+            }
+        }
+
+        @Test
+        @DisplayName("Complete supervised learning pipeline")
+        @Timeout(value = 45, unit = TimeUnit.SECONDS)
+        void testCompleteSupervisedLearningPipeline() {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(30, 3, 784, 1.5);
+                var split = splitData(
+                    dataset.patterns().stream()
+                        .map(p -> ((DenseVector) p).toArray())
+                        .toArray(double[][]::new),
+                    0.7
+                );
+
+                // Create one-hot targets
+                var trainTargets = new ArrayList<Pattern>();
+                var testTargets = new ArrayList<Pattern>();
+
+                // Generate targets for training data
+                for (int i = 0; i < split.train().length; i++) {
+                    var oneHot = new double[3];
+                    oneHot[i % 3] = 1.0; // Cycle through classes
+                    trainTargets.add(new DenseVector(oneHot));
+                }
+
+                // Generate targets for test data
+                for (int i = 0; i < split.test().length; i++) {
+                    var oneHot = new double[3];
+                    oneHot[i % 3] = 1.0;
+                    testTargets.add(new DenseVector(oneHot));
+                }
+
+                // Phase 1: Supervised training
+                for (int i = 0; i < split.train().length; i++) {
+                    var input = new DenseVector(split.train()[i]);
+                    var target = trainTargets.get(i);
+                    var result = pan.learnSupervised(input, target, testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                // Phase 2: Test prediction accuracy
+                int correctPredictions = 0;
+                for (int i = 0; i < split.test().length; i++) {
+                    var input = new DenseVector(split.test()[i]);
+                    var expectedLabel = i % 3;
+                    var predictedLabel = pan.predictLabel(input, testParameters);
+
+                    if (predictedLabel == expectedLabel) {
+                        correctPredictions++;
+                    }
+                }
+
+                // Phase 3: Verify learning effectiveness
+                double accuracy = (double) correctPredictions / split.test().length;
+                assertTrue(accuracy > 0.3, // Reasonable accuracy for random-ish data
+                    "Supervised learning accuracy should be reasonable: " + accuracy);
+
+                // Verify category-label mapping exists
+                var categoryToLabel = pan.getCategoryToLabel();
+                assertFalse(categoryToLabel.isEmpty(), "Should have category-label mappings");
+
+                var stats = pan.getPerformanceStats();
+                assertTrue((Double) stats.get("accuracy") >= 0.0);
+            }
+        }
+
+        @Test
+        @DisplayName("Mixed learning scenario")
+        @Timeout(value = 40, unit = TimeUnit.SECONDS)
+        void testMixedLearningScenario() {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(40, 4, 784, 1.8);
+
+                // Phase 1: Unsupervised learning on first half
+                var firstHalf = dataset.patterns().subList(0, 20);
+                for (var pattern : firstHalf) {
+                    var result = pan.learn(pattern, testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                int unsupervisedCategories = pan.getCategoryCount();
+
+                // Phase 2: Supervised learning on second half
+                var secondHalf = dataset.patterns().subList(20, 40);
+                for (int i = 0; i < secondHalf.size(); i++) {
+                    var pattern = secondHalf.get(i);
+                    var target = new double[4];
+                    target[i % 4] = 1.0; // Cycle through labels
+                    var result = pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                // Phase 3: Verify both learning modes worked
+                assertTrue(pan.getCategoryCount() >= unsupervisedCategories,
+                    "Category count should not decrease after supervised learning");
+
+                // Test predictions work for both types of patterns
+                var unsupervisedPrediction = pan.predict(firstHalf.get(0), testParameters);
+                var supervisedPrediction = pan.predict(secondHalf.get(0), testParameters);
+
+                assertInstanceOf(ActivationResult.Success.class, unsupervisedPrediction);
+                assertInstanceOf(ActivationResult.Success.class, supervisedPrediction);
+
+                // Verify label prediction works for supervised patterns
+                int labelPrediction = pan.predictLabel(secondHalf.get(0), testParameters);
+                assertTrue(labelPrediction >= 0, "Should predict valid label for supervised pattern");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("System Component Integration")
+    class SystemComponentIntegration {
+
+        @Test
+        @DisplayName("CNN preprocessing integration")
+        void testCNNPreprocessingIntegration() {
+            try (var pan = createTestPAN()) {
+                // Create image-like patterns
+                var imagePatterns = generateImagePatterns(15, 28, 0.1);
+
+                for (var pattern : imagePatterns) {
+                    // Learn should internally use CNN preprocessing
+                    var result = pan.learn(pattern, testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+
+                    // Prediction should use same preprocessing
+                    var prediction = pan.predict(pattern, testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, prediction);
+
+                    var learnSuccess = (ActivationResult.Success) result;
+                    var predictSuccess = (ActivationResult.Success) prediction;
+
+                    assertEquals(learnSuccess.categoryIndex(), predictSuccess.categoryIndex(),
+                        "CNN preprocessing should be consistent between learn and predict");
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("Memory system integration")
+        void testMemorySystemIntegration() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(25, 28, 0.1);
+
+                // Learn patterns multiple times to test STM/LTM transitions
+                for (int epoch = 0; epoch < 3; epoch++) {
+                    for (var pattern : patterns) {
+                        pan.learn(pattern, testParameters);
+                    }
+                }
+
+                // Verify memory systems are functioning
+                var stats = pan.getPerformanceStats();
+                assertEquals(patterns.size() * 3, stats.get("totalSamples"));
+
+                // Test that repeated exposure improves consistency
+                var firstPredictions = new ArrayList<Integer>();
+                var secondPredictions = new ArrayList<Integer>();
+
+                for (var pattern : patterns) {
+                    var result1 = pan.predict(pattern, testParameters);
+                    var result2 = pan.predict(pattern, testParameters);
+
+                    if (result1 instanceof ActivationResult.Success s1 &&
+                        result2 instanceof ActivationResult.Success s2) {
+                        firstPredictions.add(s1.categoryIndex());
+                        secondPredictions.add(s2.categoryIndex());
+                    }
+                }
+
+                assertEquals(firstPredictions, secondPredictions,
+                    "Repeated predictions should be consistent after memory consolidation");
+            }
+        }
+
+        @Test
+        @DisplayName("Experience replay integration")
+        void testExperienceReplayIntegration() {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(20, 3, 784, 1.5);
+
+                // Supervised learning should populate experience replay buffer
+                for (int i = 0; i < dataset.patterns().size(); i++) {
+                    var pattern = dataset.patterns().get(i);
+                    var label = dataset.labels().get(i);
+                    var target = new double[3];
+                    target[label] = 1.0;
+
+                    var result = pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                // Continue learning - replay should help with stability
+                var initialAccuracy = calculateAccuracy(pan, dataset);
+
+                // Learn more patterns
+                var additionalDataset = generateClassificationDataset(10, 3, 784, 1.5);
+                for (int i = 0; i < additionalDataset.patterns().size(); i++) {
+                    var pattern = additionalDataset.patterns().get(i);
+                    var label = additionalDataset.labels().get(i);
+                    var target = new double[3];
+                    target[label] = 1.0;
+
+                    pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+                }
+
+                var finalAccuracy = calculateAccuracy(pan, dataset);
+
+                // Experience replay should help maintain or improve accuracy
+                assertTrue(finalAccuracy >= initialAccuracy * 0.8,
+                    "Experience replay should help maintain accuracy during continual learning");
+            }
+        }
+
+        @Test
+        @DisplayName("Light induction integration")
+        void testLightInductionIntegration() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(30, 28, 0.1);
+
+                // Learn patterns and track category creation
+                var categoryHistory = new ArrayList<Integer>();
+                for (var pattern : patterns) {
+                    pan.learn(pattern, testParameters);
+                    categoryHistory.add(pan.getCategoryCount());
+                }
+
+                // Light induction should influence category creation patterns
+                // Verify that category count doesn't grow linearly (some consolidation occurs)
+                int finalCategoryCount = categoryHistory.get(categoryHistory.size() - 1);
+                assertTrue(finalCategoryCount < patterns.size() * 0.8,
+                    "Light induction should encourage category consolidation");
+
+                // Test that similar patterns activate same categories consistently
+                var consistencyTest = new ArrayList<Integer>();
+                for (var pattern : patterns.subList(0, 5)) {
+                    var result = pan.predict(pattern, testParameters);
+                    if (result instanceof ActivationResult.Success success) {
+                        consistencyTest.add(success.categoryIndex());
+                    }
+                }
+
+                // Verify predictions are stable
+                for (var pattern : patterns.subList(0, 5)) {
+                    var result = pan.predict(pattern, testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Real-World Data Scenarios")
+    class RealWorldDataScenarios {
+
+        @Test
+        @DisplayName("MNIST-like dataset processing")
+        @Timeout(value = 60, unit = TimeUnit.SECONDS)
+        void testMNISTLikeDatasetProcessing() {
+            try (var pan = createTestPAN()) {
+                // Generate MNIST-like synthetic data
+                var mnistLikeData = generateMNISTLikeDataset(100, 10);
+
+                var split = splitMNISTLikeData(mnistLikeData, 0.8);
+
+                // Training phase
+                for (var sample : split.train()) {
+                    var result = pan.learnSupervised(sample.image(), sample.label(), testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                // Testing phase
+                int correct = 0;
+                for (var sample : split.test()) {
+                    int predicted = pan.predictLabel(sample.image(), testParameters);
+                    int actual = extractLabelFromOneHot(sample.label());
+
+                    if (predicted == actual) {
+                        correct++;
+                    }
+                }
+
+                double accuracy = (double) correct / split.test().size();
+                assertTrue(accuracy > 0.1, // Very lenient for synthetic data
+                    "Should achieve reasonable accuracy on MNIST-like data: " + accuracy);
+
+                // Verify system can handle all 10 digits
+                assertTrue(pan.getCategoryCount() > 0);
+                var categoryToLabel = pan.getCategoryToLabel();
+                assertTrue(categoryToLabel.size() > 0);
+            }
+        }
+
+        @Test
+        @DisplayName("Noisy data handling")
+        void testNoisyDataHandling() {
+            try (var pan = createTestPAN()) {
+                // Generate clean dataset
+                var cleanDataset = generateClassificationDataset(30, 3, 784, 2.0);
+
+                // Add various levels of noise
+                var noisyPatterns = new ArrayList<Pattern>();
+                for (var pattern : cleanDataset.patterns()) {
+                    var noisyData = ((DenseVector) pattern).toArray().clone();
+                    // Add Gaussian noise
+                    for (int i = 0; i < noisyData.length; i++) {
+                        noisyData[i] += random.nextGaussian() * 0.1;
+                        noisyData[i] = Math.max(0, Math.min(1, noisyData[i])); // Clamp
+                    }
+                    noisyPatterns.add(new DenseVector(noisyData));
+                }
+
+                // Train on clean data
+                for (int i = 0; i < cleanDataset.patterns().size(); i++) {
+                    var pattern = cleanDataset.patterns().get(i);
+                    var label = cleanDataset.labels().get(i);
+                    var target = new double[3];
+                    target[label] = 1.0;
+
+                    pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+                }
+
+                // Test on noisy data
+                int correctOnNoisy = 0;
+                for (int i = 0; i < noisyPatterns.size(); i++) {
+                    var noisyPattern = noisyPatterns.get(i);
+                    var expectedLabel = cleanDataset.labels().get(i);
+                    var predictedLabel = pan.predictLabel(noisyPattern, testParameters);
+
+                    if (predictedLabel == expectedLabel) {
+                        correctOnNoisy++;
+                    }
+                }
+
+                double noisyAccuracy = (double) correctOnNoisy / noisyPatterns.size();
+                assertTrue(noisyAccuracy > 0.2, // Should maintain some accuracy despite noise
+                    "Should handle noisy data reasonably: " + noisyAccuracy);
+            }
+        }
+
+        @Test
+        @DisplayName("Incremental learning scenario")
+        void testIncrementalLearningScenario() {
+            try (var pan = createTestPAN()) {
+                // Simulate incremental learning with new classes appearing over time
+                var phase1Data = generateClassificationDataset(20, 2, 784, 2.0);
+                var phase2Data = generateClassificationDataset(20, 2, 784, 2.0);
+                var phase3Data = generateClassificationDataset(20, 2, 784, 2.0);
+
+                // Adjust labels for different phases
+                adjustLabelsForPhase(phase2Data, 2); // Classes 2-3
+                adjustLabelsForPhase(phase3Data, 4); // Classes 4-5
+
+                // Phase 1: Learn initial classes
+                trainOnDataset(pan, phase1Data);
+                int phase1Categories = pan.getCategoryCount();
+                double phase1Accuracy = calculateAccuracy(pan, phase1Data);
+
+                // Phase 2: Learn new classes
+                trainOnDataset(pan, phase2Data);
+                int phase2Categories = pan.getCategoryCount();
+                double phase1RetentionAccuracy = calculateAccuracy(pan, phase1Data);
+                double phase2Accuracy = calculateAccuracy(pan, phase2Data);
+
+                // Phase 3: Learn more new classes
+                trainOnDataset(pan, phase3Data);
+                int phase3Categories = pan.getCategoryCount();
+                double finalPhase1Accuracy = calculateAccuracy(pan, phase1Data);
+                double finalPhase2Accuracy = calculateAccuracy(pan, phase2Data);
+                double phase3Accuracy = calculateAccuracy(pan, phase3Data);
+
+                // Verify incremental learning properties
+                assertTrue(phase2Categories >= phase1Categories,
+                    "Should create new categories for new classes");
+                assertTrue(phase3Categories >= phase2Categories,
+                    "Should continue creating categories for new classes");
+
+                // Test catastrophic forgetting mitigation
+                assertTrue(phase1RetentionAccuracy >= phase1Accuracy * 0.7,
+                    "Should retain reasonable accuracy on old classes");
+                assertTrue(finalPhase1Accuracy >= phase1Accuracy * 0.5,
+                    "Should retain some accuracy on initial classes");
+
+                // All phases should maintain reasonable accuracy
+                assertTrue(phase2Accuracy > 0.2, "Phase 2 should learn new classes");
+                assertTrue(phase3Accuracy > 0.2, "Phase 3 should learn new classes");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Performance and Scalability")
+    class PerformanceAndScalability {
+
+        @ParameterizedTest
+        @ValueSource(ints = {10, 50, 100, 200})
+        @DisplayName("Scalability with dataset size")
+        @Timeout(value = 120, unit = TimeUnit.SECONDS)
+        void testScalabilityWithDatasetSize(int datasetSize) {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(datasetSize, 5, 784, 1.5);
+
+                long startTime = System.currentTimeMillis();
+
+                for (int i = 0; i < dataset.patterns().size(); i++) {
+                    var pattern = dataset.patterns().get(i);
+                    var label = dataset.labels().get(i);
+                    var target = new double[5];
+                    target[label] = 1.0;
+
+                    var result = pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                long trainingTime = System.currentTimeMillis() - startTime;
+
+                // Performance should scale reasonably
+                double timePerSample = (double) trainingTime / datasetSize;
+                assertTrue(timePerSample < 100, // Less than 100ms per sample
+                    "Training time per sample should be reasonable: " + timePerSample + "ms");
+
+                // Memory usage should be reasonable
+                var stats = pan.getPerformanceStats();
+                long memoryUsage = (Long) stats.get("memoryUsageBytes");
+                assertTrue(memoryUsage > 0, "Should report memory usage");
+
+                // Verify system functionality
+                assertTrue(pan.getCategoryCount() > 0);
+                assertTrue(pan.getCategoryCount() <= testParameters.maxCategories());
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {2, 5, 10, 20})
+        @DisplayName("Scalability with number of classes")
+        void testScalabilityWithNumberOfClasses(int numClasses) {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(10, numClasses, 784, 1.5);
+
+                for (int i = 0; i < dataset.patterns().size(); i++) {
+                    var pattern = dataset.patterns().get(i);
+                    var label = dataset.labels().get(i);
+                    var target = new double[numClasses];
+                    target[label] = 1.0;
+
+                    var result = pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                // Verify all classes can be learned
+                var categoryToLabel = pan.getCategoryToLabel();
+                assertTrue(categoryToLabel.size() > 0);
+
+                // Test prediction accuracy
+                double accuracy = calculateAccuracy(pan, dataset);
+                assertTrue(accuracy > 0.1, "Should achieve reasonable accuracy with " + numClasses + " classes");
+            }
+        }
+
+        @Test
+        @DisplayName("Batch processing performance")
+        void testBatchProcessingPerformance() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(50, 28, 0.1);
+
+                // Test batch learning
+                long batchStartTime = System.currentTimeMillis();
+                var batchResults = pan.learnBatch(patterns, testParameters);
+                long batchTime = System.currentTimeMillis() - batchStartTime;
+
+                // Test sequential learning
+                long sequentialStartTime = System.currentTimeMillis();
+                var sequentialResults = new ArrayList<ActivationResult>();
+                for (var pattern : patterns) {
+                    sequentialResults.add(pan.learn(pattern, testParameters));
+                }
+                long sequentialTime = System.currentTimeMillis() - sequentialStartTime;
+
+                // Verify both approaches work
+                assertEquals(patterns.size(), batchResults.size());
+                assertEquals(patterns.size(), sequentialResults.size());
+
+                assertTrue(batchResults.stream().allMatch(r -> r instanceof ActivationResult.Success));
+                assertTrue(sequentialResults.stream().allMatch(r -> r instanceof ActivationResult.Success));
+
+                // Batch processing should be reasonably efficient
+                assertTrue(batchTime < sequentialTime * 2,
+                    "Batch processing should not be significantly slower than sequential");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Robustness and Error Recovery")
+    class RobustnessAndErrorRecovery {
+
+        @Test
+        @DisplayName("Recovery from learning failures")
+        void testRecoveryFromLearningFailures() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(20, 28, 0.1);
+
+                // Learn some patterns successfully
+                for (int i = 0; i < 10; i++) {
+                    var result = pan.learn(patterns.get(i), testParameters);
+                    assertInstanceOf(ActivationResult.Success.class, result);
+                }
+
+                int successfulCategories = pan.getCategoryCount();
+
+                // Try to exceed max categories (should handle gracefully)
+                var limitedParams = new PANParameters(
+                    testParameters.vigilance(), 5, // Low max categories
+                    testParameters.cnnConfig(), testParameters.enableCNNPretraining(),
+                    testParameters.learningRate(), testParameters.momentum(),
+                    testParameters.weightDecay(), testParameters.allowNegativeWeights(),
+                    testParameters.hiddenUnits(), testParameters.stmDecayRate(),
+                    testParameters.ltmConsolidationThreshold(), testParameters.replayBufferSize(),
+                    testParameters.replayBatchSize(), testParameters.replayFrequency(),
+                    testParameters.biasFactor(), testParameters.similarityMeasure()
+                );
+
+                try (var limitedPAN = createTestPAN(limitedParams)) {
+                    for (var pattern : patterns) {
+                        var result = limitedPAN.learn(pattern, limitedParams);
+                        // Should either succeed or return NoMatch, not throw exception
+                        assertTrue(result instanceof ActivationResult.Success ||
+                                  result instanceof ActivationResult.NoMatch);
+                    }
+
+                    assertTrue(limitedPAN.getCategoryCount() <= limitedParams.maxCategories());
+                }
+
+                // Original PAN should still work
+                var testResult = pan.predict(patterns.get(0), testParameters);
+                assertInstanceOf(ActivationResult.Success.class, testResult);
+            }
+        }
+
+        @Test
+        @DisplayName("Handling of extreme input values")
+        void testHandlingOfExtremeInputValues() {
+            try (var pan = createTestPAN()) {
+                // Test with all zeros
+                var zeroPattern = new DenseVector(new double[784]);
+                var zeroResult = pan.learn(zeroPattern, testParameters);
+                assertInstanceOf(ActivationResult.Success.class, zeroResult);
+
+                // Test with all ones
+                var onesPattern = new DenseVector(
+                    IntStream.range(0, 784).mapToDouble(i -> 1.0).toArray()
+                );
+                var onesResult = pan.learn(onesPattern, testParameters);
+                assertInstanceOf(ActivationResult.Success.class, onesResult);
+
+                // Test with very small values
+                var smallPattern = new DenseVector(
+                    IntStream.range(0, 784).mapToDouble(i -> 1e-10).toArray()
+                );
+                var smallResult = pan.learn(smallPattern, testParameters);
+                assertInstanceOf(ActivationResult.Success.class, smallResult);
+
+                // Test with mix of extreme values
+                var mixedData = new double[784];
+                for (int i = 0; i < 784; i++) {
+                    mixedData[i] = (i % 2 == 0) ? 0.0 : 1.0;
+                }
+                var mixedPattern = new DenseVector(mixedData);
+                var mixedResult = pan.learn(mixedPattern, testParameters);
+                assertInstanceOf(ActivationResult.Success.class, mixedResult);
+
+                // Verify system is still functional
+                assertTrue(pan.getCategoryCount() > 0);
+                var prediction = pan.predict(zeroPattern, testParameters);
+                assertInstanceOf(ActivationResult.Success.class, prediction);
+            }
+        }
+
+        @Test
+        @DisplayName("System state consistency after errors")
+        void testSystemStateConsistencyAfterErrors() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(15, 28, 0.1);
+
+                // Learn some patterns
+                for (int i = 0; i < 10; i++) {
+                    pan.learn(patterns.get(i), testParameters);
+                }
+
+                int initialCategories = pan.getCategoryCount();
+                var initialStats = pan.getPerformanceStats();
+
+                // Try operations that might cause issues
+                try {
+                    // These should not corrupt internal state
+                    pan.getCategory(-1); // Should throw IndexOutOfBoundsException
+                } catch (IndexOutOfBoundsException e) {
+                    // Expected
+                }
+
+                try {
+                    pan.getCategory(1000); // Should throw IndexOutOfBoundsException
+                } catch (IndexOutOfBoundsException e) {
+                    // Expected
+                }
+
+                // Verify system state is still consistent
+                assertEquals(initialCategories, pan.getCategoryCount());
+
+                // Verify system is still functional
+                var newResult = pan.learn(patterns.get(10), testParameters);
+                assertInstanceOf(ActivationResult.Success.class, newResult);
+
+                var prediction = pan.predict(patterns.get(0), testParameters);
+                assertInstanceOf(ActivationResult.Success.class, prediction);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Serialization and Persistence")
+    class SerializationAndPersistence {
+
+        @Test
+        @DisplayName("Model serialization and deserialization")
+        void testModelSerializationAndDeserialization() {
+            var originalPAN = createTestPAN();
+            var dataset = generateClassificationDataset(20, 3, 784, 1.5);
+
+            // Train original model
+            for (int i = 0; i < dataset.patterns().size(); i++) {
+                var pattern = dataset.patterns().get(i);
+                var label = dataset.labels().get(i);
+                var target = new double[3];
+                target[label] = 1.0;
+
+                originalPAN.learnSupervised(pattern, new DenseVector(target), testParameters);
+            }
+
+            // Serialize model
+            var serializer = new PANSerializer();
+            var savedModel = serializer.saveModel(originalPAN);
+
+            assertNotNull(savedModel);
+            assertEquals(testParameters, savedModel.parameters());
+            assertEquals(originalPAN.getCategoryCount(), savedModel.categories().size());
+
+            // Deserialize model
+            var restoredPAN = PAN.fromSavedModel(savedModel);
+
+            // Verify restored model matches original
+            assertEquals(originalPAN.getCategoryCount(), restoredPAN.getCategoryCount());
+            assertEquals(originalPAN.getCategoryToLabel(), restoredPAN.getCategoryToLabel());
+
+            // Test that restored model makes same predictions
+            for (var pattern : dataset.patterns().subList(0, 5)) {
+                var originalPrediction = originalPAN.predict(pattern, testParameters);
+                var restoredPrediction = restoredPAN.predict(pattern, testParameters);
+
+                if (originalPrediction instanceof ActivationResult.Success originalSuccess &&
+                    restoredPrediction instanceof ActivationResult.Success restoredSuccess) {
+                    assertEquals(originalSuccess.categoryIndex(), restoredSuccess.categoryIndex());
+                }
+            }
+
+            originalPAN.close();
+            restoredPAN.close();
+        }
+    }
+
+    // ======================= HELPER METHODS =======================
+
+    private List<MNISTLikeSample> generateMNISTLikeDataset(int samples, int classes) {
+        var dataset = new ArrayList<MNISTLikeSample>();
+
+        for (int i = 0; i < samples; i++) {
+            var imageData = generateRandomData(1, 784, 0, 1)[0];
+
+            // Create one-hot label
+            var labelData = new double[classes];
+            labelData[i % classes] = 1.0;
+
+            dataset.add(new MNISTLikeSample(
+                new DenseVector(imageData),
+                new DenseVector(labelData)
+            ));
+        }
+
+        return dataset;
+    }
+
+    private DataSplitMNISTLike splitMNISTLikeData(List<MNISTLikeSample> data, double trainRatio) {
+        int trainSize = (int) (data.size() * trainRatio);
+
+        var shuffled = new ArrayList<>(data);
+        Collections.shuffle(shuffled, random);
+
+        return new DataSplitMNISTLike(
+            shuffled.subList(0, trainSize),
+            shuffled.subList(trainSize, data.size())
+        );
+    }
+
+    private int extractLabelFromOneHot(Pattern oneHot) {
+        for (int i = 0; i < oneHot.dimension(); i++) {
+            if (oneHot.get(i) > 0.5) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void adjustLabelsForPhase(ClassificationDataset dataset, int offset) {
+        for (int i = 0; i < dataset.labels().size(); i++) {
+            dataset.labels().set(i, dataset.labels().get(i) + offset);
+        }
+    }
+
+    private void trainOnDataset(PAN pan, ClassificationDataset dataset) {
+        for (int i = 0; i < dataset.patterns().size(); i++) {
+            var pattern = dataset.patterns().get(i);
+            var label = dataset.labels().get(i);
+            var target = new double[Math.max(2, Collections.max(dataset.labels()) + 1)];
+            target[label] = 1.0;
+
+            pan.learnSupervised(pattern, new DenseVector(target), testParameters);
+        }
+    }
+
+    private double calculateAccuracy(PAN pan, ClassificationDataset dataset) {
+        int correct = 0;
+        for (int i = 0; i < dataset.patterns().size(); i++) {
+            var pattern = dataset.patterns().get(i);
+            var expectedLabel = dataset.labels().get(i);
+            var predictedLabel = pan.predictLabel(pattern, testParameters);
+
+            if (predictedLabel == expectedLabel) {
+                correct++;
+            }
+        }
+        return (double) correct / dataset.patterns().size();
+    }
+
+    // ======================= RECORD CLASSES =======================
+
+    public record MNISTLikeSample(Pattern image, Pattern label) {}
+    public record DataSplitMNISTLike(List<MNISTLikeSample> train, List<MNISTLikeSample> test) {}
+}

@@ -1,0 +1,364 @@
+package com.hellblazer.art.hybrid.markov;
+
+import com.hellblazer.art.core.FuzzyART;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.hybrid.markov.baseline.StandardMarkovChain;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Hybrid ART-Markov implementation that combines ART state discovery
+ * with Markov transition modeling.
+ *
+ * This approach uses ART to automatically discover and cluster states from
+ * observations, then models transitions between these discovered states
+ * using standard Markov chain techniques.
+ */
+public class HybridARTMarkov<O> implements AutoCloseable {
+
+    /**
+     * State abstraction result from ART
+     */
+    public static record AbstractState(int categoryId, double confidence, Object observation) {}
+
+    private final FuzzyART artStateDiscoverer;
+    private final StandardMarkovChain<Integer> markovTransitionModel;
+    private final Map<Integer, List<O>> categoryObservations;
+    private final Map<Integer, O> categoryPrototypes;
+
+    // Configuration
+    private final double vigilanceParameter;
+    private final int maxCategories;
+    private final boolean enableStateRefinement;
+
+    // Tracking
+    private AbstractState previousState = null;
+    private int totalObservations = 0;
+    private final Map<String, Object> performanceMetrics;
+
+    /**
+     * Configuration for hybrid ART-Markov system
+     */
+    public static record HybridConfig(
+        double vigilanceParameter,
+        int maxCategories,
+        double learningRate,
+        boolean enableStateRefinement,
+        boolean allowNegativeWeights
+    ) {
+        public static HybridConfig defaultConfig() {
+            return new HybridConfig(0.6, 50, 0.1, true, false);
+        }
+    }
+
+    public HybridARTMarkov(HybridConfig config) {
+        this.vigilanceParameter = config.vigilanceParameter;
+        this.maxCategories = config.maxCategories;
+        this.enableStateRefinement = config.enableStateRefinement;
+
+        // Create ART for state discovery
+        var artParams = new PANParameters(
+            config.vigilanceParameter,
+            config.maxCategories,
+            PANParameters.defaultParameters().cnnConfig(),
+            false,
+            config.learningRate,
+            0.9,
+            0.0001,
+            config.allowNegativeWeights,
+            64,
+            0.95,
+            0.8,
+            100,
+            16,
+            0.1,
+            0.1,
+            PANParameters.defaultParameters().similarityMeasure()
+        );
+
+        this.artStateDiscoverer = new FuzzyART(artParams);
+        this.markovTransitionModel = new StandardMarkovChain<>();
+        this.categoryObservations = new ConcurrentHashMap<>();
+        this.categoryPrototypes = new ConcurrentHashMap<>();
+        this.performanceMetrics = new ConcurrentHashMap<>();
+    }
+
+    /**
+     * Process observation and learn both state abstraction and transitions
+     */
+    public AbstractState processObservation(O observation) {
+        totalObservations++;
+
+        // Step 1: Convert observation to pattern for ART
+        Pattern pattern = observationToPattern(observation);
+
+        // Step 2: Use ART to discover/assign state
+        ActivationResult artResult = artStateDiscoverer.learn(pattern, artStateDiscoverer.getParameters());
+
+        AbstractState currentState;
+        if (artResult instanceof ActivationResult.Success success) {
+            currentState = new AbstractState(
+                success.categoryIndex(),
+                success.activation(),
+                observation
+            );
+
+            // Track observations for this category
+            categoryObservations.computeIfAbsent(success.categoryIndex(), k -> new ArrayList<>())
+                              .add(observation);
+
+            // Update prototype (representative observation for this state)
+            updateCategoryPrototype(success.categoryIndex(), observation);
+
+        } else {
+            // No matching category found - this indicates ART parameters may need tuning
+            currentState = new AbstractState(-1, 0.0, observation);
+        }
+
+        // Step 3: Learn transition if we have a previous state
+        if (previousState != null && currentState.categoryId() != -1) {
+            markovTransitionModel.observeTransition(
+                previousState.categoryId(),
+                currentState.categoryId()
+            );
+        }
+
+        // Step 4: Update state for next iteration
+        previousState = currentState;
+
+        // Step 5: Optionally refine states based on transition patterns
+        if (enableStateRefinement && totalObservations % 100 == 0) {
+            refineStateAbstraction();
+        }
+
+        return currentState;
+    }
+
+    /**
+     * Predict next state given current observation
+     */
+    public PredictionResult predictNextState(O currentObservation) {
+        // Step 1: Get current state from ART
+        Pattern pattern = observationToPattern(currentObservation);
+        ActivationResult artResult = artStateDiscoverer.predict(pattern, artStateDiscoverer.getParameters());
+
+        if (!(artResult instanceof ActivationResult.Success success)) {
+            return new PredictionResult(null, 0.0, PredictionSource.NO_MATCH);
+        }
+
+        int currentStateId = success.categoryIndex();
+        double artConfidence = success.activation();
+
+        // Step 2: Use Markov model to predict next state
+        Integer nextStateId = markovTransitionModel.predictNextState(currentStateId);
+
+        if (nextStateId == null) {
+            return new PredictionResult(null, 0.0, PredictionSource.NO_TRANSITION_DATA);
+        }
+
+        // Step 3: Get prototype observation for predicted state
+        O predictedObservation = categoryPrototypes.get(nextStateId);
+        double transitionProbability = markovTransitionModel.getTransitionProbability(currentStateId, nextStateId);
+
+        // Step 4: Combine ART and Markov confidences
+        double combinedConfidence = combineConfidences(artConfidence, transitionProbability);
+
+        return new PredictionResult(
+            new AbstractState(nextStateId, combinedConfidence, predictedObservation),
+            combinedConfidence,
+            PredictionSource.HYBRID
+        );
+    }
+
+    /**
+     * Predict sequence of future states
+     */
+    public List<PredictionResult> predictSequence(O startObservation, int horizonLength) {
+        var predictions = new ArrayList<PredictionResult>();
+        var currentObservation = startObservation;
+
+        for (int i = 0; i < horizonLength; i++) {
+            var prediction = predictNextState(currentObservation);
+            predictions.add(prediction);
+
+            if (prediction.predictedState() == null) {
+                break; // Can't continue prediction
+            }
+
+            // Use predicted observation for next iteration
+            currentObservation = (O) prediction.predictedState().observation();
+        }
+
+        return predictions;
+    }
+
+    /**
+     * Get learned transition matrix (ART states as indices)
+     */
+    public double[][] getTransitionMatrix() {
+        return markovTransitionModel.getTransitionMatrix();
+    }
+
+    /**
+     * Get steady-state distribution over discovered states
+     */
+    public double[] getSteadyStateDistribution() {
+        return markovTransitionModel.getSteadyStateDistribution();
+    }
+
+    /**
+     * Get discovered states (category prototypes)
+     */
+    public Map<Integer, O> getDiscoveredStates() {
+        return new HashMap<>(categoryPrototypes);
+    }
+
+    /**
+     * Get number of discovered states
+     */
+    public int getStateCount() {
+        return categoryPrototypes.size();
+    }
+
+    /**
+     * Validate the learned model
+     */
+    public ValidationResult validateModel() {
+        // Validate Markov properties
+        var markovValidation = markovTransitionModel.validateStochasticProperties();
+
+        // Validate ART state quality
+        var artValidation = validateARTStates();
+
+        var combinedViolations = new ArrayList<String>();
+        combinedViolations.addAll(markovValidation.violations());
+        combinedViolations.addAll(artValidation);
+
+        return new ValidationResult(
+            markovValidation.isValid() && artValidation.isEmpty(),
+            combinedViolations
+        );
+    }
+
+    /**
+     * Get performance metrics
+     */
+    public Map<String, Object> getPerformanceMetrics() {
+        var metrics = new HashMap<>(performanceMetrics);
+        metrics.put("totalObservations", totalObservations);
+        metrics.put("discoveredStates", getStateCount());
+        metrics.put("averageObservationsPerState",
+                   totalObservations > 0 ? (double) totalObservations / getStateCount() : 0.0);
+        metrics.put("transitionMatrixSparsity", calculateMatrixSparsity());
+        return metrics;
+    }
+
+    /**
+     * Clear all learned data
+     */
+    public void clear() {
+        artStateDiscoverer.clear();
+        markovTransitionModel.clear();
+        categoryObservations.clear();
+        categoryPrototypes.clear();
+        previousState = null;
+        totalObservations = 0;
+        performanceMetrics.clear();
+    }
+
+    @Override
+    public void close() {
+        clear();
+    }
+
+    // Helper classes
+
+    public static record PredictionResult(
+        AbstractState predictedState,
+        double confidence,
+        PredictionSource source
+    ) {}
+
+    public enum PredictionSource {
+        HYBRID, ART_ONLY, MARKOV_ONLY, NO_MATCH, NO_TRANSITION_DATA
+    }
+
+    public static record ValidationResult(boolean isValid, List<String> violations) {}
+
+    // Private helper methods
+
+    private Pattern observationToPattern(O observation) {
+        // Convert observation to Pattern for ART processing
+        // This is a simplified implementation - in practice, this would depend on the observation type
+        if (observation instanceof Number num) {
+            return Pattern.create(new double[]{num.doubleValue()});
+        } else if (observation instanceof double[] arr) {
+            return Pattern.create(arr);
+        } else {
+            // Convert object to hash-based pattern (very basic)
+            var hash = observation.hashCode();
+            return Pattern.create(new double[]{hash % 1000 / 1000.0}); // Normalize to [0,1]
+        }
+    }
+
+    private void updateCategoryPrototype(int categoryId, O observation) {
+        if (!categoryPrototypes.containsKey(categoryId)) {
+            categoryPrototypes.put(categoryId, observation);
+        } else {
+            // For simplicity, just keep the first observation as prototype
+            // In practice, you might want to maintain a more representative prototype
+        }
+    }
+
+    private void refineStateAbstraction() {
+        // Optional: analyze transition patterns to refine state discovery
+        // This could involve adjusting vigilance or splitting/merging states
+        // Implementation depends on specific requirements
+    }
+
+    private double combineConfidences(double artConfidence, double markovConfidence) {
+        // Weighted combination of ART and Markov confidences
+        // ART confidence reflects how well the observation matches a discovered state
+        // Markov confidence reflects transition probability
+        return 0.6 * artConfidence + 0.4 * markovConfidence;
+    }
+
+    private List<String> validateARTStates() {
+        var violations = new ArrayList<String>();
+
+        // Check if states are well-separated
+        if (getStateCount() < 2 && totalObservations > 10) {
+            violations.add("Too few states discovered - may need lower vigilance parameter");
+        }
+
+        // Check if states have sufficient observations
+        for (var entry : categoryObservations.entrySet()) {
+            if (entry.getValue().size() < 3) {
+                violations.add("Category " + entry.getKey() + " has too few observations: " + entry.getValue().size());
+            }
+        }
+
+        return violations;
+    }
+
+    private double calculateMatrixSparsity() {
+        var matrix = markovTransitionModel.getTransitionMatrix();
+        if (matrix.length == 0) return 0.0;
+
+        int totalElements = matrix.length * matrix[0].length;
+        int nonZeroElements = 0;
+
+        for (double[] row : matrix) {
+            for (double value : row) {
+                if (Math.abs(value) > 1e-10) {
+                    nonZeroElements++;
+                }
+            }
+        }
+
+        return 1.0 - (double) nonZeroElements / totalElements;
+    }
+}

@@ -1,0 +1,186 @@
+package com.hellblazer.art.hybrid.pan.benchmark;
+
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import com.hellblazer.art.hybrid.pan.datasets.MNISTDataset;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.training.PANTrainer;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Benchmark with real MNIST data.
+ * Disabled by default due to download requirement.
+ */
+@Disabled("Requires downloading MNIST dataset")
+class RealMNISTBenchmark {
+
+    @Test
+    void testRealMNISTSmallSubset() throws IOException {
+        System.out.println("=== Real MNIST Benchmark (Small Subset) ===\n");
+
+        // Load small subset for quick testing
+        System.out.println("Loading MNIST data...");
+        var trainData = MNISTDataset.loadTrainingData(1000);
+        var testData = MNISTDataset.loadTestData(200);
+
+        System.out.printf("Loaded %d training samples, %d test samples\n",
+            trainData.images().size(), testData.images().size());
+
+        // Optimized parameters for MNIST
+        var params = PANParameters.forMNIST();
+
+        try (var pan = new PAN(params)) {
+            System.out.println("\nTraining on real MNIST data...");
+
+            var result = PANTrainer.trainWithEpochs(
+                pan,
+                trainData.images(),
+                trainData.labels(),
+                testData.images(),
+                testData.labels(),
+                params,
+                5,      // epochs
+                70.0,   // early stopping
+                true    // verbose
+            );
+
+            System.out.println("\n=== Results ===");
+            System.out.printf("Best accuracy: %.2f%% (epoch %d)\n",
+                result.bestAccuracy(), result.bestEpoch());
+            System.out.printf("Final categories: %d\n", result.finalCategories());
+            System.out.printf("Training time: %.2f seconds\n",
+                result.trainingTimeMs() / 1000.0);
+
+            // Should achieve better than random (10%) on real MNIST
+            assertTrue(result.bestAccuracy() > 20.0,
+                "Should achieve at least 20% on real MNIST subset");
+        }
+    }
+
+    @Test
+    void testRealMNISTLargerSubset() throws IOException {
+        System.out.println("=== Real MNIST Benchmark (Larger Subset) ===\n");
+
+        // Load larger subset for better training
+        System.out.println("Loading MNIST data...");
+        var trainData = MNISTDataset.loadTrainingData(5000);
+        var testData = MNISTDataset.loadTestData(1000);
+
+        System.out.printf("Loaded %d training samples, %d test samples\n",
+            trainData.images().size(), testData.images().size());
+
+        // Tuned parameters for larger dataset
+        var params = new PANParameters(
+
+            0.5, // lower vigilance for more generalization
+            30, // more categories allowed
+            PANParameters.forMNIST().cnnConfig(), false,
+// no pretraining
+            0.02, // moderate learning rate
+            0.9, // momentum
+            0.0001, // weight decay
+            true, // allow negative weights
+            64,
+// hidden units
+            0.95, // STM decay
+            0.8, // LTM consolidation
+            2000, // larger replay buffer
+            64, // larger batch
+            0.2, // replay frequency
+            0.1,    // bias factor
+            SimilarityMeasures.FUZZY_ART
+);
+
+        try (var pan = new PAN(params)) {
+            System.out.println("\nTraining on larger MNIST subset...");
+
+            var result = PANTrainer.trainWithEpochs(
+                pan,
+                trainData.images(),
+                trainData.labels(),
+                testData.images(),
+                testData.labels(),
+                params,
+                10,     // more epochs
+                80.0,   // higher early stopping threshold
+                true    // verbose
+            );
+
+            System.out.println("\n=== Results ===");
+            System.out.printf("Best accuracy: %.2f%% (epoch %d)\n",
+                result.bestAccuracy(), result.bestEpoch());
+            System.out.printf("Final categories: %d\n", result.finalCategories());
+            System.out.printf("Training time: %.2f seconds\n",
+                result.trainingTimeMs() / 1000.0);
+            System.out.printf("Time per epoch: %.2f seconds\n",
+                result.trainingTimeMs() / 1000.0 / result.epochsCompleted());
+
+            // With more data, should achieve better accuracy
+            assertTrue(result.bestAccuracy() > 30.0,
+                "Should achieve at least 30% on larger MNIST subset");
+        }
+    }
+
+    @Test
+    void testHyperparameterOptimizationOnRealData() throws IOException {
+        System.out.println("=== Hyperparameter Optimization on Real MNIST ===\n");
+
+        // Load data for optimization
+        System.out.println("Loading MNIST data...");
+        var trainData = MNISTDataset.loadTrainingData(2000);
+        var valData = MNISTDataset.loadTestData(500);
+
+        // Test different configurations
+        var configs = new PANParameters[] {
+            // Conservative
+            new PANParameters(
+
+                0.7, 20, PANParameters.forMNIST().cnnConfig(), false,
+0.01, 0.95, 0.0001, true, 32,
+0.95, 0.8, 1000, 32, 0.1, 0.1, SimilarityMeasures.FUZZY_ART
+),
+            // Balanced
+            new PANParameters(
+
+                0.5, 30, PANParameters.forMNIST().cnnConfig(), false,
+0.02, 0.9, 0.0001, true, 64,
+0.95, 0.8, 1500, 48, 0.15, 0.1, SimilarityMeasures.FUZZY_ART
+),
+            // Aggressive
+            new PANParameters(
+
+                0.3, 40, PANParameters.forMNIST().cnnConfig(), false,
+0.03, 0.85, 0.0001, true, 96,
+0.95, 0.8, 2000, 64, 0.2, 0.1, SimilarityMeasures.FUZZY_ART
+)
+        };
+
+        System.out.println("Testing configurations...\n");
+
+        var searchResult = PANTrainer.hyperparameterSearch(
+            trainData.images(),
+            trainData.labels(),
+            valData.images(),
+            valData.labels(),
+            Arrays.asList(configs),
+            3,      // epochs per config
+            true    // verbose
+        );
+
+        System.out.println("\n=== Hyperparameter Search Results ===");
+        System.out.printf("Best accuracy: %.2f%%\n", searchResult.bestAccuracy());
+        System.out.printf("Best vigilance: %.2f\n", searchResult.bestParameters().vigilance());
+        System.out.printf("Best learning rate: %.4f\n", searchResult.bestParameters().learningRate());
+        System.out.printf("Best hidden units: %d\n", searchResult.bestParameters().hiddenUnits());
+
+        // Should find a reasonable configuration
+        assertTrue(searchResult.bestAccuracy() > 25.0,
+            "Best configuration should achieve at least 25% on real MNIST");
+    }
+}

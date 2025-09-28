@@ -1,0 +1,268 @@
+package com.hellblazer.art.hybrid.markov.baseline;
+
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * Standard Markov Chain implementation for benchmark comparison.
+ *
+ * This serves as a baseline implementation to compare against hybrid ART-Markov approaches.
+ * Implements classic Markov chain algorithms with proper stochastic properties.
+ */
+public class StandardMarkovChain<S> {
+
+    private final Map<S, Integer> stateToIndex;
+    private final List<S> indexToState;
+    private double[][] transitionMatrix;
+    private final Map<StatePair<S>, Integer> transitionCounts;
+    private int observationCount = 0;
+
+    public StandardMarkovChain() {
+        this.stateToIndex = new HashMap<>();
+        this.indexToState = new ArrayList<>();
+        this.transitionCounts = new HashMap<>();
+        this.transitionMatrix = new double[0][0];
+    }
+
+    /**
+     * State pair for tracking transitions
+     */
+    public static record StatePair<S>(S from, S to) {}
+
+    /**
+     * Observe a transition between states and update the model
+     */
+    public void observeTransition(S fromState, S toState) {
+        // Add states to index if not seen before
+        int fromIndex = getOrCreateStateIndex(fromState);
+        int toIndex = getOrCreateStateIndex(toState);
+
+        // Resize matrix if needed
+        ensureMatrixSize(Math.max(fromIndex, toIndex) + 1);
+
+        // Count transition
+        var pair = new StatePair<>(fromState, toState);
+        transitionCounts.merge(pair, 1, Integer::sum);
+        observationCount++;
+
+        // Update transition matrix
+        updateTransitionProbabilities(fromIndex);
+    }
+
+    /**
+     * Predict next state given current state
+     */
+    public S predictNextState(S currentState) {
+        Integer stateIndex = stateToIndex.get(currentState);
+        if (stateIndex == null) {
+            return null; // Unknown state
+        }
+
+        double[] probabilities = transitionMatrix[stateIndex];
+        return sampleFromDistribution(probabilities);
+    }
+
+    /**
+     * Get transition probability between two states
+     */
+    public double getTransitionProbability(S from, S to) {
+        Integer fromIndex = stateToIndex.get(from);
+        Integer toIndex = stateToIndex.get(to);
+
+        if (fromIndex == null || toIndex == null) {
+            return 0.0;
+        }
+
+        return transitionMatrix[fromIndex][toIndex];
+    }
+
+    /**
+     * Get the transition matrix (copy)
+     */
+    public double[][] getTransitionMatrix() {
+        var result = new double[transitionMatrix.length][];
+        for (int i = 0; i < transitionMatrix.length; i++) {
+            result[i] = transitionMatrix[i].clone();
+        }
+        return result;
+    }
+
+    /**
+     * Get steady-state distribution using power iteration
+     */
+    public double[] getSteadyStateDistribution() {
+        if (transitionMatrix.length == 0) {
+            return new double[0];
+        }
+
+        // Initialize with uniform distribution
+        var distribution = new double[transitionMatrix.length];
+        Arrays.fill(distribution, 1.0 / transitionMatrix.length);
+
+        // Power iteration
+        var maxIterations = 1000;
+        var tolerance = 1e-10;
+
+        for (int iter = 0; iter < maxIterations; iter++) {
+            var newDistribution = new double[transitionMatrix.length];
+
+            // Multiply distribution by transition matrix
+            for (int i = 0; i < transitionMatrix.length; i++) {
+                for (int j = 0; j < transitionMatrix.length; j++) {
+                    newDistribution[i] += distribution[j] * transitionMatrix[j][i];
+                }
+            }
+
+            // Check convergence
+            var maxDiff = 0.0;
+            for (int i = 0; i < distribution.length; i++) {
+                maxDiff = Math.max(maxDiff, Math.abs(newDistribution[i] - distribution[i]));
+            }
+
+            distribution = newDistribution;
+
+            if (maxDiff < tolerance) {
+                break;
+            }
+        }
+
+        return distribution;
+    }
+
+    /**
+     * Validate that transition matrix satisfies stochastic properties
+     */
+    public ValidationResult validateStochasticProperties() {
+        var violations = new ArrayList<String>();
+        var tolerance = 1e-10;
+
+        // Check row sums equal 1
+        for (int i = 0; i < transitionMatrix.length; i++) {
+            var rowSum = Arrays.stream(transitionMatrix[i]).sum();
+            if (Math.abs(rowSum - 1.0) > tolerance) {
+                violations.add(String.format("Row %d sum: %.10f (expected 1.0)", i, rowSum));
+            }
+        }
+
+        // Check non-negative probabilities
+        for (int i = 0; i < transitionMatrix.length; i++) {
+            for (int j = 0; j < transitionMatrix[i].length; j++) {
+                if (transitionMatrix[i][j] < -tolerance) {
+                    violations.add(String.format("Negative probability at (%d,%d): %.10f", i, j, transitionMatrix[i][j]));
+                }
+            }
+        }
+
+        return new ValidationResult(violations.isEmpty(), violations);
+    }
+
+    /**
+     * Validation result
+     */
+    public static record ValidationResult(boolean isValid, List<String> violations) {}
+
+    /**
+     * Generate a sequence of states from the Markov chain
+     */
+    public List<S> generateSequence(S startState, int length) {
+        var sequence = new ArrayList<S>();
+        sequence.add(startState);
+
+        var currentState = startState;
+        for (int i = 1; i < length; i++) {
+            currentState = predictNextState(currentState);
+            if (currentState == null) {
+                break; // Can't continue
+            }
+            sequence.add(currentState);
+        }
+
+        return sequence;
+    }
+
+    /**
+     * Get all known states
+     */
+    public Set<S> getStates() {
+        return new HashSet<>(indexToState);
+    }
+
+    /**
+     * Get number of states
+     */
+    public int getStateCount() {
+        return indexToState.size();
+    }
+
+    /**
+     * Get number of observations
+     */
+    public int getObservationCount() {
+        return observationCount;
+    }
+
+    /**
+     * Clear all learned data
+     */
+    public void clear() {
+        stateToIndex.clear();
+        indexToState.clear();
+        transitionCounts.clear();
+        transitionMatrix = new double[0][0];
+        observationCount = 0;
+    }
+
+    // Private helper methods
+
+    private int getOrCreateStateIndex(S state) {
+        return stateToIndex.computeIfAbsent(state, s -> {
+            int index = indexToState.size();
+            indexToState.add(s);
+            return index;
+        });
+    }
+
+    private void ensureMatrixSize(int minSize) {
+        if (transitionMatrix.length < minSize) {
+            var newMatrix = new double[minSize][minSize];
+            for (int i = 0; i < transitionMatrix.length; i++) {
+                System.arraycopy(transitionMatrix[i], 0, newMatrix[i], 0, transitionMatrix[i].length);
+            }
+            transitionMatrix = newMatrix;
+        }
+    }
+
+    private void updateTransitionProbabilities(int fromIndex) {
+        // Count all transitions from this state
+        var totalFromThisState = 0;
+        for (var entry : transitionCounts.entrySet()) {
+            if (stateToIndex.get(entry.getKey().from) == fromIndex) {
+                totalFromThisState += entry.getValue();
+            }
+        }
+
+        // Update probabilities for this row
+        Arrays.fill(transitionMatrix[fromIndex], 0.0);
+        for (var entry : transitionCounts.entrySet()) {
+            if (stateToIndex.get(entry.getKey().from) == fromIndex) {
+                int toIndex = stateToIndex.get(entry.getKey().to);
+                transitionMatrix[fromIndex][toIndex] = (double) entry.getValue() / totalFromThisState;
+            }
+        }
+    }
+
+    private S sampleFromDistribution(double[] probabilities) {
+        var random = ThreadLocalRandom.current().nextDouble();
+        var cumulative = 0.0;
+
+        for (int i = 0; i < probabilities.length; i++) {
+            cumulative += probabilities[i];
+            if (random <= cumulative) {
+                return indexToState.get(i);
+            }
+        }
+
+        // Fallback to last state (shouldn't happen with valid probabilities)
+        return indexToState.get(probabilities.length - 1);
+    }
+}

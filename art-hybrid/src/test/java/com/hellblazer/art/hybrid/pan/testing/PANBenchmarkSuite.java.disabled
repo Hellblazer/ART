@@ -1,0 +1,575 @@
+package com.hellblazer.art.hybrid.pan.testing;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.memory.DualMemoryManager;
+import com.hellblazer.art.hybrid.pan.memory.ExperienceReplayBuffer;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.preprocessing.CNNPreprocessor;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import com.hellblazer.art.hybrid.pan.weight.BPARTWeight;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
+
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Comprehensive JMH benchmark suite for PAN hybrid ART-Markov system.
+ * Measures performance characteristics, memory usage, and scalability.
+ * Provides standardized benchmarks for performance regression testing
+ * and comparison with traditional ART implementations.
+ */
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
+@Fork(1)
+@State(Scope.Benchmark)
+public class PANBenchmarkSuite {
+
+    // Benchmark state
+    private PAN panSystem;
+    private PANParameters parameters;
+    private List<Pattern> testPatterns;
+    private List<Pattern> imagePatterns;
+    private List<Pattern> supervisedTargets;
+    private Random random;
+
+    // Component-specific state
+    private BPARTWeight testWeight;
+    private DualMemoryManager memoryManager;
+    private ExperienceReplayBuffer replayBuffer;
+    private CNNPreprocessor preprocessor;
+
+    @Setup(Level.Trial)
+    public void setupTrial() {
+        random = new Random(42); // Fixed seed for reproducible benchmarks
+
+        // Initialize parameters for benchmarking
+        parameters = new PANParameters(
+            0.7,   // vigilance
+            100,   // maxCategories
+            PANParameters.defaultParameters().cnnConfig(),
+            false, // disable pretraining for faster benchmarks
+            0.01,  // learningRate
+            0.9,   // momentum
+            0.0001, // weightDecay
+            true,  // allowNegativeWeights
+            64,    // hiddenUnits
+            0.95,  // stmDecayRate
+            0.8,   // ltmConsolidationThreshold
+            1000,  // replayBufferSize
+            50,    // replayBatchSize
+            0.1,   // replayFrequency
+            0.1,   // biasFactor
+            SimilarityMeasures.FUZZY_ART
+        );
+
+        // Initialize test data
+        setupTestData();
+
+        // Initialize components
+        setupComponents();
+    }
+
+    @Setup(Level.Iteration)
+    public void setupIteration() {
+        // Fresh PAN for each iteration to ensure clean state
+        panSystem = new PAN(parameters);
+    }
+
+    @TearDown(Level.Iteration)
+    public void tearDownIteration() {
+        if (panSystem != null) {
+            panSystem.close();
+        }
+    }
+
+    @TearDown(Level.Trial)
+    public void tearDownTrial() {
+        if (memoryManager != null) {
+            memoryManager.close();
+        }
+        if (replayBuffer != null) {
+            replayBuffer.close();
+        }
+        if (preprocessor != null) {
+            preprocessor.close();
+        }
+    }
+
+    // ======================= CORE LEARNING BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public ActivationResult benchmarkSinglePatternLearning(Blackhole bh) {
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        var result = panSystem.learn(pattern, parameters);
+        bh.consume(result);
+        return result;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public ActivationResult benchmarkSinglePatternPrediction(Blackhole bh) {
+        // Pre-learn some patterns
+        for (int i = 0; i < 10; i++) {
+            panSystem.learn(testPatterns.get(i), parameters);
+        }
+
+        var pattern = testPatterns.get(random.nextInt(10));
+        var result = panSystem.predict(pattern, parameters);
+        bh.consume(result);
+        return result;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public ActivationResult benchmarkSupervisedLearning(Blackhole bh) {
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        var target = supervisedTargets.get(random.nextInt(supervisedTargets.size()));
+        var result = panSystem.learnSupervised(pattern, target, parameters);
+        bh.consume(result);
+        return result;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    public long benchmarkLearningThroughput(Blackhole bh) {
+        long count = 0;
+        for (int i = 0; i < 100; i++) {
+            var pattern = testPatterns.get(i % testPatterns.size());
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+            count++;
+        }
+        return count;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    public long benchmarkPredictionThroughput(Blackhole bh) {
+        // Pre-train the system
+        for (int i = 0; i < 50; i++) {
+            panSystem.learn(testPatterns.get(i), parameters);
+        }
+
+        long count = 0;
+        for (int i = 0; i < 100; i++) {
+            var pattern = testPatterns.get(i % testPatterns.size());
+            var result = panSystem.predict(pattern, parameters);
+            bh.consume(result);
+            count++;
+        }
+        return count;
+    }
+
+    // ======================= BATCH PROCESSING BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public List<ActivationResult> benchmarkBatchLearning(Blackhole bh) {
+        var batch = testPatterns.subList(0, 20);
+        var results = panSystem.learnBatch(batch, parameters);
+        bh.consume(results);
+        return results;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public List<ActivationResult> benchmarkBatchPrediction(Blackhole bh) {
+        // Pre-train
+        for (int i = 0; i < 30; i++) {
+            panSystem.learn(testPatterns.get(i), parameters);
+        }
+
+        var batch = testPatterns.subList(0, 20);
+        var results = panSystem.predictBatch(batch, parameters);
+        bh.consume(results);
+        return results;
+    }
+
+    // ======================= SCALABILITY BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @Param({"10", "50", "100", "200"})
+    public void benchmarkScalabilityByDatasetSize(int datasetSize, Blackhole bh) {
+        for (int i = 0; i < datasetSize; i++) {
+            var pattern = testPatterns.get(i % testPatterns.size());
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+        }
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @Param({"784", "1568", "3136"}) // 28x28, 28x28x2, 28x28x4
+    public void benchmarkScalabilityByPatternSize(int patternSize, Blackhole bh) {
+        var largePattern = generateLargePattern(patternSize);
+        var result = panSystem.learn(largePattern, parameters);
+        bh.consume(result);
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @Param({"10", "50", "100"})
+    public void benchmarkScalabilityByCategories(int targetCategories, Blackhole bh) {
+        // Create distinct patterns to force category creation
+        for (int i = 0; i < targetCategories; i++) {
+            var distinctPattern = generateDistinctPattern(i);
+            var result = panSystem.learn(distinctPattern, parameters);
+            bh.consume(result);
+        }
+    }
+
+    // ======================= COMPONENT-SPECIFIC BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public Pattern benchmarkCNNPreprocessing(Blackhole bh) {
+        var pattern = imagePatterns.get(random.nextInt(imagePatterns.size()));
+        var features = preprocessor.extractFeatures(pattern);
+        bh.consume(features);
+        return features;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public double benchmarkBPARTWeightActivation(Blackhole bh) {
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        double activation = testWeight.calculateActivation(pattern, SimilarityMeasures.FUZZY_ART);
+        bh.consume(activation);
+        return activation;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public double benchmarkResonanceIntensityCalculation(Blackhole bh) {
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        double resonance = testWeight.calculateResonanceIntensity(pattern, SimilarityMeasures.FUZZY_ART);
+        bh.consume(resonance);
+        return resonance;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public Pattern benchmarkMemoryFeatureEnhancement(Blackhole bh) {
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        var enhanced = memoryManager.enhanceFeatures(pattern, testWeight);
+        bh.consume(enhanced);
+        return enhanced;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public void benchmarkExperienceReplayAddition(Blackhole bh) {
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        var target = supervisedTargets.get(random.nextInt(supervisedTargets.size()));
+        replayBuffer.addExperience(pattern, target, testWeight, random.nextDouble());
+        bh.consume(replayBuffer.size());
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public List<?> benchmarkExperienceReplaySampling(Blackhole bh) {
+        // Fill buffer first
+        for (int i = 0; i < 100; i++) {
+            var pattern = testPatterns.get(i % testPatterns.size());
+            var target = supervisedTargets.get(i % supervisedTargets.size());
+            replayBuffer.addExperience(pattern, target, testWeight, random.nextDouble());
+        }
+
+        var batch = replayBuffer.sampleBatch();
+        bh.consume(batch);
+        return batch;
+    }
+
+    // ======================= SIMILARITY MEASURE BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @Param({"FUZZY_ART", "COSINE", "EUCLIDEAN", "MANHATTAN"})
+    public double benchmarkSimilarityMeasures(String measureName, Blackhole bh) {
+        var measure = SimilarityMeasures.valueOf(measureName);
+        var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+        double similarity = testWeight.calculateActivation(pattern, measure);
+        bh.consume(similarity);
+        return similarity;
+    }
+
+    // ======================= MEMORY USAGE BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public long benchmarkMemoryUsageEstimation(Blackhole bh) {
+        // Train some patterns first
+        for (int i = 0; i < 50; i++) {
+            panSystem.learn(testPatterns.get(i), parameters);
+        }
+
+        var stats = panSystem.getPerformanceStats();
+        long memoryUsage = (Long) stats.get("memoryUsageBytes");
+        bh.consume(memoryUsage);
+        return memoryUsage;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.SingleShotTime)
+    public void benchmarkLargeDatasetMemoryGrowth(Blackhole bh) {
+        // Simulate processing a large dataset
+        for (int i = 0; i < 1000; i++) {
+            var pattern = testPatterns.get(i % testPatterns.size());
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+
+            // Periodic memory checks
+            if (i % 100 == 0) {
+                var stats = panSystem.getPerformanceStats();
+                bh.consume(stats.get("memoryUsageBytes"));
+            }
+        }
+    }
+
+    // ======================= CONVERGENCE PERFORMANCE BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public void benchmarkConvergenceSpeed(Blackhole bh) {
+        var convergencePatterns = generateConvergenceTestPatterns();
+
+        int previousCategoryCount = 0;
+        int stableIterations = 0;
+        int iteration = 0;
+
+        // Measure iterations to convergence
+        while (stableIterations < 5 && iteration < 200) {
+            for (var pattern : convergencePatterns) {
+                var result = panSystem.learn(pattern, parameters);
+                bh.consume(result);
+            }
+
+            int currentCategoryCount = panSystem.getCategoryCount();
+            if (currentCategoryCount == previousCategoryCount) {
+                stableIterations++;
+            } else {
+                stableIterations = 0;
+            }
+            previousCategoryCount = currentCategoryCount;
+            iteration++;
+        }
+
+        bh.consume(iteration);
+    }
+
+    // ======================= COMPARISON BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public void benchmarkSequentialVsBatchProcessing(Blackhole bh) {
+        var batch = testPatterns.subList(0, 50);
+
+        // Sequential processing
+        long sequentialStart = System.nanoTime();
+        for (var pattern : batch) {
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+        }
+        long sequentialTime = System.nanoTime() - sequentialStart;
+
+        // Reset for fair comparison
+        panSystem.clear();
+
+        // Batch processing
+        long batchStart = System.nanoTime();
+        var batchResults = panSystem.learnBatch(batch, parameters);
+        long batchTime = System.nanoTime() - batchStart;
+        bh.consume(batchResults);
+
+        bh.consume(sequentialTime);
+        bh.consume(batchTime);
+    }
+
+    // ======================= STRESS TEST BENCHMARKS =======================
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public void benchmarkHighFrequencyUpdates(Blackhole bh) {
+        // Simulate high-frequency learning scenario
+        for (int i = 0; i < 1000; i++) {
+            var pattern = testPatterns.get(random.nextInt(testPatterns.size()));
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+        }
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public void benchmarkConcurrentAccess(Blackhole bh) {
+        // Test thread safety under concurrent access
+        var patterns = testPatterns.subList(0, 100);
+
+        patterns.parallelStream().forEach(pattern -> {
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+        });
+    }
+
+    // ======================= HELPER METHODS =======================
+
+    private void setupTestData() {
+        testPatterns = new ArrayList<>();
+        imagePatterns = new ArrayList<>();
+        supervisedTargets = new ArrayList<>();
+
+        // Generate test patterns
+        for (int i = 0; i < 1000; i++) {
+            var patternData = new double[784];
+            for (int j = 0; j < 784; j++) {
+                patternData[j] = random.nextDouble();
+            }
+            testPatterns.add(new DenseVector(patternData));
+        }
+
+        // Generate image-like patterns
+        for (int i = 0; i < 100; i++) {
+            var imageData = generateImageLikePattern(28);
+            imagePatterns.add(new DenseVector(imageData));
+        }
+
+        // Generate supervised targets
+        for (int i = 0; i < 100; i++) {
+            var target = new double[10];
+            target[i % 10] = 1.0; // One-hot encoding
+            supervisedTargets.add(new DenseVector(target));
+        }
+    }
+
+    private void setupComponents() {
+        testWeight = new BPARTWeight(784, true);
+        memoryManager = new DualMemoryManager(0.95, 0.8);
+        replayBuffer = new ExperienceReplayBuffer(1000, 50);
+        preprocessor = new CNNPreprocessor(parameters.cnnConfig(), false);
+    }
+
+    private double[] generateImageLikePattern(int size) {
+        var data = new double[size * size];
+        for (int row = 0; row < size; row++) {
+            for (int col = 0; col < size; col++) {
+                int idx = row * size + col;
+                // Create simple patterns with some structure
+                data[idx] = Math.sin(2 * Math.PI * row / size) * Math.cos(2 * Math.PI * col / size);
+                data[idx] = (data[idx] + 1) / 2; // Normalize to [0, 1]
+            }
+        }
+        return data;
+    }
+
+    private Pattern generateLargePattern(int size) {
+        var data = new double[size];
+        for (int i = 0; i < size; i++) {
+            data[i] = random.nextDouble();
+        }
+        return new DenseVector(data);
+    }
+
+    private Pattern generateDistinctPattern(int index) {
+        var data = new double[784];
+        // Create patterns that are guaranteed to be distinct
+        for (int i = 0; i < 784; i++) {
+            data[i] = (i % (index + 1)) / (double) (index + 1);
+        }
+        return new DenseVector(data);
+    }
+
+    private List<Pattern> generateConvergenceTestPatterns() {
+        var patterns = new ArrayList<Pattern>();
+        // Generate patterns with controlled similarity for convergence testing
+        for (int cluster = 0; cluster < 5; cluster++) {
+            for (int sample = 0; sample < 4; sample++) {
+                var data = new double[784];
+                for (int i = 0; i < 784; i++) {
+                    // Create clustered patterns
+                    double baseValue = cluster * 0.2;
+                    data[i] = baseValue + random.nextGaussian() * 0.05;
+                    data[i] = Math.max(0, Math.min(1, data[i])); // Clamp to [0, 1]
+                }
+                patterns.add(new DenseVector(data));
+            }
+        }
+        return patterns;
+    }
+
+    // ======================= MAIN METHOD FOR STANDALONE EXECUTION =======================
+
+    public static void main(String[] args) throws RunnerException {
+        Options opt = new OptionsBuilder()
+            .include(PANBenchmarkSuite.class.getSimpleName())
+            .build();
+
+        new Runner(opt).run();
+    }
+}
+
+/**
+ * Specialized benchmark state for memory profiling
+ */
+@State(Scope.Benchmark)
+class PANMemoryBenchmarkState {
+    private PAN panSystem;
+    private PANParameters parameters;
+    private List<Pattern> patterns;
+
+    @Setup(Level.Trial)
+    public void setup() {
+        parameters = PANParameters.defaultParameters();
+        panSystem = new PAN(parameters);
+
+        patterns = new ArrayList<>();
+        var random = new Random(42);
+        for (int i = 0; i < 1000; i++) {
+            var data = new double[784];
+            for (int j = 0; j < 784; j++) {
+                data[j] = random.nextDouble();
+            }
+            patterns.add(new DenseVector(data));
+        }
+    }
+
+    @TearDown(Level.Trial)
+    public void tearDown() {
+        if (panSystem != null) {
+            panSystem.close();
+        }
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    public long benchmarkMemoryGrowthDuringLearning(Blackhole bh) {
+        var initialStats = panSystem.getPerformanceStats();
+        long initialMemory = (Long) initialStats.get("memoryUsageBytes");
+
+        // Learn a batch of patterns
+        for (int i = 0; i < 100; i++) {
+            var pattern = patterns.get(i);
+            var result = panSystem.learn(pattern, parameters);
+            bh.consume(result);
+        }
+
+        var finalStats = panSystem.getPerformanceStats();
+        long finalMemory = (Long) finalStats.get("memoryUsageBytes");
+
+        long memoryGrowth = finalMemory - initialMemory;
+        bh.consume(memoryGrowth);
+        return memoryGrowth;
+    }
+}

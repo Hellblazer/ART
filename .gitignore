@@ -1,7 +1,7 @@
 **/target
 .idea
 .claude
-logs
+**/logs
 
 # Performance test reports
 **/PERFORMANCE_*.md
