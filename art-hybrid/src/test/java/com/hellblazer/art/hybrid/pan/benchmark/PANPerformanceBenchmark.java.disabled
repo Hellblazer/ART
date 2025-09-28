@@ -1,0 +1,301 @@
+package com.hellblazer.art.hybrid.pan.benchmark;
+
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.datasets.SyntheticDataGenerator;
+import com.hellblazer.art.hybrid.pan.optimization.LearningRateScheduler;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.performance.PANProfiler;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Performance benchmarks for PAN.
+ */
+class PANPerformanceBenchmark {
+
+    @Test
+    void benchmarkThroughput() {
+        System.out.println("=== PAN Throughput Benchmark ===\n");
+
+        var profiler = PANProfiler.getInstance();
+        profiler.setEnabled(true);
+        profiler.clear();
+
+        // Different batch sizes to test
+        int[] batchSizes = {1, 10, 50, 100, 200};
+        var params = PANParameters.defaultParameters();
+
+        for (int batchSize : batchSizes) {
+            profiler.clear();
+
+            var data = SyntheticDataGenerator.generateMNISTLike(batchSize, 10);
+
+            try (var pan = new PAN(params)) {
+                profiler.takeMemorySnapshot("before_batch_" + batchSize);
+
+                long startTime = System.nanoTime();
+
+                for (int i = 0; i < data.images().size(); i++) {
+                    pan.learnSupervised(
+                        data.images().get(i),
+                        data.labels().get(i),
+                        params
+                    );
+                }
+
+                long duration = System.nanoTime() - startTime;
+                profiler.takeMemorySnapshot("after_batch_" + batchSize);
+
+                double samplesPerSecond = batchSize * 1_000_000_000.0 / duration;
+                double msPerSample = duration / (batchSize * 1_000_000.0);
+
+                System.out.printf("Batch size %d:\n", batchSize);
+                System.out.printf("  Throughput: %.2f samples/sec\n", samplesPerSecond);
+                System.out.printf("  Latency: %.2f ms/sample\n", msPerSample);
+                System.out.printf("  Categories: %d\n\n", pan.getCategoryCount());
+            }
+        }
+    }
+
+    @Test
+    void benchmarkScalability() {
+        System.out.println("=== PAN Scalability Benchmark ===\n");
+
+        var profiler = PANProfiler.getInstance();
+        profiler.setEnabled(true);
+
+        // Test scaling with increasing data
+        int[] datasetSizes = {100, 500, 1000, 2000, 5000};
+        var params = PANParameters.defaultParameters();
+
+        List<Double> throughputs = new ArrayList<>();
+
+        for (int size : datasetSizes) {
+            profiler.clear();
+
+            var data = SyntheticDataGenerator.generateMNISTLike(size, 10);
+
+            try (var pan = new PAN(params)) {
+                profiler.takeMemorySnapshot("start_" + size);
+
+                long startTime = System.nanoTime();
+
+                for (int i = 0; i < data.images().size(); i++) {
+                    try (var timer = profiler.startTimer("learn")) {
+                        pan.learn(data.images().get(i), params);
+                    }
+                    profiler.incrementCounter("samples_processed");
+                }
+
+                long duration = System.nanoTime() - startTime;
+                profiler.takeMemorySnapshot("end_" + size);
+
+                double throughput = size * 1_000_000_000.0 / duration;
+                throughputs.add(throughput);
+
+                System.out.printf("Dataset size %d:\n", size);
+                System.out.printf("  Time: %.2f seconds\n", duration / 1_000_000_000.0);
+                System.out.printf("  Throughput: %.2f samples/sec\n", throughput);
+                System.out.printf("  Categories: %d\n", pan.getCategoryCount());
+
+                // Calculate memory usage
+                Runtime runtime = Runtime.getRuntime();
+                long memoryUsed = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+                System.out.printf("  Memory: %d MB\n\n", memoryUsed);
+            }
+        }
+
+        // Check scaling efficiency
+        System.out.println("Scaling Analysis:");
+        for (int i = 1; i < throughputs.size(); i++) {
+            double efficiency = throughputs.get(i) / throughputs.get(0);
+            System.out.printf("  %dx data: %.2fx slowdown (%.1f%% efficiency)\n",
+                datasetSizes[i] / datasetSizes[0],
+                throughputs.get(0) / throughputs.get(i),
+                efficiency * 100);
+        }
+    }
+
+    @Test
+    void benchmarkLearningRateSchedulers() {
+        System.out.println("=== Learning Rate Scheduler Benchmark ===\n");
+
+        var data = SyntheticDataGenerator.generateMNISTLike(1000, 10);
+
+        // Test different schedulers
+        var schedulers = new LearningRateScheduler[] {
+            LearningRateScheduler.constant(0.01),
+            LearningRateScheduler.stepDecay(0.01, 100, 0.9),
+            LearningRateScheduler.exponentialDecay(0.01, 0.001),
+            LearningRateScheduler.cosineAnnealing(0.01, 1000),
+            LearningRateScheduler.warmupCosine(0.01, 100, 1000)
+        };
+
+        String[] names = {
+            "Constant", "Step Decay", "Exponential", "Cosine", "Warmup+Cosine"
+        };
+
+        for (int s = 0; s < schedulers.length; s++) {
+            var scheduler = schedulers[s];
+            System.out.printf("\n%s Scheduler:\n", names[s]);
+
+            // Create params with dynamic learning rate
+            var baseParams = PANParameters.defaultParameters();
+
+            try (var pan = new PAN(baseParams)) {
+                long startTime = System.nanoTime();
+                int correct = 0;
+
+                for (int i = 0; i < data.images().size(); i++) {
+                    // Get current learning rate
+                    double lr = scheduler.getLearningRate();
+
+                    // Create params with current LR
+                    var params = new PANParameters(
+                        baseParams.vigilance(), baseParams.maxCategories(), baseParams.cnnConfig(), baseParams.enableCNNPretraining(),
+                        lr, // Dynamic learning rate
+                        baseParams.momentum(), baseParams.weightDecay(), baseParams.allowNegativeWeights(), baseParams.hiddenUnits(),
+                        baseParams.stmDecayRate(), baseParams.ltmConsolidationThreshold(), baseParams.replayBufferSize(), baseParams.replayBatchSize(), baseParams.replayFrequency(), baseParams.biasFactor(),
+                        baseParams.similarityMeasure()
+                    );
+
+                    var result = pan.learnSupervised(
+                        data.images().get(i),
+                        data.labels().get(i),
+                        params
+                    );
+
+                    // Track accuracy
+                    int predicted = pan.predictLabel(data.images().get(i), params);
+                    int actual = SyntheticDataGenerator.getClassIndex(data.labels().get(i));
+                    if (predicted == actual) correct++;
+
+                    // Update scheduler with loss (simulated)
+                    scheduler.updateLoss(1.0 - (double)correct / (i + 1));
+                }
+
+                long duration = System.nanoTime() - startTime;
+                double accuracy = (double) correct / data.images().size() * 100;
+
+                System.out.printf("  Accuracy: %.2f%%\n", accuracy);
+                System.out.printf("  Time: %.2f seconds\n", duration / 1_000_000_000.0);
+                System.out.printf("  Categories: %d\n", pan.getCategoryCount());
+                System.out.printf("  Final LR: %.6f\n", scheduler.getLearningRate());
+            }
+        }
+    }
+
+    @Test
+    void benchmarkMemoryEfficiency() {
+        System.out.println("=== Memory Efficiency Benchmark ===\n");
+
+        var profiler = PANProfiler.getInstance();
+        profiler.setEnabled(true);
+
+        // Test memory usage with different configurations
+        var configs = new PANParameters[] {
+            // Minimal memory
+            new PANParameters(
+0.8, 10, PANParameters.defaultParameters().cnnConfig(), false,
+0.01, 0.9, 0.0001, false, 16,
+0.95, 0.8, 100, 8, 0.1, 0.1, SimilarityMeasures.FUZZY_ART
+),
+
+            // Balanced
+            PANParameters.defaultParameters(),
+
+            // Memory intensive
+            new PANParameters(
+0.3, 100, PANParameters.defaultParameters().cnnConfig(), false,
+0.01, 0.9, 0.0001, true, 128,
+0.95, 0.8, 5000, 128, 0.3, 0.1, SimilarityMeasures.FUZZY_ART
+)
+        };
+
+        String[] names = {"Minimal", "Balanced", "Intensive"};
+
+        var data = SyntheticDataGenerator.generateMNISTLike(500, 10);
+
+        for (int c = 0; c < configs.length; c++) {
+            var params = configs[c];
+            profiler.clear();
+
+            System.out.printf("\n%s Configuration:\n", names[c]);
+
+            Runtime runtime = Runtime.getRuntime();
+            runtime.gc();
+            long memBefore = runtime.totalMemory() - runtime.freeMemory();
+
+            try (var pan = new PAN(params)) {
+                for (int i = 0; i < data.images().size(); i++) {
+                    pan.learn(data.images().get(i), params);
+                }
+
+                runtime.gc();
+                long memAfter = runtime.totalMemory() - runtime.freeMemory();
+                long memUsed = memAfter - memBefore;
+
+                System.out.printf("  Memory used: %.2f MB\n", memUsed / (1024.0 * 1024.0));
+                System.out.printf("  Categories: %d\n", pan.getCategoryCount());
+                System.out.printf("  Memory per category: %.2f KB\n",
+                    (memUsed / 1024.0) / pan.getCategoryCount());
+
+                // Get stats from PAN
+                @SuppressWarnings("unchecked")
+                var stats = (java.util.Map<String, Object>) pan.getPerformanceStats();
+                System.out.printf("  Reported memory: %.2f MB\n",
+                    (Long) stats.get("memoryUsageBytes") / (1024.0 * 1024.0));
+            }
+        }
+    }
+
+    @Test
+    void benchmarkParallelProcessing() {
+        System.out.println("=== Parallel Processing Benchmark ===\n");
+
+        var data = SyntheticDataGenerator.generateMNISTLike(1000, 10);
+        var params = PANParameters.defaultParameters();
+
+        // Sequential processing
+        long seqTime;
+        try (var pan = new PAN(params)) {
+            long start = System.nanoTime();
+
+            for (int i = 0; i < data.images().size(); i++) {
+                pan.learn(data.images().get(i), params);
+            }
+
+            seqTime = System.nanoTime() - start;
+            System.out.printf("Sequential: %.2f seconds (%d categories)\n",
+                seqTime / 1_000_000_000.0, pan.getCategoryCount());
+        }
+
+        // Batch processing (simulated parallel)
+        int[] batchSizes = {10, 20, 50};
+        for (int batchSize : batchSizes) {
+            try (var pan = new PAN(params)) {
+                long start = System.nanoTime();
+
+                for (int i = 0; i < data.images().size(); i += batchSize) {
+                    int end = Math.min(i + batchSize, data.images().size());
+
+                    // Process batch
+                    for (int j = i; j < end; j++) {
+                        pan.learn(data.images().get(j), params);
+                    }
+                }
+
+                long batchTime = System.nanoTime() - start;
+                double speedup = (double) seqTime / batchTime;
+
+                System.out.printf("Batch size %d: %.2f seconds (%.2fx speedup)\n",
+                    batchSize, batchTime / 1_000_000_000.0, speedup);
+            }
+        }
+    }
+}

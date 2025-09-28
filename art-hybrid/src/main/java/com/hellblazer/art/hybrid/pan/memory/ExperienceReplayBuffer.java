@@ -35,6 +35,10 @@ public class ExperienceReplayBuffer implements AutoCloseable {
                                           BPARTWeight nodeState, double reward) {
         if (closed) return;
 
+        if (maxSize <= 0) {
+            return; // No buffering if size is 0 or negative
+        }
+
         totalExperiences++;
 
         var experience = new Experience(features, target, nodeState, reward, totalExperiences);

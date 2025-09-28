@@ -26,6 +26,10 @@ public class CNNPreprocessor implements AutoCloseable {
     private final ConvolutionalLayer[] layers;
     private volatile boolean closed = false;
 
+    // Expose weights for pretraining
+    private float[] conv1Weights;
+    private float[] conv2Weights;
+
     public CNNPreprocessor(CNNConfig config, boolean usePretrained) {
         this.config = config;
         this.usePretrained = usePretrained;
@@ -322,6 +326,68 @@ public class CNNPreprocessor implements AutoCloseable {
             long weightSize = (long) outputChannels * inputChannels * kernelSize * kernelSize * 4;
             long biasSize = outputChannels * 4L;
             return weightSize + biasSize;
+        }
+    }
+
+    // Getter methods for pretraining
+
+    public float[] getConv1Weights() {
+        if (layers.length > 0 && layers[0] instanceof ConvolutionalLayer conv) {
+            // Flatten 4D weights to 1D for transfer
+            return flatten4D(conv.weights);
+        }
+        return new float[0];
+    }
+
+    public float[] getConv2Weights() {
+        if (layers.length > 1 && layers[1] instanceof ConvolutionalLayer conv) {
+            // Flatten 4D weights to 1D for transfer
+            return flatten4D(conv.weights);
+        }
+        return new float[0];
+    }
+
+    public void setConv1Weights(float[] weights) {
+        if (layers.length > 0 && layers[0] instanceof ConvolutionalLayer conv) {
+            // Unflatten 1D weights to 4D
+            unflatten4D(weights, conv.weights);
+        }
+    }
+
+    public void setConv2Weights(float[] weights) {
+        if (layers.length > 1 && layers[1] instanceof ConvolutionalLayer conv) {
+            // Unflatten 1D weights to 4D
+            unflatten4D(weights, conv.weights);
+        }
+    }
+
+    private float[] flatten4D(float[][][][] weights4D) {
+        int totalSize = weights4D.length * weights4D[0].length *
+                       weights4D[0][0].length * weights4D[0][0][0].length;
+        float[] flat = new float[totalSize];
+        int idx = 0;
+        for (var w1 : weights4D) {
+            for (var w2 : w1) {
+                for (var w3 : w2) {
+                    for (float w4 : w3) {
+                        flat[idx++] = w4;
+                    }
+                }
+            }
+        }
+        return flat;
+    }
+
+    private void unflatten4D(float[] flat, float[][][][] weights4D) {
+        int idx = 0;
+        for (int i = 0; i < weights4D.length && idx < flat.length; i++) {
+            for (int j = 0; j < weights4D[i].length && idx < flat.length; j++) {
+                for (int k = 0; k < weights4D[i][j].length && idx < flat.length; k++) {
+                    for (int l = 0; l < weights4D[i][j][k].length && idx < flat.length; l++) {
+                        weights4D[i][j][k][l] = flat[idx++];
+                    }
+                }
+            }
         }
     }
 }

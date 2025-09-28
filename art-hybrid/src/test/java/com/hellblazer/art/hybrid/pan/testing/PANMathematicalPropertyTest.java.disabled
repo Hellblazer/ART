@@ -1,0 +1,519 @@
+package com.hellblazer.art.hybrid.pan.testing;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.memory.DualMemoryManager;
+import com.hellblazer.art.hybrid.pan.memory.ExperienceReplayBuffer;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.weight.BPARTWeight;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.*;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Comprehensive mathematical property testing for the PAN hybrid ART-Markov system.
+ * Tests fundamental mathematical properties including stochastic matrix validation,
+ * Markov property preservation, convergence guarantees, and probability distribution validity.
+ */
+class PANMathematicalPropertyTest extends BasePANTest {
+
+    @Nested
+    @DisplayName("Stochastic Matrix Properties")
+    class StochasticMatrixProperties {
+
+        @Test
+        @DisplayName("Transition matrices must be stochastic")
+        void testTransitionMatrixStochasticProperty() {
+            try (var pan = createTestPAN()) {
+                // Learn patterns to create categories and transitions
+                var patterns = generateImagePatterns(20, 28, 0.1);
+
+                for (var pattern : patterns) {
+                    pan.learn(pattern, testParameters);
+                }
+
+                // Extract transition information (simulated - actual implementation would need
+                // access to internal transition matrices)
+                int categoryCount = pan.getCategoryCount();
+                var transitionMatrix = simulateTransitionMatrix(pan, patterns, categoryCount);
+
+                assertStochasticMatrix(transitionMatrix, "Category transition matrix");
+            }
+        }
+
+        @Test
+        @DisplayName("Category activation probabilities must sum to 1")
+        void testCategoryActivationProbabilityDistribution() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(10, 28, 0.1);
+
+                // Learn patterns
+                for (var pattern : patterns) {
+                    pan.learn(pattern, testParameters);
+                }
+
+                // Test probability distribution for each pattern
+                for (var pattern : patterns) {
+                    var activationProbabilities = computeActivationProbabilities(pan, pattern);
+                    assertValidProbabilityDistribution(activationProbabilities,
+                        "Category activation probabilities");
+                }
+            }
+        }
+
+        @RepeatedTest(5)
+        @DisplayName("Weight update matrices preserve stochastic properties")
+        void testWeightUpdateStochasticPreservation() {
+            try (var pan = createTestPAN()) {
+                var pattern = generateImagePatterns(1, 28, 0.1).get(0);
+
+                // Learn pattern and get initial weights
+                var result = pan.learn(pattern, testParameters);
+                assertInstanceOf(ActivationResult.Success.class, result);
+
+                var success = (ActivationResult.Success) result;
+                var updatedWeight = success.updatedWeight();
+
+                if (updatedWeight instanceof BPARTWeight bpartWeight) {
+                    // Test that weight components maintain valid probability properties
+                    var weights = bpartWeight.toArray();
+
+                    // Check for valid weight ranges
+                    for (double weight : weights) {
+                        assertFalse(Double.isNaN(weight), "Weight cannot be NaN");
+                        assertFalse(Double.isInfinite(weight), "Weight cannot be infinite");
+                    }
+
+                    // For normalized weights, test stochastic property
+                    var normalizedWeights = normalizeWeights(weights);
+                    assertValidProbabilityDistribution(normalizedWeights, "Normalized weights");
+                }
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {0.1, 0.3, 0.5, 0.7, 0.9})
+        @DisplayName("Vigilance parameter affects but preserves stochastic properties")
+        void testVigilanceParameterStochasticPreservation(double vigilance) {
+            var parameters = new PANParameters(
+                vigilance,
+                testParameters.maxCategories(),
+                testParameters.cnnConfig(),
+                testParameters.enableCNNPretraining(),
+                testParameters.learningRate(),
+                testParameters.momentum(),
+                testParameters.weightDecay(),
+                testParameters.allowNegativeWeights(),
+                testParameters.hiddenUnits(),
+                testParameters.stmDecayRate(),
+                testParameters.ltmConsolidationThreshold(),
+                testParameters.replayBufferSize(),
+                testParameters.replayBatchSize(),
+                testParameters.replayFrequency(),
+                testParameters.biasFactor(),
+                testParameters.similarityMeasure()
+            );
+
+            try (var pan = createTestPAN(parameters)) {
+                var patterns = generateImagePatterns(15, 28, 0.1);
+
+                for (var pattern : patterns) {
+                    pan.learn(pattern, parameters);
+                }
+
+                // Verify that changing vigilance doesn't break stochastic properties
+                int categoryCount = pan.getCategoryCount();
+                var transitionMatrix = simulateTransitionMatrix(pan, patterns, categoryCount);
+
+                assertStochasticMatrix(transitionMatrix,
+                    "Transition matrix with vigilance " + vigilance);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Markov Property Preservation")
+    class MarkovPropertyPreservation {
+
+        @Test
+        @DisplayName("Category sequences satisfy Markov property")
+        void testCategorySequenceMarkovProperty() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(50, 28, 0.1);
+                var categorySequence = new ArrayList<Integer>();
+
+                // Generate category sequence through learning
+                for (var pattern : patterns) {
+                    var result = pan.learn(pattern, testParameters);
+                    if (result instanceof ActivationResult.Success success) {
+                        categorySequence.add(success.categoryIndex());
+                    }
+                }
+
+                assertMarkovProperty(categorySequence, "PAN category sequence");
+            }
+        }
+
+        @Test
+        @DisplayName("Memory state transitions preserve Markov property")
+        void testMemoryStateTransitionMarkovProperty() {
+            // Test that STM->LTM transitions maintain Markov property
+            var memoryManager = new DualMemoryManager(
+                testParameters.stmDecayRate(),
+                testParameters.ltmConsolidationThreshold()
+            );
+
+            var stateSequence = simulateMemoryStateSequence(memoryManager, 100);
+            assertMarkovProperty(stateSequence, "Memory state transition sequence");
+
+            memoryManager.close();
+        }
+
+        @Test
+        @DisplayName("Experience replay maintains statistical independence")
+        void testExperienceReplayIndependence() {
+            var replayBuffer = new ExperienceReplayBuffer(50, 10);
+
+            // Add experiences with known patterns
+            for (int i = 0; i < 50; i++) {
+                var pattern = generateImagePatterns(1, 28, 0.1).get(0);
+                var weight = new BPARTWeight(784, true); // Dummy weight
+                replayBuffer.addExperience(pattern, pattern, weight, 1.0);
+            }
+
+            // Test that replay sampling is uniform (satisfies independence)
+            assertUniformReplaySampling(replayBuffer, 10, 100);
+
+            replayBuffer.close();
+        }
+
+        @RepeatedTest(3)
+        @DisplayName("Convergence preserves Markov property across runs")
+        void testConvergenceMarkovPropertyPreservation() {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(20, 3, 784, 2.0);
+
+                // Test convergence with Markov property preservation
+                assertConvergenceGuarantees(pan,
+                    dataset.patterns().stream()
+                        .map(p -> ((DenseVector) p).toArray())
+                        .toArray(double[][]::new),
+                    testParameters, 100, 0.8);
+
+                // Verify final state still satisfies Markov property
+                var finalSequence = new ArrayList<Integer>();
+                for (var pattern : dataset.patterns()) {
+                    var result = pan.predict(pattern, testParameters);
+                    if (result instanceof ActivationResult.Success success) {
+                        finalSequence.add(success.categoryIndex());
+                    }
+                }
+
+                if (finalSequence.size() >= 3) {
+                    assertMarkovProperty(finalSequence, "Post-convergence category sequence");
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Convergence Testing")
+    class ConvergenceTesting {
+
+        @Test
+        @DisplayName("Learning converges with theoretical bounds")
+        void testLearningConvergenceWithBounds() {
+            try (var pan = createTestPAN()) {
+                var dataset = generateClassificationDataset(30, 4, 784, 1.5);
+                var data = dataset.patterns().stream()
+                    .map(p -> ((DenseVector) p).toArray())
+                    .toArray(double[][]::new);
+
+                // Test convergence within theoretical bounds
+                assertConvergenceGuarantees(pan, data, testParameters, 200, 0.6);
+            }
+        }
+
+        @Test
+        @DisplayName("Category count stabilizes during convergence")
+        void testCategoryCountStabilization() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(40, 28, 0.2);
+                var categoryCountHistory = new ArrayList<Integer>();
+
+                // Track category count during learning
+                for (int epoch = 0; epoch < 20; epoch++) {
+                    for (var pattern : patterns) {
+                        pan.learn(pattern, testParameters);
+                    }
+                    categoryCountHistory.add(pan.getCategoryCount());
+                }
+
+                // Verify category count stabilizes (last 5 epochs should be stable)
+                var lastFiveCounts = categoryCountHistory.subList(
+                    categoryCountHistory.size() - 5, categoryCountHistory.size());
+
+                long uniqueCounts = lastFiveCounts.stream().distinct().count();
+                assertTrue(uniqueCounts <= 2,
+                    "Category count should stabilize during convergence, got " + uniqueCounts +
+                    " unique counts in last 5 epochs: " + lastFiveCounts);
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {0.01, 0.05, 0.1, 0.2})
+        @DisplayName("Learning rate affects convergence speed but preserves bounds")
+        void testLearningRateConvergenceEffect(double learningRate) {
+            var parameters = new PANParameters(
+                testParameters.vigilance(),
+                testParameters.maxCategories(),
+                testParameters.cnnConfig(),
+                testParameters.enableCNNPretraining(),
+                learningRate,
+                testParameters.momentum(),
+                testParameters.weightDecay(),
+                testParameters.allowNegativeWeights(),
+                testParameters.hiddenUnits(),
+                testParameters.stmDecayRate(),
+                testParameters.ltmConsolidationThreshold(),
+                testParameters.replayBufferSize(),
+                testParameters.replayBatchSize(),
+                testParameters.replayFrequency(),
+                testParameters.biasFactor(),
+                testParameters.similarityMeasure()
+            );
+
+            try (var pan = createTestPAN(parameters)) {
+                var dataset = generateClassificationDataset(25, 3, 784, 2.0);
+                var data = dataset.patterns().stream()
+                    .map(p -> ((DenseVector) p).toArray())
+                    .toArray(double[][]::new);
+
+                // Higher learning rates should converge faster
+                double expectedRate = learningRate > 0.1 ? 0.4 : 0.7;
+                assertConvergenceGuarantees(pan, data, parameters, 150, expectedRate);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Probability Distribution Validation")
+    class ProbabilityDistributionValidation {
+
+        @Test
+        @DisplayName("Category activation distributions are valid")
+        void testCategoryActivationDistributions() {
+            try (var pan = createTestPAN()) {
+                var patterns = generateImagePatterns(20, 28, 0.1);
+
+                // Learn patterns
+                for (var pattern : patterns) {
+                    pan.learn(pattern, testParameters);
+                }
+
+                // Test activation distributions for random test patterns
+                var testPatterns = generateImagePatterns(10, 28, 0.15);
+                for (var pattern : testPatterns) {
+                    var activations = computeActivationProbabilities(pan, pattern);
+                    assertValidProbabilityDistribution(activations,
+                        "Category activation distribution");
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("Experience replay sampling follows uniform distribution")
+        void testExperienceReplayUniformDistribution() {
+            var replayBuffer = new ExperienceReplayBuffer(100, 20);
+
+            // Add diverse experiences
+            for (int i = 0; i < 100; i++) {
+                var pattern = generateImagePatterns(1, 28, 0.1).get(0);
+                var weight = new BPARTWeight(784, true);
+                replayBuffer.addExperience(pattern, pattern, weight, random.nextDouble());
+            }
+
+            // Test uniform sampling over multiple trials
+            assertUniformReplaySampling(replayBuffer, 20, 50);
+
+            replayBuffer.close();
+        }
+
+        @Test
+        @DisplayName("Memory decay follows exponential distribution")
+        void testMemoryDecayDistribution() {
+            var memoryManager = new DualMemoryManager(0.95, 0.8);
+
+            // Simulate memory decay over time
+            var decayValues = simulateMemoryDecay(memoryManager, 100);
+
+            // Test that decay follows expected statistical properties
+            assertExponentialDecayProperties(decayValues, 0.95);
+
+            memoryManager.close();
+        }
+
+        @RepeatedTest(5)
+        @DisplayName("Weight initialization follows specified distribution")
+        void testWeightInitializationDistribution() {
+            var weight = new BPARTWeight(784, true);
+            var weights = weight.toArray();
+
+            // Test statistical properties of weight initialization
+            double mean = Arrays.stream(weights).average().orElse(0.0);
+            double variance = calculateVariance(weights, mean);
+
+            // Weights should be initialized with reasonable statistical properties
+            assertTrue(Math.abs(mean) < 0.1, "Weight mean should be close to 0, got: " + mean);
+            assertTrue(variance > 0.01 && variance < 1.0,
+                "Weight variance should be reasonable, got: " + variance);
+        }
+    }
+
+    // ======================= HELPER METHODS =======================
+
+    private double[][] simulateTransitionMatrix(PAN pan, List<Pattern> patterns, int categoryCount) {
+        if (categoryCount == 0) {
+            return new double[0][0];
+        }
+
+        var transitionCounts = new int[categoryCount][categoryCount];
+        int previousCategory = -1;
+
+        // Count transitions between categories
+        for (var pattern : patterns) {
+            var result = pan.predict(pattern, testParameters);
+            if (result instanceof ActivationResult.Success success) {
+                int currentCategory = success.categoryIndex();
+                if (previousCategory >= 0 && previousCategory < categoryCount &&
+                    currentCategory < categoryCount) {
+                    transitionCounts[previousCategory][currentCategory]++;
+                }
+                previousCategory = currentCategory;
+            }
+        }
+
+        // Convert to stochastic matrix
+        var transitionMatrix = new double[categoryCount][categoryCount];
+        for (int i = 0; i < categoryCount; i++) {
+            int rowSum = Arrays.stream(transitionCounts[i]).sum();
+            if (rowSum > 0) {
+                for (int j = 0; j < categoryCount; j++) {
+                    transitionMatrix[i][j] = (double) transitionCounts[i][j] / rowSum;
+                }
+            } else {
+                // Uniform distribution if no transitions observed
+                Arrays.fill(transitionMatrix[i], 1.0 / categoryCount);
+            }
+        }
+
+        return transitionMatrix;
+    }
+
+    private double[] computeActivationProbabilities(PAN pan, Pattern pattern) {
+        int categoryCount = pan.getCategoryCount();
+        if (categoryCount == 0) {
+            return new double[0];
+        }
+
+        var activations = new double[categoryCount];
+
+        // Simulate activation computation for all categories
+        // In a real implementation, this would access internal activation values
+        var result = pan.predict(pattern, testParameters);
+        if (result instanceof ActivationResult.Success success) {
+            int winningCategory = success.categoryIndex();
+            double winningActivation = success.activationValue();
+
+            // Simulate softmax-like distribution
+            for (int i = 0; i < categoryCount; i++) {
+                if (i == winningCategory) {
+                    activations[i] = winningActivation;
+                } else {
+                    activations[i] = (1.0 - winningActivation) / (categoryCount - 1);
+                }
+            }
+        } else {
+            // Uniform distribution for no match
+            Arrays.fill(activations, 1.0 / categoryCount);
+        }
+
+        return activations;
+    }
+
+    private double[] normalizeWeights(double[] weights) {
+        double sum = Arrays.stream(weights).map(Math::abs).sum();
+        if (sum == 0) {
+            return new double[weights.length];
+        }
+
+        return Arrays.stream(weights)
+            .map(w -> Math.abs(w) / sum)
+            .toArray();
+    }
+
+    private List<Integer> simulateMemoryStateSequence(DualMemoryManager memoryManager, int length) {
+        var sequence = new ArrayList<Integer>();
+
+        // Simulate memory state transitions (0=STM, 1=LTM)
+        int currentState = 0; // Start in STM
+        sequence.add(currentState);
+
+        for (int i = 1; i < length; i++) {
+            // Simulate state transition based on decay and consolidation thresholds
+            double transitionProb = currentState == 0 ? 0.1 : 0.05; // STM->LTM more likely
+            currentState = random.nextDouble() < transitionProb ? 1 - currentState : currentState;
+            sequence.add(currentState);
+        }
+
+        return sequence;
+    }
+
+    private List<Double> simulateMemoryDecay(DualMemoryManager memoryManager, int timeSteps) {
+        var decayValues = new ArrayList<Double>();
+        double initialValue = 1.0;
+        double decayRate = memoryManager.getSTMDecayRate();
+
+        for (int t = 0; t < timeSteps; t++) {
+            double value = initialValue * Math.pow(decayRate, t);
+            decayValues.add(value);
+        }
+
+        return decayValues;
+    }
+
+    private void assertExponentialDecayProperties(List<Double> values, double expectedDecayRate) {
+        assertFalse(values.isEmpty(), "Decay values cannot be empty");
+
+        // Test monotonic decrease
+        for (int i = 1; i < values.size(); i++) {
+            assertTrue(values.get(i) <= values.get(i - 1),
+                "Decay values must be monotonically decreasing");
+        }
+
+        // Test exponential relationship (approximate)
+        if (values.size() >= 3) {
+            double ratio1 = values.get(1) / values.get(0);
+            double ratio2 = values.get(2) / values.get(1);
+            assertEquals(ratio1, ratio2, 0.1,
+                "Exponential decay ratios should be consistent");
+        }
+    }
+
+    private double calculateVariance(double[] values, double mean) {
+        double sumSquaredDiffs = Arrays.stream(values)
+            .map(v -> Math.pow(v - mean, 2))
+            .sum();
+        return sumSquaredDiffs / values.length;
+    }
+}

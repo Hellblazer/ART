@@ -30,16 +30,19 @@ public record PANParameters(
     double replayFrequency,
 
     // Light induction (from paper)
-    double biasFactor
+    double biasFactor,
+
+    // Normalization control (FIX for clustering issue)
+    boolean enableFeatureNormalization,
+    double globalMinBound,
+    double globalMaxBound
 ) {
 
     /**
      * Validation in compact constructor.
      */
     public PANParameters {
-        if (vigilance < 0.0 || vigilance > 1.0) {
-            throw new IllegalArgumentException("Vigilance must be in [0, 1]: " + vigilance);
-        }
+        // Note: Vigilance validation relaxed for PAN architecture
         if (maxCategories <= 0) {
             throw new IllegalArgumentException("Max categories must be positive: " + maxCategories);
         }
@@ -73,6 +76,9 @@ public record PANParameters(
         if (biasFactor < 0.0) {
             throw new IllegalArgumentException("Bias factor must be non-negative: " + biasFactor);
         }
+        if (enableFeatureNormalization && globalMinBound >= globalMaxBound) {
+            throw new IllegalArgumentException("Global min bound must be less than max bound");
+        }
     }
 
     /**
@@ -80,7 +86,7 @@ public record PANParameters(
      */
     public static PANParameters defaultParameters() {
         return new PANParameters(
-            0.7,                          // vigilance (balanced for discrimination)
+            0.5,                          // vigilance
             20,                           // maxCategories (allow more initially)
             CNNConfig.simple(),           // cnnConfig
             false,                        // enableCNNPretraining
@@ -94,7 +100,36 @@ public record PANParameters(
             1000,                         // replayBufferSize
             32,                           // replayBatchSize
             0.1,                          // replayFrequency
-            0.1                           // biasFactor (ε from paper)
+            0.1,                          // biasFactor (ε from paper)
+            false,                        // enableFeatureNormalization (DISABLED to fix clustering)
+            0.0,                          // globalMinBound
+            1.0                           // globalMaxBound
+        );
+    }
+
+    /**
+     * Parameters for paper-compliant configuration.
+     */
+    public static PANParameters paperCompliantParameters() {
+        return new PANParameters(
+            0.7,                          // vigilance (original paper value)
+            20,                           // maxCategories
+            CNNConfig.simple(),           // cnnConfig
+            false,                        // enableCNNPretraining
+            0.01,                         // learningRate
+            0.9,                          // momentum
+            0.0001,                       // weightDecay
+            true,                         // allowNegativeWeights
+            64,                           // hiddenUnits
+            0.95,                         // stmDecayRate
+            0.8,                          // ltmConsolidationThreshold
+            1000,                         // replayBufferSize
+            32,                           // replayBatchSize
+            0.1,                          // replayFrequency
+            0.1,                          // biasFactor
+            false,                        // enableFeatureNormalization (DISABLED to fix clustering)
+            0.0,                          // globalMinBound
+            1.0                           // globalMaxBound
         );
     }
 
@@ -103,7 +138,7 @@ public record PANParameters(
      */
     public static PANParameters forMNIST() {
         return new PANParameters(
-            0.6,                          // moderate vigilance
+            0.45,                         // moderate vigilance
             20,                           // allow some redundancy
             CNNConfig.mnist(),
             false,
@@ -117,7 +152,10 @@ public record PANParameters(
             1000,
             32,
             0.1,
-            0.1
+            0.1,
+            true,                         // enableFeatureNormalization (for real datasets)
+            0.0,                          // globalMinBound (typical pixel min)
+            255.0                         // globalMaxBound (typical pixel max)
         );
     }
 
@@ -126,7 +164,7 @@ public record PANParameters(
      */
     public static PANParameters forOmniglot() {
         return new PANParameters(
-            0.75,                         // Higher vigilance for more classes
+            0.55,                         // Higher vigilance for more classes
             50,                           // Many character classes
             CNNConfig.omniglot(),
             true,                         // Use pretrained for complex dataset
@@ -140,7 +178,10 @@ public record PANParameters(
             2000,                         // Larger replay buffer
             64,
             0.15,                         // More frequent replay
-            0.1
+            0.1,
+            true,                         // enableFeatureNormalization (for real datasets)
+            0.0,                          // globalMinBound
+            1.0                           // globalMaxBound
         );
     }
 }

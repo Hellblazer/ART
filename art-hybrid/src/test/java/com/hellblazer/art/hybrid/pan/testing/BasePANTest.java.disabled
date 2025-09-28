@@ -1,0 +1,503 @@
+package com.hellblazer.art.hybrid.pan.testing;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.core.test.BaseARTTest;
+import com.hellblazer.art.hybrid.pan.PAN;
+import com.hellblazer.art.hybrid.pan.memory.DualMemoryManager;
+import com.hellblazer.art.hybrid.pan.memory.ExperienceReplayBuffer;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.weight.BPARTWeight;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
+
+import java.util.*;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Base class for PAN testing providing specialized utilities for hybrid ART-Markov system testing.
+ * Extends BaseARTTest to leverage existing ART testing patterns while adding PAN-specific
+ * mathematical property validation, statistical testing, and performance measurement capabilities.
+ */
+public abstract class BasePANTest extends BaseARTTest {
+
+    // Enhanced precision constants for mathematical property testing
+    protected static final double STOCHASTIC_MATRIX_EPSILON = 1e-12;
+    protected static final double MARKOV_PROPERTY_EPSILON = 1e-10;
+    protected static final double CONVERGENCE_EPSILON = 1e-8;
+    protected static final double STATISTICAL_SIGNIFICANCE_LEVEL = 0.05;
+
+    // Test parameters
+    protected PANParameters defaultParameters;
+    protected PANParameters testParameters;
+    protected PAN testPAN;
+
+    // Mock components for isolated testing
+    protected MockDualMemoryManager mockMemoryManager;
+    protected MockExperienceReplayBuffer mockReplayBuffer;
+
+    @BeforeEach
+    @Override
+    void setupBase(TestInfo testInfo) {
+        super.setupBase(testInfo);
+        setupPANSpecificComponents();
+    }
+
+    @AfterEach
+    void tearDownPAN() {
+        if (testPAN != null) {
+            testPAN.close();
+            testPAN = null;
+        }
+        if (mockMemoryManager != null) {
+            mockMemoryManager.close();
+            mockMemoryManager = null;
+        }
+        if (mockReplayBuffer != null) {
+            mockReplayBuffer.close();
+            mockReplayBuffer = null;
+        }
+    }
+
+    private void setupPANSpecificComponents() {
+        // Create default test parameters
+        defaultParameters = PANParameters.defaultParameters();
+
+        // Create test parameters with controlled settings for reproducible testing
+        testParameters = new PANParameters(
+            0.7,  // vigilance
+            10,   // maxCategories
+            defaultParameters.cnnConfig(),
+            false, // disable CNN pretraining for faster tests
+            0.01, // learningRate
+            0.9,  // momentum
+            0.0001, // weightDecay
+            true, // allowNegativeWeights
+            64,   // hiddenUnits
+            0.95, // stmDecayRate
+            0.8,  // ltmConsolidationThreshold
+            100,  // replayBufferSize
+            10,   // replayBatchSize
+            0.1,  // replayFrequency
+            0.1,  // biasFactor
+            defaultParameters.similarityMeasure()
+        );
+
+        // Initialize mock components
+        mockMemoryManager = new MockDualMemoryManager(
+            testParameters.stmDecayRate(),
+            testParameters.ltmConsolidationThreshold()
+        );
+        mockReplayBuffer = new MockExperienceReplayBuffer(
+            testParameters.replayBufferSize(),
+            testParameters.replayBatchSize()
+        );
+    }
+
+    /**
+     * Create a test PAN instance with controlled parameters
+     */
+    protected PAN createTestPAN() {
+        return createTestPAN(testParameters);
+    }
+
+    /**
+     * Create a test PAN instance with specified parameters
+     */
+    protected PAN createTestPAN(PANParameters parameters) {
+        return new PAN(parameters);
+    }
+
+    // ======================= MATHEMATICAL PROPERTY TESTING =======================
+
+    /**
+     * Assert that a matrix is stochastic (rows sum to 1, all elements non-negative)
+     */
+    protected void assertStochasticMatrix(double[][] matrix, String matrixName) {
+        assertNotNull(matrix, matrixName + " cannot be null");
+        assertTrue(matrix.length > 0, matrixName + " cannot be empty");
+
+        for (int i = 0; i < matrix.length; i++) {
+            assertNotNull(matrix[i], matrixName + " row " + i + " cannot be null");
+
+            // Check non-negativity
+            for (int j = 0; j < matrix[i].length; j++) {
+                assertTrue(matrix[i][j] >= 0,
+                    matrixName + "[" + i + "][" + j + "] must be non-negative, got: " + matrix[i][j]);
+                assertFalse(Double.isNaN(matrix[i][j]),
+                    matrixName + "[" + i + "][" + j + "] cannot be NaN");
+                assertFalse(Double.isInfinite(matrix[i][j]),
+                    matrixName + "[" + i + "][" + j + "] cannot be infinite");
+            }
+
+            // Check row sum equals 1
+            double rowSum = Arrays.stream(matrix[i]).sum();
+            assertEquals(1.0, rowSum, STOCHASTIC_MATRIX_EPSILON,
+                matrixName + " row " + i + " must sum to 1.0, got: " + rowSum);
+        }
+    }
+
+    /**
+     * Assert that a probability distribution is valid
+     */
+    protected void assertValidProbabilityDistribution(double[] probabilities, String distributionName) {
+        assertNotNull(probabilities, distributionName + " cannot be null");
+        assertTrue(probabilities.length > 0, distributionName + " cannot be empty");
+
+        // Check non-negativity and finiteness
+        for (int i = 0; i < probabilities.length; i++) {
+            assertTrue(probabilities[i] >= 0,
+                distributionName + "[" + i + "] must be non-negative, got: " + probabilities[i]);
+            assertFalse(Double.isNaN(probabilities[i]),
+                distributionName + "[" + i + "] cannot be NaN");
+            assertFalse(Double.isInfinite(probabilities[i]),
+                distributionName + "[" + i + "] cannot be infinite");
+        }
+
+        // Check sum equals 1
+        double sum = Arrays.stream(probabilities).sum();
+        assertEquals(1.0, sum, STOCHASTIC_MATRIX_EPSILON,
+            distributionName + " must sum to 1.0, got: " + sum);
+    }
+
+    /**
+     * Test Markov property using statistical independence testing
+     */
+    protected void assertMarkovProperty(List<Integer> stateSequence, String sequenceName) {
+        assertNotNull(stateSequence, sequenceName + " cannot be null");
+        assertTrue(stateSequence.size() >= 3, sequenceName + " must have at least 3 states for Markov testing");
+
+        // Test P(X_{t+1} | X_t, X_{t-1}) = P(X_{t+1} | X_t) using chi-square test
+        var transitionCounts = buildTransitionCounts(stateSequence);
+        var conditionalCounts = buildConditionalTransitionCounts(stateSequence);
+
+        double chiSquare = calculateChiSquareStatistic(transitionCounts, conditionalCounts);
+        int degreesOfFreedom = calculateDegreesOfFreedom(transitionCounts, conditionalCounts);
+
+        // Critical value for alpha = 0.05
+        double criticalValue = getCriticalChiSquareValue(degreesOfFreedom, STATISTICAL_SIGNIFICANCE_LEVEL);
+
+        assertTrue(chiSquare <= criticalValue,
+            sequenceName + " violates Markov property: chi-square = " + chiSquare +
+            " > critical value = " + criticalValue);
+    }
+
+    /**
+     * Assert that a learning algorithm converges within theoretical bounds
+     */
+    protected void assertConvergenceGuarantees(PAN algorithm, double[][] data, PANParameters parameters,
+                                             int maxIterations, double expectedConvergenceRate) {
+        var categoryCountHistory = new ArrayList<Integer>();
+        var lossHistory = new ArrayList<Double>();
+
+        for (int iteration = 0; iteration < maxIterations; iteration++) {
+            double epochLoss = 0.0;
+
+            for (var sample : data) {
+                var pattern = new DenseVector(sample);
+                var result = algorithm.learn(pattern, parameters);
+
+                if (result instanceof ActivationResult.Success success) {
+                    // Calculate loss based on activation value
+                    epochLoss += (1.0 - success.activationValue());
+                }
+            }
+
+            categoryCountHistory.add(algorithm.getCategoryCount());
+            lossHistory.add(epochLoss / data.length);
+
+            // Check if converged (stable category count and decreasing loss)
+            if (iteration >= 10) {
+                var recentCategoryCounts = categoryCountHistory.subList(iteration - 9, iteration + 1);
+                var recentLosses = lossHistory.subList(iteration - 9, iteration + 1);
+
+                boolean categoryStable = recentCategoryCounts.stream().distinct().count() == 1;
+                boolean lossDecreasing = isSequenceDecreasing(recentLosses);
+
+                if (categoryStable && lossDecreasing) {
+                    double actualConvergenceRate = (double) iteration / maxIterations;
+                    assertTrue(actualConvergenceRate <= expectedConvergenceRate,
+                        "Convergence rate " + actualConvergenceRate + " exceeds expected rate " + expectedConvergenceRate);
+                    return; // Converged successfully
+                }
+            }
+        }
+
+        fail("Algorithm did not converge within " + maxIterations + " iterations");
+    }
+
+    /**
+     * Assert that experience replay sampling follows uniform distribution
+     */
+    protected void assertUniformReplaySampling(ExperienceReplayBuffer buffer, int numSamples, int numTrials) {
+        var samplingCounts = new HashMap<Integer, Integer>();
+
+        for (int trial = 0; trial < numTrials; trial++) {
+            var batch = buffer.sampleBatch();
+            for (var experience : batch) {
+                int experienceId = experience.hashCode(); // Use hash as identifier
+                samplingCounts.merge(experienceId, 1, Integer::sum);
+            }
+        }
+
+        // Apply chi-square goodness of fit test for uniform distribution
+        int totalSamples = samplingCounts.values().stream().mapToInt(Integer::intValue).sum();
+        double expectedFrequency = (double) totalSamples / samplingCounts.size();
+
+        double chiSquare = samplingCounts.values().stream()
+            .mapToDouble(count -> Math.pow(count - expectedFrequency, 2) / expectedFrequency)
+            .sum();
+
+        int degreesOfFreedom = samplingCounts.size() - 1;
+        double criticalValue = getCriticalChiSquareValue(degreesOfFreedom, STATISTICAL_SIGNIFICANCE_LEVEL);
+
+        assertTrue(chiSquare <= criticalValue,
+            "Experience replay sampling not uniform: chi-square = " + chiSquare +
+            " > critical value = " + criticalValue);
+    }
+
+    // ======================= DATA GENERATION UTILITIES =======================
+
+    /**
+     * Generate synthetic Markov chain data with known properties
+     */
+    protected List<Integer> generateMarkovChain(double[][] transitionMatrix, int sequenceLength) {
+        assertStochasticMatrix(transitionMatrix, "Transition matrix");
+
+        var sequence = new ArrayList<Integer>(sequenceLength);
+        int currentState = random.nextInt(transitionMatrix.length);
+        sequence.add(currentState);
+
+        for (int i = 1; i < sequenceLength; i++) {
+            currentState = sampleFromDistribution(transitionMatrix[currentState]);
+            sequence.add(currentState);
+        }
+
+        return sequence;
+    }
+
+    /**
+     * Generate PAN-compatible image patterns with controlled properties
+     */
+    protected List<Pattern> generateImagePatterns(int numPatterns, int imageSize, double noiseLevel) {
+        var patterns = new ArrayList<Pattern>(numPatterns);
+
+        for (int i = 0; i < numPatterns; i++) {
+            var imageData = new double[imageSize * imageSize];
+
+            // Generate base pattern with some structure
+            for (int row = 0; row < imageSize; row++) {
+                for (int col = 0; col < imageSize; col++) {
+                    int idx = row * imageSize + col;
+
+                    // Create simple geometric patterns
+                    double value = Math.sin(2 * Math.PI * row / imageSize) *
+                                  Math.cos(2 * Math.PI * col / imageSize);
+                    value = (value + 1) / 2; // Normalize to [0, 1]
+
+                    // Add noise
+                    value += (random.nextDouble() - 0.5) * noiseLevel;
+                    value = Math.max(0, Math.min(1, value)); // Clamp to [0, 1]
+
+                    imageData[idx] = value;
+                }
+            }
+
+            patterns.add(new DenseVector(imageData));
+        }
+
+        return patterns;
+    }
+
+    /**
+     * Generate classification dataset with ground truth labels
+     */
+    protected ClassificationDataset generateClassificationDataset(int samplesPerClass, int numClasses,
+                                                                int featureDim, double classSeparation) {
+        var patterns = new ArrayList<Pattern>();
+        var labels = new ArrayList<Integer>();
+
+        for (int classId = 0; classId < numClasses; classId++) {
+            // Generate class centroid
+            var centroid = new double[featureDim];
+            for (int i = 0; i < featureDim; i++) {
+                centroid[i] = classId * classSeparation + random.nextGaussian() * 0.1;
+            }
+
+            // Generate samples around centroid
+            for (int sample = 0; sample < samplesPerClass; sample++) {
+                var features = new double[featureDim];
+                for (int i = 0; i < featureDim; i++) {
+                    features[i] = centroid[i] + random.nextGaussian() * 0.3;
+                }
+
+                patterns.add(new DenseVector(features));
+                labels.add(classId);
+            }
+        }
+
+        return new ClassificationDataset(patterns, labels);
+    }
+
+    // ======================= STATISTICAL UTILITIES =======================
+
+    private Map<String, Integer> buildTransitionCounts(List<Integer> sequence) {
+        var counts = new HashMap<String, Integer>();
+        for (int i = 0; i < sequence.size() - 1; i++) {
+            String transition = sequence.get(i) + "->" + sequence.get(i + 1);
+            counts.merge(transition, 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    private Map<String, Integer> buildConditionalTransitionCounts(List<Integer> sequence) {
+        var counts = new HashMap<String, Integer>();
+        for (int i = 0; i < sequence.size() - 2; i++) {
+            String transition = sequence.get(i) + "," + sequence.get(i + 1) + "->" + sequence.get(i + 2);
+            counts.merge(transition, 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    private double calculateChiSquareStatistic(Map<String, Integer> transitionCounts,
+                                             Map<String, Integer> conditionalCounts) {
+        // Simplified chi-square calculation - in practice would need more sophisticated approach
+        double chiSquare = 0.0;
+        int totalObservations = transitionCounts.values().stream().mapToInt(Integer::intValue).sum();
+
+        for (var entry : conditionalCounts.entrySet()) {
+            int observed = entry.getValue();
+            double expected = (double) totalObservations / conditionalCounts.size();
+            chiSquare += Math.pow(observed - expected, 2) / expected;
+        }
+
+        return chiSquare;
+    }
+
+    private int calculateDegreesOfFreedom(Map<String, Integer> transitionCounts,
+                                        Map<String, Integer> conditionalCounts) {
+        return Math.max(1, conditionalCounts.size() - 1);
+    }
+
+    private double getCriticalChiSquareValue(int degreesOfFreedom, double alpha) {
+        // Simplified critical values - in practice would use proper statistical tables
+        if (degreesOfFreedom <= 1) return 3.84; // alpha = 0.05, df = 1
+        if (degreesOfFreedom <= 5) return 11.07; // alpha = 0.05, df = 5
+        if (degreesOfFreedom <= 10) return 18.31; // alpha = 0.05, df = 10
+        return 20.0 + degreesOfFreedom * 1.5; // Approximation for higher df
+    }
+
+    private boolean isSequenceDecreasing(List<Double> values) {
+        for (int i = 1; i < values.size(); i++) {
+            if (values.get(i) > values.get(i - 1)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int sampleFromDistribution(double[] probabilities) {
+        double r = random.nextDouble();
+        double cumulative = 0.0;
+
+        for (int i = 0; i < probabilities.length; i++) {
+            cumulative += probabilities[i];
+            if (r <= cumulative) {
+                return i;
+            }
+        }
+
+        return probabilities.length - 1; // Fallback
+    }
+
+    // ======================= RECORD CLASSES =======================
+
+    public record ClassificationDataset(List<Pattern> patterns, List<Integer> labels) {
+        public ClassificationDataset {
+            Objects.requireNonNull(patterns);
+            Objects.requireNonNull(labels);
+            if (patterns.size() != labels.size()) {
+                throw new IllegalArgumentException("Patterns and labels must have same size");
+            }
+        }
+    }
+
+    // ======================= MOCK CLASSES =======================
+
+    /**
+     * Mock implementation of DualMemoryManager for isolated testing
+     */
+    protected static class MockDualMemoryManager implements AutoCloseable {
+        private final double stmDecayRate;
+        private final double ltmConsolidationThreshold;
+        private final List<Object> stmEntries = new ArrayList<>();
+        private final Map<Integer, Object> ltmEntries = new HashMap<>();
+        private boolean closed = false;
+
+        public MockDualMemoryManager(double stmDecayRate, double ltmConsolidationThreshold) {
+            this.stmDecayRate = stmDecayRate;
+            this.ltmConsolidationThreshold = ltmConsolidationThreshold;
+        }
+
+        public void addSTMEntry(Object entry) {
+            if (!closed) stmEntries.add(entry);
+        }
+
+        public void addLTMEntry(int key, Object entry) {
+            if (!closed) ltmEntries.put(key, entry);
+        }
+
+        public int getSTMSize() { return stmEntries.size(); }
+        public int getLTMSize() { return ltmEntries.size(); }
+        public double getSTMDecayRate() { return stmDecayRate; }
+        public double getLTMConsolidationThreshold() { return ltmConsolidationThreshold; }
+
+        @Override
+        public void close() {
+            closed = true;
+            stmEntries.clear();
+            ltmEntries.clear();
+        }
+    }
+
+    /**
+     * Mock implementation of ExperienceReplayBuffer for isolated testing
+     */
+    protected static class MockExperienceReplayBuffer implements AutoCloseable {
+        private final int maxSize;
+        private final int batchSize;
+        private final List<Object> experiences = new ArrayList<>();
+        private boolean closed = false;
+
+        public MockExperienceReplayBuffer(int maxSize, int batchSize) {
+            this.maxSize = maxSize;
+            this.batchSize = batchSize;
+        }
+
+        public void addExperience(Object experience) {
+            if (!closed && experiences.size() < maxSize) {
+                experiences.add(experience);
+            }
+        }
+
+        public List<Object> sampleBatch() {
+            if (closed || experiences.isEmpty()) return List.of();
+            int actualBatchSize = Math.min(batchSize, experiences.size());
+            return experiences.subList(0, actualBatchSize);
+        }
+
+        public int size() { return experiences.size(); }
+        public int getMaxSize() { return maxSize; }
+        public int getBatchSize() { return batchSize; }
+
+        @Override
+        public void close() {
+            closed = true;
+            experiences.clear();
+        }
+    }
+}

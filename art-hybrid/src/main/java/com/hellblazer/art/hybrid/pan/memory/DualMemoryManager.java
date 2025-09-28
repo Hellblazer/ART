@@ -37,6 +37,30 @@ public class DualMemoryManager implements AutoCloseable {
     }
 
     /**
+     * Enhance features using memory information (Paper Eq. 6: X' = f(X, W)).
+     * This combines the input features with stored memory for better discrimination.
+     */
+    public Pattern enhanceFeatures(Pattern features, BPARTWeight weight) {
+        // Simple linear combination: X' = mX + nW
+        // where m and n are weighting factors
+        double m = 0.7;  // Input weight
+        double n = 0.3;  // Memory weight
+
+        double[] enhanced = new double[features.dimension()];
+
+        // Combine input features with weight's forward weights (STM)
+        for (int i = 0; i < features.dimension(); i++) {
+            enhanced[i] = m * features.get(i);
+            if (i < weight.forwardWeights().length) {
+                enhanced[i] += n * weight.forwardWeights()[i];
+            }
+        }
+
+        // Create enhanced pattern
+        return new com.hellblazer.art.core.DenseVector(enhanced);
+    }
+
+    /**
      * Check enhanced vigilance using STM/LTM networks.
      */
     public boolean checkEnhancedVigilance(Pattern features, BPARTWeight weight, double vigilance) {
@@ -179,6 +203,113 @@ public class DualMemoryManager implements AutoCloseable {
             return dot / (Math.sqrt(norm1) * Math.sqrt(norm2));
         }
         return 0;
+    }
+
+    /**
+     * Compute LTM confidence based on historical performance.
+     * This replaces the previous ad-hoc confidence calculation.
+     *
+     * @param categoryId The category to compute confidence for
+     * @param input The input pattern
+     * @return Confidence value bounded [0,1]
+     */
+    public double computeLTMConfidence(int categoryId, Pattern input) {
+        // Check if we have LTM data for this category
+        var ltmEntry = ltmStorage.get(categoryId);
+        if (ltmEntry == null) {
+            // No LTM data yet - use STM-based confidence
+            return computeSTMConfidence(categoryId, input);
+        }
+
+        // Get category statistics
+        var stats = categoryStats.get(categoryId);
+        if (stats == null) {
+            return 0.0;
+        }
+
+        // Confidence components:
+        // 1. Success rate: How often this category has been successfully used
+        double successRate = Math.min(1.0, stats.updateCount / 100.0); // Normalize to [0,1]
+
+        // 2. Match quality: How well the input matches the LTM prototype
+        double matchQuality = computeFuzzyARTSimilarity(ltmEntry.prototype, input);
+
+        // 3. Recency factor: How recently this category was used
+        long timeSinceLastUpdate = System.currentTimeMillis() - stats.lastUpdateTime;
+        double recencyFactor = Math.exp(-timeSinceLastUpdate / 300000.0); // 5 minute half-life
+
+        // Weighted combination of confidence factors
+        double confidence = 0.4 * successRate + 0.4 * matchQuality + 0.2 * recencyFactor;
+
+        return Math.min(1.0, Math.max(0.0, confidence)); // Ensure bounded [0,1]
+    }
+
+    /**
+     * Compute STM-based confidence when no LTM data is available.
+     */
+    private double computeSTMConfidence(int categoryId, Pattern input) {
+        // Count recent matches in STM
+        long recentMatches = stmBuffer.stream()
+            .filter(e -> e.category == categoryId && e.isRecent())
+            .count();
+
+        if (recentMatches == 0) {
+            return 0.0;
+        }
+
+        // Get recent patterns for this category
+        var recentPatterns = stmBuffer.stream()
+            .filter(e -> e.category == categoryId && e.isRecent())
+            .map(e -> e.pattern)
+            .limit(5)
+            .toList();
+
+        // Compute average similarity to recent patterns
+        double avgSimilarity = 0.0;
+        for (var pattern : recentPatterns) {
+            avgSimilarity += computeFuzzyARTSimilarity(pattern, input);
+        }
+        avgSimilarity /= recentPatterns.size();
+
+        // More conservative confidence calculation for new categories
+        // Require more evidence before giving high confidence
+        double frequency = Math.min(1.0, recentMatches / 10.0);
+
+        // Penalize categories with few samples - they should have lower confidence
+        double samplePenalty = Math.min(1.0, recentMatches / 5.0);
+
+        // Apply conservative weighting: need both high similarity AND sufficient evidence
+        double confidence = 0.5 * avgSimilarity + 0.3 * frequency + 0.2 * samplePenalty;
+
+        // Additional conservative factor: for very new categories (< 3 samples), reduce confidence
+        if (recentMatches < 3) {
+            confidence *= 0.6; // Reduce confidence for new categories
+        }
+
+        return Math.min(1.0, Math.max(0.0, confidence));
+    }
+
+    /**
+     * Compute Fuzzy ART similarity between patterns.
+     * Consistent with the similarity measure used in BPARTWeight.
+     */
+    private double computeFuzzyARTSimilarity(Pattern p1, Pattern p2) {
+        double minSum = 0.0;
+        double p1Sum = 0.0;
+        int minDim = Math.min(p1.dimension(), p2.dimension());
+
+        for (int i = 0; i < minDim; i++) {
+            double v1 = Math.abs(p1.get(i));
+            double v2 = Math.abs(p2.get(i));
+            minSum += Math.min(v1, v2);
+            p1Sum += v1;
+        }
+
+        if (p1Sum == 0.0) {
+            return 0.0;
+        }
+
+        return minSum / p1Sum; // Bounded [0,1]
     }
 
     /**

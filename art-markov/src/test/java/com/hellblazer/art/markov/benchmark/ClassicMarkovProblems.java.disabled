@@ -1,0 +1,449 @@
+package com.hellblazer.art.hybrid.markov.benchmark;
+
+import com.hellblazer.art.hybrid.markov.baseline.StandardMarkovChain;
+import java.util.*;
+import java.util.stream.IntStream;
+
+/**
+ * Classic Markov chain problems with known analytical solutions for validation.
+ *
+ * These benchmark problems provide ground truth solutions to validate both
+ * standard Markov chain implementations and hybrid ART-Markov approaches.
+ */
+public class ClassicMarkovProblems {
+
+    /**
+     * Simple random walk on a line problem.
+     * States: {..., -2, -1, 0, 1, 2, ...} (bounded for practical purposes)
+     * Transitions: p=0.5 left, p=0.5 right
+     */
+    public static class RandomWalkProblem {
+        private final int minState;
+        private final int maxState;
+        private final double leftProbability;
+        private final double rightProbability;
+
+        public RandomWalkProblem(int minState, int maxState, double leftProbability) {
+            this.minState = minState;
+            this.maxState = maxState;
+            this.leftProbability = leftProbability;
+            this.rightProbability = 1.0 - leftProbability;
+        }
+
+        public StandardMarkovChain<Integer> createTrueModel() {
+            var chain = new StandardMarkovChain<Integer>();
+
+            // Generate all possible transitions
+            for (int state = minState; state <= maxState; state++) {
+                // Left transition (unless at boundary)
+                if (state > minState) {
+                    for (int i = 0; i < 100; i++) { // Add multiple observations for stable probabilities
+                        chain.observeTransition(state, state - 1);
+                    }
+                }
+                // Right transition (unless at boundary)
+                if (state < maxState) {
+                    int rightCount = (int) (100 * rightProbability / leftProbability);
+                    for (int i = 0; i < rightCount; i++) {
+                        chain.observeTransition(state, state + 1);
+                    }
+                }
+                // Reflecting boundaries
+                if (state == minState) {
+                    for (int i = 0; i < 50; i++) { // Stay or go right
+                        chain.observeTransition(state, state + 1);
+                    }
+                }
+                if (state == maxState) {
+                    for (int i = 0; i < 50; i++) { // Stay or go left
+                        chain.observeTransition(state, state - 1);
+                    }
+                }
+            }
+
+            return chain;
+        }
+
+        public List<Integer> generateTestSequence(int startState, int length) {
+            var sequence = new ArrayList<Integer>();
+            sequence.add(startState);
+
+            var random = new Random(42); // Fixed seed for reproducibility
+            var currentState = startState;
+
+            for (int i = 1; i < length; i++) {
+                if (random.nextDouble() < leftProbability && currentState > minState) {
+                    currentState--;
+                } else if (currentState < maxState) {
+                    currentState++;
+                }
+                sequence.add(currentState);
+            }
+
+            return sequence;
+        }
+
+        public double getAnalyticalSteadyStateProbability(int state) {
+            // For symmetric random walk (p=0.5), uniform distribution
+            if (leftProbability == 0.5) {
+                return 1.0 / (maxState - minState + 1);
+            }
+            // For asymmetric walk, more complex calculation
+            // Simplified: return approximate solution
+            var totalStates = maxState - minState + 1;
+            return 1.0 / totalStates; // Approximation
+        }
+    }
+
+    /**
+     * Birth-death process problem.
+     * States: 0, 1, 2, ..., N
+     * Transitions: birth rate λ, death rate μ
+     */
+    public static class BirthDeathProblem {
+        private final int maxPopulation;
+        private final double birthRate;
+        private final double deathRate;
+
+        public BirthDeathProblem(int maxPopulation, double birthRate, double deathRate) {
+            this.maxPopulation = maxPopulation;
+            this.birthRate = birthRate;
+            this.deathRate = deathRate;
+        }
+
+        public StandardMarkovChain<Integer> createTrueModel() {
+            var chain = new StandardMarkovChain<Integer>();
+
+            for (int state = 0; state <= maxPopulation; state++) {
+                // Birth transitions (unless at capacity)
+                if (state < maxPopulation) {
+                    int birthCount = (int) (birthRate * 100);
+                    for (int i = 0; i < birthCount; i++) {
+                        chain.observeTransition(state, state + 1);
+                    }
+                }
+
+                // Death transitions (unless extinct)
+                if (state > 0) {
+                    int deathCount = (int) (deathRate * state * 100);
+                    for (int i = 0; i < deathCount; i++) {
+                        chain.observeTransition(state, state - 1);
+                    }
+                }
+
+                // Staying in same state (remaining probability)
+                int stayCount = Math.max(1, 100 - (state < maxPopulation ? (int)(birthRate * 100) : 0)
+                                                - (state > 0 ? (int)(deathRate * state * 100) : 0));
+                for (int i = 0; i < stayCount; i++) {
+                    chain.observeTransition(state, state);
+                }
+            }
+
+            return chain;
+        }
+
+        public List<Integer> generateTestSequence(int startState, int length) {
+            var sequence = new ArrayList<Integer>();
+            sequence.add(startState);
+
+            var random = new Random(42);
+            var currentState = startState;
+
+            for (int i = 1; i < length; i++) {
+                var totalRate = birthRate + deathRate * currentState;
+                var r = random.nextDouble() * totalRate;
+
+                if (r < birthRate && currentState < maxPopulation) {
+                    currentState++;
+                } else if (currentState > 0) {
+                    currentState--;
+                }
+                sequence.add(currentState);
+            }
+
+            return sequence;
+        }
+
+        public double getAnalyticalSteadyStateProbability(int state) {
+            // For birth-death process: π_i = (λ/μ)^i * π_0
+            if (state == 0) {
+                // Calculate π_0 using normalization
+                double sum = 0.0;
+                double ratio = birthRate / deathRate;
+                for (int i = 0; i <= maxPopulation; i++) {
+                    sum += Math.pow(ratio, i);
+                }
+                return 1.0 / sum;
+            } else {
+                var pi0 = getAnalyticalSteadyStateProbability(0);
+                return Math.pow(birthRate / deathRate, state) * pi0;
+            }
+        }
+    }
+
+    /**
+     * Weather model problem (finite state with known transitions).
+     * States: SUNNY, RAINY, CLOUDY
+     */
+    public static class WeatherProblem {
+        public enum Weather { SUNNY, RAINY, CLOUDY }
+
+        private final Map<Weather, Map<Weather, Double>> transitions;
+
+        public WeatherProblem() {
+            transitions = Map.of(
+                Weather.SUNNY, Map.of(
+                    Weather.SUNNY, 0.7,
+                    Weather.CLOUDY, 0.2,
+                    Weather.RAINY, 0.1
+                ),
+                Weather.CLOUDY, Map.of(
+                    Weather.SUNNY, 0.3,
+                    Weather.CLOUDY, 0.4,
+                    Weather.RAINY, 0.3
+                ),
+                Weather.RAINY, Map.of(
+                    Weather.SUNNY, 0.2,
+                    Weather.CLOUDY, 0.3,
+                    Weather.RAINY, 0.5
+                )
+            );
+        }
+
+        public StandardMarkovChain<Weather> createTrueModel() {
+            var chain = new StandardMarkovChain<Weather>();
+
+            // Add transitions based on known probabilities
+            for (var fromState : transitions.keySet()) {
+                var toTransitions = transitions.get(fromState);
+                for (var toState : toTransitions.keySet()) {
+                    var probability = toTransitions.get(toState);
+                    var count = (int) (probability * 1000); // Scale for discrete counts
+                    for (int i = 0; i < count; i++) {
+                        chain.observeTransition(fromState, toState);
+                    }
+                }
+            }
+
+            return chain;
+        }
+
+        public List<Weather> generateTestSequence(Weather startState, int length) {
+            var sequence = new ArrayList<Weather>();
+            sequence.add(startState);
+
+            var random = new Random(42);
+            var currentState = startState;
+
+            for (int i = 1; i < length; i++) {
+                var stateTransitions = transitions.get(currentState);
+                var r = random.nextDouble();
+                var cumulative = 0.0;
+
+                for (var entry : stateTransitions.entrySet()) {
+                    cumulative += entry.getValue();
+                    if (r <= cumulative) {
+                        currentState = entry.getKey();
+                        break;
+                    }
+                }
+                sequence.add(currentState);
+            }
+
+            return sequence;
+        }
+
+        public double getAnalyticalSteadyStateProbability(Weather state) {
+            // Solve π = πP for steady state
+            // Known analytical solution for this 3x3 matrix
+            return switch (state) {
+                case SUNNY -> 0.5;    // Analytical solution
+                case CLOUDY -> 0.25;  // (computed separately)
+                case RAINY -> 0.25;
+            };
+        }
+
+        public double getTransitionProbability(Weather from, Weather to) {
+            return transitions.get(from).get(to);
+        }
+    }
+
+    /**
+     * PageRank-style problem (web graph navigation).
+     * Simulates random surfing on a small web graph.
+     */
+    public static class PageRankProblem {
+        private final Map<Integer, List<Integer>> graph;
+        private final double dampingFactor;
+        private final int numPages;
+
+        public PageRankProblem(Map<Integer, List<Integer>> graph, double dampingFactor) {
+            this.graph = graph;
+            this.dampingFactor = dampingFactor;
+            this.numPages = graph.keySet().stream().mapToInt(i -> i).max().orElse(0) + 1;
+        }
+
+        public static PageRankProblem createSimpleGraph() {
+            // Simple 4-page graph: 0->1, 1->2, 2->0, 2->3, 3->0
+            var graph = Map.of(
+                0, List.of(1),
+                1, List.of(2),
+                2, List.of(0, 3),
+                3, List.of(0)
+            );
+            return new PageRankProblem(graph, 0.85);
+        }
+
+        public StandardMarkovChain<Integer> createTrueModel() {
+            var chain = new StandardMarkovChain<Integer>();
+
+            for (int from = 0; from < numPages; from++) {
+                var outlinks = graph.getOrDefault(from, List.of());
+
+                if (outlinks.isEmpty()) {
+                    // No outlinks - jump to random page
+                    for (int to = 0; to < numPages; to++) {
+                        for (int i = 0; i < 100; i++) {
+                            chain.observeTransition(from, to);
+                        }
+                    }
+                } else {
+                    // Follow links with damping factor
+                    for (var to : outlinks) {
+                        var followProbability = dampingFactor / outlinks.size();
+                        var count = (int) (followProbability * 1000);
+                        for (int i = 0; i < count; i++) {
+                            chain.observeTransition(from, to);
+                        }
+                    }
+
+                    // Random jump
+                    var jumpProbability = (1.0 - dampingFactor) / numPages;
+                    var jumpCount = (int) (jumpProbability * 1000);
+                    for (int to = 0; to < numPages; to++) {
+                        for (int i = 0; i < jumpCount; i++) {
+                            chain.observeTransition(from, to);
+                        }
+                    }
+                }
+            }
+
+            return chain;
+        }
+
+        public List<Integer> generateTestSequence(int startPage, int length) {
+            var sequence = new ArrayList<Integer>();
+            sequence.add(startPage);
+
+            var random = new Random(42);
+            var currentPage = startPage;
+
+            for (int i = 1; i < length; i++) {
+                var outlinks = graph.getOrDefault(currentPage, List.of());
+
+                if (random.nextDouble() < dampingFactor && !outlinks.isEmpty()) {
+                    // Follow a link
+                    currentPage = outlinks.get(random.nextInt(outlinks.size()));
+                } else {
+                    // Random jump
+                    currentPage = random.nextInt(numPages);
+                }
+                sequence.add(currentPage);
+            }
+
+            return sequence;
+        }
+
+        public double getAnalyticalPageRank(int page) {
+            // Simplified analytical solution for our small graph
+            return switch (page) {
+                case 0 -> 0.4;  // Highly connected
+                case 1 -> 0.2;  // Middle of chain
+                case 2 -> 0.3;  // Distributive node
+                case 3 -> 0.1;  // Terminal node
+                default -> 1.0 / numPages;
+            };
+        }
+    }
+
+    /**
+     * Queueing system problem (M/M/1 queue approximation).
+     * States represent number of customers in system.
+     */
+    public static class QueueingProblem {
+        private final double arrivalRate;
+        private final double serviceRate;
+        private final int maxCapacity;
+
+        public QueueingProblem(double arrivalRate, double serviceRate, int maxCapacity) {
+            this.arrivalRate = arrivalRate;
+            this.serviceRate = serviceRate;
+            this.maxCapacity = maxCapacity;
+        }
+
+        public StandardMarkovChain<Integer> createTrueModel() {
+            var chain = new StandardMarkovChain<Integer>();
+
+            for (int state = 0; state <= maxCapacity; state++) {
+                // Arrivals (unless at capacity)
+                if (state < maxCapacity) {
+                    var arrivalCount = (int) (arrivalRate * 1000);
+                    for (int i = 0; i < arrivalCount; i++) {
+                        chain.observeTransition(state, state + 1);
+                    }
+                }
+
+                // Service completions (unless empty)
+                if (state > 0) {
+                    var serviceCount = (int) (serviceRate * 1000);
+                    for (int i = 0; i < serviceCount; i++) {
+                        chain.observeTransition(state, state - 1);
+                    }
+                }
+
+                // No change (remaining probability)
+                var stayCount = Math.max(1, 1000 -
+                    (state < maxCapacity ? (int)(arrivalRate * 1000) : 0) -
+                    (state > 0 ? (int)(serviceRate * 1000) : 0));
+                for (int i = 0; i < stayCount; i++) {
+                    chain.observeTransition(state, state);
+                }
+            }
+
+            return chain;
+        }
+
+        public List<Integer> generateTestSequence(int startState, int length) {
+            var sequence = new ArrayList<Integer>();
+            sequence.add(startState);
+
+            var random = new Random(42);
+            var currentState = startState;
+
+            for (int i = 1; i < length; i++) {
+                var totalRate = arrivalRate + (currentState > 0 ? serviceRate : 0);
+                var r = random.nextDouble() * totalRate;
+
+                if (r < arrivalRate && currentState < maxCapacity) {
+                    currentState++;
+                } else if (currentState > 0) {
+                    currentState--;
+                }
+                sequence.add(currentState);
+            }
+
+            return sequence;
+        }
+
+        public double getAnalyticalSteadyStateProbability(int state) {
+            // M/M/1/K queue: π_i = ρ^i * π_0 where ρ = λ/μ
+            var rho = arrivalRate / serviceRate;
+            if (Math.abs(rho - 1.0) < 1e-10) {
+                return 1.0 / (maxCapacity + 1);
+            }
+
+            var pi0 = (1 - rho) / (1 - Math.pow(rho, maxCapacity + 1));
+            return Math.pow(rho, state) * pi0;
+        }
+    }
+}

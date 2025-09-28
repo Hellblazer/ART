@@ -1,0 +1,191 @@
+package com.hellblazer.art.hybrid.pan;
+
+import com.hellblazer.art.core.DenseVector;
+import com.hellblazer.art.hybrid.pan.similarity.SimilarityMeasures;
+import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.core.results.ActivationResult;
+import com.hellblazer.art.hybrid.pan.parameters.PANParameters;
+import com.hellblazer.art.hybrid.pan.weight.BPARTWeight;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Diagnostic test for systematic PAN debugging.
+ */
+class PANDiagnosticTest {
+
+    private PAN pan;
+    private PANParameters parameters;
+
+    @BeforeEach
+    void setUp() {
+        parameters = new PANParameters(
+
+            0.5, // Reasonable vigilance for both learning and prediction
+            20, // maxCategories
+            PANParameters.defaultParameters().cnnConfig(), false,
+// enableCNNPretraining
+            0.01, // learningRate
+            0.9, // momentum
+            0.0001, // weightDecay
+            true, // allowNegativeWeights
+            64,
+// hiddenUnits
+            0.95, // stmDecayRate
+            0.8, // ltmConsolidationThreshold
+            200, // replayBufferSize
+            16, // replayBatchSize
+            0.1, // replayFrequency
+            0.15,   // biasFactor - increased for better light induction
+            SimilarityMeasures.FUZZY_ART
+        );
+        pan = new PAN(parameters);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (pan != null) {
+            pan.close();
+        }
+    }
+
+    @Test
+    void diagnosticPatternFlow() {
+        // Create 3 distinct patterns with clear separation
+        Random rand = new Random(42);
+        List<Pattern> patterns = new ArrayList<>();
+
+        System.out.println("=== DIAGNOSTIC TEST: Pattern Flow Analysis ===\n");
+
+        for (int i = 0; i < 3; i++) {
+            double[] data = new double[784];
+            for (int j = 0; j < 784; j++) {
+                if (i == 0) {
+                    data[j] = rand.nextDouble() * 0.3;  // Low values [0, 0.3]
+                } else if (i == 1) {
+                    data[j] = 0.4 + rand.nextDouble() * 0.3;  // Mid values [0.4, 0.7]
+                } else {
+                    data[j] = 0.7 + rand.nextDouble() * 0.3;  // High values [0.7, 1.0]
+                }
+            }
+            Pattern pattern = new DenseVector(data);
+            patterns.add(pattern);
+
+            // Analyze input pattern statistics
+            double mean = 0, min = Double.MAX_VALUE, max = Double.MIN_VALUE;
+            for (int j = 0; j < data.length; j++) {
+                mean += data[j];
+                min = Math.min(min, data[j]);
+                max = Math.max(max, data[j]);
+            }
+            mean /= data.length;
+
+            System.out.printf("Pattern %d Input Stats:\n", i);
+            System.out.printf("  Mean: %.3f, Min: %.3f, Max: %.3f\n", mean, min, max);
+            System.out.printf("  First 10 values: ");
+            for (int j = 0; j < 10; j++) {
+                System.out.printf("%.2f ", data[j]);
+            }
+            System.out.println("\n");
+        }
+
+        // Phase 1: Learning
+        System.out.println("=== PHASE 1: LEARNING ===\n");
+
+        for (int i = 0; i < patterns.size(); i++) {
+            Pattern input = patterns.get(i);
+
+            System.out.printf("Learning Pattern %d:\n", i);
+
+            // Get CNN features
+            Pattern features = pan.getCNNPreprocessor().extractFeatures(input);
+            System.out.printf("  CNN Output dimension: %d\n", features.dimension());
+
+            // Analyze CNN output
+            double featMean = 0, featMin = Double.MAX_VALUE, featMax = Double.MIN_VALUE;
+            for (int j = 0; j < features.dimension(); j++) {
+                double val = features.get(j);
+                featMean += val;
+                featMin = Math.min(featMin, val);
+                featMax = Math.max(featMax, val);
+            }
+            featMean /= features.dimension();
+
+            System.out.printf("  CNN Features Stats: Mean=%.3f, Min=%.3f, Max=%.3f\n",
+                featMean, featMin, featMax);
+
+            // Check activation against existing categories before learning
+            System.out.println("  Activations before learning:");
+            for (int c = 0; c < pan.getCategoryCount(); c++) {
+                BPARTWeight weight = (BPARTWeight) pan.getCategory(c);
+                double activation = weight.calculateActivation(features);
+                System.out.printf("    Category %d: %.3f\n", c, activation);
+            }
+
+            // Learn the pattern
+            var result = pan.learn(input, parameters);
+
+            if (result instanceof ActivationResult.Success success) {
+                System.out.printf("  Result: %s category %d (activation=%.3f)\n",
+                    pan.getCategoryCount() > i ? "Matched" : "Created",
+                    success.categoryIndex(),
+                    success.activationValue());
+
+                // Check weight statistics of the category
+                BPARTWeight weight = (BPARTWeight) success.updatedWeight();
+                System.out.printf("  Weight stats: outputBias=%.3f, updateCount=%d\n",
+                    weight.outputBias(), weight.updateCount());
+            } else {
+                System.out.printf("  Result: NoMatch\n");
+            }
+
+            System.out.printf("  Total categories: %d\n\n", pan.getCategoryCount());
+        }
+
+        // Phase 2: Prediction
+        System.out.println("=== PHASE 2: PREDICTION ===\n");
+
+        for (int i = 0; i < patterns.size(); i++) {
+            Pattern input = patterns.get(i);
+            Pattern features = pan.getCNNPreprocessor().extractFeatures(input);
+
+            System.out.printf("Predicting Pattern %d:\n", i);
+
+            // Check activation against all categories using same threshold as predict()
+            System.out.println("  Activations:");
+            double predictionThreshold = Math.max(0.1, parameters.vigilance() * 0.2);
+            for (int c = 0; c < pan.getCategoryCount(); c++) {
+                BPARTWeight weight = (BPARTWeight) pan.getCategory(c);
+                double activation = weight.calculateActivation(features, parameters.similarityMeasure());
+                boolean passesPredictionThreshold = activation >= predictionThreshold;
+                System.out.printf("    Category %d: %.3f %s (threshold=%.3f)\n",
+                    c, activation, passesPredictionThreshold ? "(PASSES)" : "(fails)", predictionThreshold);
+            }
+
+            var result = pan.predict(input, parameters);
+
+            if (result instanceof ActivationResult.Success success) {
+                System.out.printf("  Matched category %d (activation=%.3f)\n",
+                    success.categoryIndex(), success.activationValue());
+            } else {
+                System.out.println("  NoMatch");
+            }
+            System.out.println();
+        }
+
+        // Final analysis
+        System.out.println("=== FINAL ANALYSIS ===");
+        System.out.printf("Total categories created: %d\n", pan.getCategoryCount());
+        System.out.printf("Expected categories: 3\n");
+
+        // Store results for further analysis
+        assertTrue(pan.getCategoryCount() > 0, "Should create at least one category");
+    }
+}
