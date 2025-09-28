@@ -7,7 +7,7 @@ import java.util.Objects;
  * Sealed interface representing the result of ART activation computation.
  * Used in the template method pattern to handle activation outcomes in a type-safe manner.
  */
-public sealed interface ActivationResult permits ActivationResult.Success, ActivationResult.NoMatch, EllipsoidActivationResult {
+public sealed interface ActivationResult permits ActivationResult.Success, ActivationResult.NoMatch, EllipsoidActivationResult, LaminarActivationResult {
     
     /**
      * Successful activation with category selection.
@@ -56,9 +56,14 @@ public sealed interface ActivationResult permits ActivationResult.Success, Activ
         return switch (this) {
             case Success success -> onSuccess.apply(success);
             case NoMatch noMatch -> onNoMatch.get();
-            case EllipsoidActivationResult ellipsoidResult -> 
-                onSuccess.apply(new Success(ellipsoidResult.categoryIndex(), 
+            case EllipsoidActivationResult ellipsoidResult ->
+                onSuccess.apply(new Success(ellipsoidResult.categoryIndex(),
                                           ellipsoidResult.activationValue(), null));
+            case LaminarActivationResult laminarResult ->
+                laminarResult.isResonant()
+                    ? onSuccess.apply(new Success(laminarResult.getCategoryIndex(),
+                                                 laminarResult.getResonanceScore(), null))
+                    : onNoMatch.get();
         };
     }
 }
