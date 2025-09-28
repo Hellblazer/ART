@@ -554,9 +554,6 @@ public class VectorizedTemporalART implements VectorizedARTAlgorithm<VectorizedT
      * Apply temporal processing to input for prediction without affecting working memory state.
      */
     private double[] applyTemporalProcessingForPrediction(double[] input) {
-        // DEBUG: Print input
-        System.out.println("DEBUG: Input pattern: " + java.util.Arrays.toString(input));
-
         // Create temporary working memory for temporal processing
         var tempMemory = new VectorizedWorkingMemory(parameters.getMemoryParameters());
 
@@ -565,15 +562,8 @@ public class VectorizedTemporalART implements VectorizedARTAlgorithm<VectorizedT
         tempMemory.evolveDynamics(parameters.getIntegrationTimeStep());
         var temporalPattern = tempMemory.getTemporalPattern();
 
-        // DEBUG: Print temporal pattern info
-        System.out.println("DEBUG: Temporal pattern size: " + temporalPattern.patterns().size());
-        System.out.println("DEBUG: Temporal pattern weights: " + temporalPattern.weights());
-
         // Get processed pattern (same as training path)
         var processedInput = computeAveragePatternVectorized(temporalPattern);
-
-        // DEBUG: Print processed input
-        System.out.println("DEBUG: Processed input: " + java.util.Arrays.toString(processedInput));
 
         // tempMemory is automatically garbage collected
         return processedInput;

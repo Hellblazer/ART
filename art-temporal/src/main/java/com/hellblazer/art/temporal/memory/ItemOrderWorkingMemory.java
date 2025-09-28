@@ -23,8 +23,11 @@ import com.hellblazer.art.temporal.TemporalPattern;
 import com.hellblazer.art.temporal.parameters.WorkingMemoryParameters;
 
 /**
- * Item-and-Order Working Memory implementation following the STORE 2 model
- * from Kazerounian & Grossberg 2014.
+ * Item-and-Order Working Memory implementation following the STORE 2 model from:
+ *
+ * Kazerounian, S., & Grossberg, S. (2014). Real-time learning of predictive recognition
+ * categories that chunk sequences of items stored in working memory.
+ * Frontiers in Psychology, 5, 1053. https://doi.org/10.3389/fpsyg.2014.01053
  *
  * This working memory maintains both the content (items) and temporal order
  * of sequences using primacy gradients that decay over time. The model supports:

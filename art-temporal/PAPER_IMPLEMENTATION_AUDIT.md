@@ -2,7 +2,7 @@
 ## Kazerounian & Grossberg (2014) Paper Compliance
 
 **Date:** September 28, 2025
-**Paper:** "Resonant dynamics of speech perception: Interword integration and duration-dependent backward effects"
+**Paper:** "Real-time learning of predictive recognition categories that chunk sequences of items stored in working memory"
 **Authors:** S. Kazerounian and S. Grossberg
 **Implementation Status:** Complete
 
@@ -293,4 +293,4 @@ The codebase is suitable for:
 
 ## References
 
-Kazerounian, S., & Grossberg, S. (2014). Real-time learning of predictive recognition categories that chunk sequences of items stored in working memory. *Psychological Review*, 121(4), 552-599.
+Kazerounian, S., & Grossberg, S. (2014). Real-time learning of predictive recognition categories that chunk sequences of items stored in working memory. *Frontiers in Psychology*, 5, 1053. [https://doi.org/10.3389/fpsyg.2014.01053](https://doi.org/10.3389/fpsyg.2014.01053)

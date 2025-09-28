@@ -23,8 +23,11 @@ import com.hellblazer.art.temporal.parameters.MaskingParameters;
 import com.hellblazer.art.temporal.results.MaskingResult;
 
 /**
- * Multi-scale masking field network implementing the self-similar architecture
- * from Kazerounian & Grossberg 2014.
+ * Multi-scale masking field network implementing the self-similar architecture from:
+ *
+ * Kazerounian, S., & Grossberg, S. (2014). Real-time learning of predictive recognition
+ * categories that chunk sequences of items stored in working memory.
+ * Frontiers in Psychology, 5, 1053. https://doi.org/10.3389/fpsyg.2014.01053
  *
  * The masking field network performs temporal preprocessing through:
  * - Multi-scale competitive dynamics

@@ -26,7 +26,11 @@ import java.util.List;
 
 /**
  * Base interface for temporal ART algorithms that process sequential patterns using
- * masking fields and working memory as described in Kazerounian & Grossberg 2014.
+ * masking fields and working memory as described in:
+ *
+ * Kazerounian, S., & Grossberg, S. (2014). Real-time learning of predictive recognition
+ * categories that chunk sequences of items stored in working memory.
+ * Frontiers in Psychology, 5, 1053. https://doi.org/10.3389/fpsyg.2014.01053
  *
  * Temporal ART algorithms extend basic ART processing with:
  * - Item-and-order working memory (STORE 2 model)
