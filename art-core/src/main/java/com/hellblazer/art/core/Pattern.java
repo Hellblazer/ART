@@ -72,6 +72,18 @@ public sealed interface Pattern permits DenseVector {
      * @return a new scaled pattern
      */
     Pattern scale(double scalar);
+
+    /**
+     * Convert this pattern to a double array.
+     * @return a copy of the pattern's data as a double array
+     */
+    default double[] toArray() {
+        var result = new double[dimension()];
+        for (int i = 0; i < dimension(); i++) {
+            result[i] = get(i);
+        }
+        return result;
+    }
     
     /**
      * Create a dense pattern from an array of values.

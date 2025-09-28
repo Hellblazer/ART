@@ -45,7 +45,6 @@
         <module>art-markov</module>
         <module>art-temporal</module>
         <!-- art-hybrid removed: broken complement coding, see experimental profile -->
-        <module>goal-seeking</module>
         <module>resource</module>
     </modules>
 
@@ -100,11 +99,6 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>temporal-performance</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>goal-seeking</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
