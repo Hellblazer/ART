@@ -45,7 +45,6 @@
         <module>art-markov</module>
         <module>art-temporal</module>
         <!-- art-hybrid removed: broken complement coding, see experimental profile -->
-        <!-- <module>goal-seeking</module> -->
         <module>resource</module>
     </modules>
 
@@ -74,14 +73,34 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>art-temporal</artifactId>
+                <artifactId>temporal-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!-- <dependency>
+            <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>goal-seeking</artifactId>
+                <artifactId>temporal-memory</artifactId>
                 <version>${project.version}</version>
-            </dependency> -->
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>temporal-masking</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>temporal-dynamics</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>temporal-integration</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>temporal-performance</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.google.guava</groupId>

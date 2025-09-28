@@ -196,8 +196,8 @@ public interface State<T> extends Comparable<State<T>> {
     }
 
     /**
-     * Check if this state represents a terminal or goal state.
-     * Used in reinforcement learning and goal-seeking scenarios.
+     * Check if this state represents a terminal state.
+     * Used in reinforcement learning scenarios.
      *
      * @return true if this is a terminal state
      */
