@@ -1,117 +1,222 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>com.hellblazer.art</groupId>
         <artifactId>art.app</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>art-temporal</artifactId>
-    <name>ART Temporal Processing</name>
-    <description>Temporal sequence processing with masking fields and working memory for ART neural networks</description>
+    <packaging>pom</packaging>
+    <name>ART Temporal - Parent</name>
+    <description>
+        Temporal Adaptive Resonance Theory implementation based on Kazerounian &amp; Grossberg (2014).
+        Features multi-scale masking fields, transmitter dynamics, and competitive instar learning
+        for sequence learning with primacy gradient effects.
+    </description>
 
-    <dependencies>
-        <!-- Core ART Dependencies -->
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>art-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>art-performance</artifactId>
-        </dependency>
+    <modules>
+        <module>temporal-core</module>
+        <module>temporal-dynamics</module>
+        <module>temporal-masking</module>
+        <module>temporal-memory</module>
+        <module>temporal-integration</module>
+        <module>temporal-validation</module>
+        <module>temporal-performance</module>
+    </modules>
 
-        <!-- Math and Utilities -->
-        <dependency>
-            <groupId>org.joml</groupId>
-            <artifactId>joml</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
+    <properties>
+        <!-- Temporal ART Specific Properties -->
+        <temporal.version>0.0.1-SNAPSHOT</temporal.version>
+        <temporal.paper.fidelity>95</temporal.paper.fidelity>
+        <temporal.min.coverage>90</temporal.min.coverage>
 
-        <!-- Logging -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
+        <!-- Mathematical Libraries -->
+        <apache.commons.math3.version>3.6.1</apache.commons.math3.version>
+        <ejml.version>0.43</ejml.version>
 
-        <!-- JavaFX for Visualization -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
+        <!-- Performance and Concurrency -->
+        <jctools.version>4.0.5</jctools.version>
+        <disruptor.version>4.0.0</disruptor.version>
 
-        <!-- Performance Benchmarking -->
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-generator-annprocess</artifactId>
-            <scope>test</scope>
-        </dependency>
+        <!-- Testing -->
+        <quicktheories.version>0.26</quicktheories.version>
+    </properties>
 
-        <!-- Test Dependencies -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Internal Module Dependencies -->
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-dynamics</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-masking</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-memory</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-integration</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-validation</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hellblazer.art</groupId>
+                <artifactId>temporal-performance</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Mathematical Libraries -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-math3</artifactId>
+                <version>${apache.commons.math3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ejml</groupId>
+                <artifactId>ejml-all</artifactId>
+                <version>${ejml.version}</version>
+            </dependency>
+
+            <!-- High-Performance Collections -->
+            <dependency>
+                <groupId>org.jctools</groupId>
+                <artifactId>jctools-core</artifactId>
+                <version>${jctools.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.lmax</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>${disruptor.version}</version>
+            </dependency>
+
+            <!-- Property-Based Testing -->
+            <dependency>
+                <groupId>org.quicktheories</groupId>
+                <artifactId>quicktheories</artifactId>
+                <version>${quicktheories.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <release>24</release>
-                    <compilerArgs>
-                        <arg>--add-modules</arg>
-                        <arg>jdk.incubator.vector</arg>
-                    </compilerArgs>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>-Xmx1g -Xms512m --add-modules jdk.incubator.vector</argLine>
-                </configuration>
-            </plugin>
-        </plugins>
+        <pluginManagement>
+            <plugins>
+                <!-- Compiler Plugin with Java 24 Features -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <release>24</release>
+                        <compilerArgs combine.children="append">
+                            <arg>--enable-preview</arg>
+                            <arg>--add-modules=jdk.incubator.vector</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+
+                <!-- Surefire for Testing with Virtual Threads -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <argLine>
+                            --enable-preview
+                            --add-modules jdk.incubator.vector
+                            -Xmx1G
+                            -XX:+UseZGC
+                            -Djdk.virtualThreadScheduler.parallelism=8
+                            -Djdk.virtualThreadScheduler.maxPoolSize=256
+                        </argLine>
+                        <parallel>methods</parallel>
+                        <threadCount>8</threadCount>
+                    </configuration>
+                </plugin>
+
+                <!-- Coverage Plugin -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.12</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
+
+    <profiles>
+        <!-- Research Profile for Experimentation -->
+        <profile>
+            <id>research</id>
+            <properties>
+                <temporal.debug.enabled>true</temporal.debug.enabled>
+                <temporal.visualization.enabled>true</temporal.visualization.enabled>
+            </properties>
+        </profile>
+
+        <!-- Production Profile for Deployment -->
+        <profile>
+            <id>production</id>
+            <properties>
+                <temporal.debug.enabled>false</temporal.debug.enabled>
+                <temporal.optimization.level>maximum</temporal.optimization.level>
+            </properties>
+        </profile>
+
+        <!-- Validation Profile for Paper Fidelity Testing -->
+        <profile>
+            <id>validation</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <groups>validation,mathematical</groups>
+                            <systemPropertyVariables>
+                                <temporal.validation.tolerance>1e-10</temporal.validation.tolerance>
+                                <temporal.validation.verbose>true</temporal.validation.verbose>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
