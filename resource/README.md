@@ -36,7 +36,7 @@ manager.releaseMemory(buffer);
 manager.performMaintenance();
 ```
 
-#### ResourceHandle<T>
+#### ResourceHandle&lt;T&gt;
 Base class implementing RAII pattern for native resources:
 
 ```java

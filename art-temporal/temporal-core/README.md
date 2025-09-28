@@ -8,7 +8,7 @@ This module defines the fundamental abstractions used throughout the temporal im
 
 ## Key Interfaces
 
-### Evolvable<S extends State>
+### Evolvable&lt;S extends State&gt;
 Base interface for all dynamical systems that evolve over time.
 
 ```java
