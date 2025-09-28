@@ -6,6 +6,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.hellblazer.art.temporal.integration.TemporalART;
+import com.hellblazer.art.temporal.integration.TemporalARTParameters;
+import com.hellblazer.art.temporal.dynamics.MultiScaleDynamics;
+import com.hellblazer.art.temporal.dynamics.TimeScaleOrchestrator;
 
 /**
  * DEPRECATED: State Transition Generator (Legacy)
@@ -23,9 +27,9 @@ import org.slf4j.LoggerFactory;
 public class StateTransitionGenerator {
     private static final Logger log = LoggerFactory.getLogger(StateTransitionGenerator.class);
 
-    // Delegate to new components
-    private final GoalSeekingCoordinator coordinator;
-    private final MultiScaleProcessor multiScaleProcessor;
+    // Delegate to new components - using TemporalART integration
+    private final TemporalART temporalART;
+    private final TimeScaleOrchestrator timeScaleOrchestrator;
 
     // Legacy layer references for compatibility
     private final GoalLayer goalLayer;
@@ -44,15 +48,14 @@ public class StateTransitionGenerator {
     private float phaseAlignmentWeight = 0.4f;
     private float amplitudeCorrelationWeight = 0.3f;
     private float crossScaleCouplingWeight = 0.3f;
-    private final AdaptiveTrajectoryPlanner trajectoryPlanner = new AdaptiveTrajectoryPlanner();
-    private final GoalChangeRecorder goalRecorder = new GoalChangeRecorder();
 
     public StateTransitionGenerator() {
-        log.warn("StateTransitionGenerator is deprecated. Consider using GoalSeekingCoordinator instead.");
+        log.warn("StateTransitionGenerator is deprecated. Consider using TemporalART integration instead.");
 
-        // Initialize new architecture components
-        this.coordinator = new GoalSeekingCoordinator();
-        this.multiScaleProcessor = new MultiScaleProcessor();
+        // Initialize temporal ART components
+        var parameters = TemporalARTParameters.builder().build();
+        this.temporalART = new TemporalART(parameters);
+        this.timeScaleOrchestrator = new TimeScaleOrchestrator();
 
         // Keep legacy layers for backward compatibility
         this.goalLayer = new GoalLayer(1.0f);

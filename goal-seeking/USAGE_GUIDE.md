@@ -4,10 +4,11 @@
 
 1. [Getting Started](#getting-started)
 2. [Basic Usage](#basic-usage)
-3. [Advanced Scenarios](#advanced-scenarios)
-4. [Real-World Examples](#real-world-examples)
-5. [Performance Optimization](#performance-optimization)
-6. [Troubleshooting](#troubleshooting)
+3. [ART-Temporal Integration](#art-temporal-integration) **NEW**
+4. [Advanced Scenarios](#advanced-scenarios)
+5. [Real-World Examples](#real-world-examples)
+6. [Performance Optimization](#performance-optimization)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -15,7 +16,7 @@
 
 ### Installation
 
-Add the goal-seeking module to your Maven project:
+Add the goal-seeking module with temporal dependencies to your Maven project:
 
 ```xml
 <dependency>
@@ -23,28 +24,39 @@ Add the goal-seeking module to your Maven project:
     <artifactId>goal-seeking</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 </dependency>
+
+<!-- For ART-Temporal integration -->
+<dependency>
+    <groupId>com.hellblazer.art</groupId>
+    <artifactId>temporal-integration</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
 ```
 
-### Minimal Example
+### Minimal Example with Temporal Learning
 
 ```java
-import com.hellblazer.art.goal.*;
+import com.hellblazer.art.goal.temporal.TemporalGoalSeeker;
+import com.hellblazer.art.goal.State;
+import com.hellblazer.art.temporal.integration.TemporalARTParameters;
 
 public class QuickStart {
     public static void main(String[] args) {
-        // Create core components
-        var oscillator = new StateTransitionOscillator();
-        var selector = new ResonanceActionSelector();
-        var feedbackStack = new LearningFeedbackStack("system", "goal");
+        // Create temporal goal seeker
+        var parameters = TemporalARTParameters.builder()
+            .vigilance(0.85f)
+            .learningRate(0.1f)
+            .build();
+        var goalSeeker = new TemporalGoalSeeker(parameters);
 
-        // Define simple states
-        State current = () -> new float[]{0.0f, 0.0f};
-        State goal = () -> new float[]{1.0f, 1.0f};
+        // Define states
+        State current = new State(new double[]{0.0, 0.0, 0.0});
+        State goal = new State(new double[]{1.0, 1.0, 1.0});
 
-        // Generate transition
-        var transition = oscillator.generateTransition(current, goal);
+        // Generate trajectory using temporal patterns
+        var trajectory = goalSeeker.generateTrajectory(current, goal);
 
-        System.out.println("Transition generated from " + current + " to " + goal);
+        System.out.println("Generated trajectory with " + trajectory.size() + " steps");
     }
 }
 ```
@@ -55,783 +67,233 @@ public class QuickStart {
 
 ### Step 1: Define Your State Space
 
-First, implement the state interfaces for your domain:
+Implement the State interface for your domain:
 
 ```java
-public class NavigationState implements SystemState, State {
-    private final float x, y;          // Position
-    private final float vx, vy;        // Velocity
-    private final float energy;        // Energy level
-
-    public NavigationState(float x, float y, float vx, float vy, float energy) {
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
-        this.energy = energy;
+public class NavigationState extends State {
+    // State can be any n-dimensional vector
+    public NavigationState(double x, double y, double z, double vx, double vy, double vz) {
+        super(new double[]{x, y, z, vx, vy, vz});
     }
 
-    @Override
-    public float distanceTo(State other) {
-        if (other instanceof NavigationState nav) {
-            float dx = x - nav.x;
-            float dy = y - nav.y;
-            return (float)Math.sqrt(dx * dx + dy * dy);
-        }
-        return Float.MAX_VALUE;
-    }
-
-    @Override
-    public State interpolate(State other, float t) {
-        if (other instanceof NavigationState nav) {
-            return new NavigationState(
-                x + (nav.x - x) * t,
-                y + (nav.y - y) * t,
-                vx + (nav.vx - vx) * t,
-                vy + (nav.vy - vy) * t,
-                energy + (nav.energy - energy) * t
-            );
-        }
-        return this;
-    }
-
-    @Override
-    public OscillationSignature getOscillationSignature() {
-        // Convert state to oscillatory signature
-        float phase = (float)Math.atan2(vy, vx);
-        float frequency = (float)Math.sqrt(vx * vx + vy * vy);
-        float[] harmonics = {energy * 0.1f, energy * 0.05f};
-
-        return new OscillationSignature(phase, frequency, harmonics);
-    }
-
-    @Override
-    public float[] encode() {
-        return new float[]{x, y, vx, vy, energy};
-    }
+    // Convenience getters
+    public double getX() { return data[0]; }
+    public double getY() { return data[1]; }
+    public double getZ() { return data[2]; }
+    public double getVx() { return data[3]; }
+    public double getVy() { return data[4]; }
+    public double getVz() { return data[5]; }
 }
 ```
 
-### Step 2: Define Goals
+### Step 2: Learn from Successful Trajectories
 
 ```java
-public class NavigationGoal implements GoalState {
-    private final float targetX, targetY;
-    private final float desiredSpeed;
-    private final float priority;
+// Create temporal goal seeker
+var goalSeeker = new TemporalGoalSeeker();
 
-    public NavigationGoal(float x, float y, float speed, float priority) {
-        this.targetX = x;
-        this.targetY = y;
-        this.desiredSpeed = speed;
-        this.priority = priority;
-    }
-
-    @Override
-    public OscillationPattern getOscillationPattern() {
-        // Goal pattern with low frequency
-        float phase = (float)Math.atan2(targetY, targetX);
-        float frequency = 1.0f; // Low frequency for long-term goals
-        float amplitude = priority;
-
-        return new OscillationPattern(phase, frequency, amplitude);
-    }
-
-    @Override
-    public float[] encode() {
-        return new float[]{targetX, targetY, desiredSpeed, priority};
-    }
+// Generate or load a successful trajectory
+List<State> successfulPath = new ArrayList<>();
+for (int i = 0; i <= 10; i++) {
+    double t = i / 10.0;
+    successfulPath.add(new State(new double[]{t, t*t, Math.sin(t)}));
 }
+
+// Learn from the successful trajectory
+goalSeeker.learnTrajectory(successfulPath, 0.95f); // 95% success rate
+
+// Now the system can generate similar trajectories
 ```
 
-### Step 3: Define Actions
+### Step 3: Generate New Trajectories
 
 ```java
-public class NavigationAction implements ActionCandidate {
-    private final String name;
-    private final float thrust;     // Forward thrust
-    private final float rotation;   // Rotation angle
-    private final float confidence;
+// Define new start and goal
+State newStart = new State(new double[]{0.1, 0.0, 0.0});
+State newGoal = new State(new double[]{0.9, 0.8, 0.7});
 
-    public NavigationAction(String name, float thrust, float rotation, float confidence) {
-        this.name = name;
-        this.thrust = thrust;
-        this.rotation = rotation;
-        this.confidence = confidence;
-    }
+// Generate trajectory using learned patterns
+List<State> generatedPath = goalSeeker.generateTrajectory(newStart, newGoal);
 
-    @Override
-    public OscillationPattern getOscillationPattern() {
-        // Actions create high frequency patterns
-        float phase = rotation;
-        float frequency = 40.0f; // High frequency for rapid execution
-        float amplitude = thrust;
-
-        return new OscillationPattern(phase, frequency, amplitude);
-    }
-
-    @Override
-    public float getExpectedResonance() {
-        // Estimate how well this action resonates
-        return Math.abs(thrust) * confidence;
-    }
-
-    @Override
-    public float getConfidence() {
-        return confidence;
-    }
-
-    @Override
-    public float[] encode() {
-        return new float[]{thrust, rotation, confidence};
-    }
-
-    public void execute(Robot robot) {
-        robot.applyThrust(thrust);
-        robot.rotate(rotation);
-    }
-}
+// The system will:
+// 1. Search for similar learned patterns
+// 2. Adapt them to the new situation
+// 3. Or generate novel sequences if no pattern matches
 ```
 
-### Step 4: Complete Action Cycle
+---
+
+## ART-Temporal Integration
+
+### Understanding the Architecture
+
+The goal-seeking module now integrates with ART-Temporal for advanced sequence learning:
 
 ```java
-public class NavigationSystem {
-    private final StateTransitionOscillator oscillator;
-    private final ResonanceActionSelector selector;
-    private final LearningFeedbackStack feedbackStack;
-    private final Robot robot;
+// TemporalGoalSeeker internally uses:
+// - TemporalART: For sequence learning and generation
+// - WorkingMemory: To maintain trajectory context
+// - TimeScaleOrchestrator: For multi-scale processing
+// - MaskingField: For selective attention to transitions
+```
 
-    public NavigationSystem(Robot robot) {
-        this.robot = robot;
-        this.oscillator = new StateTransitionOscillator();
-        this.selector = new ResonanceActionSelector();
-        this.feedbackStack = new LearningFeedbackStack("navigation", "goal");
-    }
+### Multi-Scale Processing
 
-    public void navigate(NavigationGoal goal) {
-        while (!isGoalReached(goal)) {
-            // 1. Get current state
-            NavigationState current = getCurrentState();
+The system processes trajectories at multiple temporal scales:
 
-            // 2. Generate state transition
-            StateTransition transition = oscillator.generateTransition(current, goal);
+```java
+// Automatically configured time scales
+Goal Layer:      1.0x - High-level strategic goals
+Strategic Layer: 5.0x - Medium-term planning
+Tactical Layer:  10.0x - Short-term decisions
+Execution Layer: 40.0x - Immediate actions
+```
 
-            // 3. Generate action candidates
-            List<ActionCandidate> candidates = generateActionCandidates(transition);
+### Learning Multiple Patterns
 
-            // 4. Select best action through resonance
-            SelectedAction selected = selector.selectAction(current, goal, candidates);
+```java
+var goalSeeker = new TemporalGoalSeeker();
 
-            // 5. Execute action
-            NavigationAction action = (NavigationAction) selected.action;
-            action.execute(robot);
+// Learn different types of trajectories
+for (TrajectoryType type : TrajectoryType.values()) {
+    List<State> trajectory = generateTrajectoryOfType(type);
+    float success = evaluateTrajectory(trajectory);
 
-            // 6. Get feedback
-            float[] sensors = robot.getSensorReadings();
-            FeedbackData feedback = new FeedbackData(sensors, System.currentTimeMillis());
-
-            // 7. Process feedback
-            ModulationSignal modulation = feedbackStack.processFeedback(feedback);
-
-            // 8. Evaluate success
-            float progress = measureProgress(current, goal);
-            Effect effect = new Effect(progress > 0, Math.abs(progress));
-
-            // 9. Learn from outcome
-            feedbackStack.learnFromEffect(modulation, effect);
-            selector.learnFromOutcome(selected, progress);
-
-            // 10. Apply modulation
-            oscillator.applyModulation(modulation);
-
-            // Small delay for real-time systems
-            Thread.sleep(50); // 20 Hz update rate
-        }
-    }
-
-    private List<ActionCandidate> generateActionCandidates(StateTransition transition) {
-        List<ActionCandidate> candidates = new ArrayList<>();
-
-        // Generate discrete action options
-        candidates.add(new NavigationAction("forward", 1.0f, 0.0f, 0.9f));
-        candidates.add(new NavigationAction("backward", -0.5f, 0.0f, 0.7f));
-        candidates.add(new NavigationAction("turn_left", 0.3f, -0.5f, 0.8f));
-        candidates.add(new NavigationAction("turn_right", 0.3f, 0.5f, 0.8f));
-        candidates.add(new NavigationAction("stop", 0.0f, 0.0f, 0.6f));
-
-        // Add exploration action if needed
-        if (Math.random() < 0.1) { // 10% exploration
-            float randomThrust = (float)(Math.random() * 2 - 1);
-            float randomRotation = (float)(Math.random() * Math.PI - Math.PI/2);
-            candidates.add(new NavigationAction("explore", randomThrust, randomRotation, 0.5f));
-        }
-
-        return candidates;
+    if (success > 0.5f) {
+        goalSeeker.learnTrajectory(trajectory, success);
     }
 }
+
+// The system builds a repertoire of patterns
+```
+
+### Pattern Adaptation
+
+```java
+// The system adapts learned patterns to new situations
+State currentState = getCurrentState();
+State desiredGoal = getDesiredGoal();
+
+// Generate adapted trajectory
+List<State> adaptedPath = goalSeeker.generateTrajectory(currentState, desiredGoal);
+
+// The adaptation process:
+// 1. Finds similar learned patterns based on start/goal similarity
+// 2. Blends template patterns with current context
+// 3. Uses temporal dynamics for smooth interpolation
 ```
 
 ---
 
 ## Advanced Scenarios
 
-### Hierarchical Goal Decomposition
+### Scenario 1: Robot Navigation with Learning
 
 ```java
-public class HierarchicalGoalSystem {
-    private final Map<String, StateTransitionOscillator> oscillators;
-    private final Map<String, LearningFeedbackStack> feedbackStacks;
+public class RobotNavigationExample {
+    private TemporalGoalSeeker navigator;
+    private List<State> currentPath;
 
-    public HierarchicalGoalSystem() {
-        // Create oscillators for different levels
-        oscillators = Map.of(
-            "strategic", new StateTransitionOscillator(), // Long-term planning
-            "tactical", new StateTransitionOscillator(),  // Medium-term
-            "operational", new StateTransitionOscillator() // Immediate execution
-        );
-
-        // Create feedback stacks between levels
-        feedbackStacks = Map.of(
-            "strategic->tactical", new LearningFeedbackStack("strategic", "tactical"),
-            "tactical->operational", new LearningFeedbackStack("tactical", "operational"),
-            "operational->strategic", new LearningFeedbackStack("operational", "strategic")
-        );
+    public void initialize() {
+        var params = TemporalARTParameters.builder()
+            .vigilance(0.8f)      // Pattern matching threshold
+            .learningRate(0.15f)  // Faster learning for real-time
+            .workingMemorySize(50) // Shorter context window
+            .build();
+        navigator = new TemporalGoalSeeker(params);
     }
 
-    public void pursueComplexGoal(ComplexGoal goal) {
-        // Decompose into subgoals
-        List<SubGoal> strategicGoals = goal.getStrategicGoals();
+    public void navigateToGoal(State goal) {
+        State current = getRobotState();
 
-        for (SubGoal strategic : strategicGoals) {
-            // Strategic level generates tactical goals
-            List<SubGoal> tacticalGoals = generateTacticalGoals(strategic);
+        // Generate path using learned patterns
+        currentPath = navigator.generateTrajectory(current, goal);
 
-            for (SubGoal tactical : tacticalGoals) {
-                // Tactical level generates operational actions
-                List<Action> operations = generateOperations(tactical);
+        // Execute path
+        for (State waypoint : currentPath) {
+            moveRobotTo(waypoint);
 
-                // Execute operations with feedback
-                for (Action op : operations) {
-                    executeWithFeedback(op);
-                }
+            // Check for obstacles
+            if (obstacleDetected()) {
+                // Replan from current position
+                current = getRobotState();
+                currentPath = navigator.generateTrajectory(current, goal);
             }
         }
-    }
 
-    private void executeWithFeedback(Action action) {
-        // Execute action
-        action.execute();
-
-        // Collect multi-level feedback
-        FeedbackData operationalFeedback = collectOperationalFeedback();
-        FeedbackData tacticalFeedback = collectTacticalFeedback();
-        FeedbackData strategicFeedback = collectStrategicFeedback();
-
-        // Process feedback at each level
-        var opMod = feedbackStacks.get("operational->strategic")
-            .processFeedback(operationalFeedback);
-        var tacMod = feedbackStacks.get("tactical->operational")
-            .processFeedback(tacticalFeedback);
-        var stratMod = feedbackStacks.get("strategic->tactical")
-            .processFeedback(strategicFeedback);
-
-        // Apply modulations
-        oscillators.get("operational").applyModulation(opMod);
-        oscillators.get("tactical").applyModulation(tacMod);
-        oscillators.get("strategic").applyModulation(stratMod);
-    }
-}
-```
-
-### Multi-Agent Coordination
-
-```java
-public class MultiAgentSystem {
-    private final List<Agent> agents;
-    private final ResonanceActionSelector globalSelector;
-
-    public MultiAgentSystem(int numAgents) {
-        this.agents = new ArrayList<>();
-        this.globalSelector = new ResonanceActionSelector();
-
-        for (int i = 0; i < numAgents; i++) {
-            agents.add(new Agent("Agent-" + i));
-        }
-    }
-
-    public void coordinatedAction(GlobalGoal goal) {
-        // Collect all agent states
-        List<SystemState> states = agents.stream()
-            .map(Agent::getState)
-            .collect(Collectors.toList());
-
-        // Generate collective oscillation
-        CollectiveOscillation collective = computeCollectiveOscillation(states);
-
-        // Each agent selects action based on collective resonance
-        for (Agent agent : agents) {
-            List<ActionCandidate> localCandidates = agent.generateCandidates();
-
-            // Filter candidates by collective resonance
-            List<ActionCandidate> filtered = localCandidates.stream()
-                .filter(c -> resonatesWithCollective(c, collective))
-                .collect(Collectors.toList());
-
-            // Select action
-            SelectedAction selected = agent.selector.selectAction(
-                agent.getState(),
-                goal,
-                filtered
-            );
-
-            // Execute with awareness of other agents
-            agent.executeWithCoordination(selected, agents);
-        }
-    }
-
-    private boolean resonatesWithCollective(
-            ActionCandidate candidate,
-            CollectiveOscillation collective) {
-
-        OscillationPattern pattern = candidate.getOscillationPattern();
-
-        // Check phase alignment
-        float phaseDiff = Math.abs(pattern.phase - collective.dominantPhase);
-        boolean phaseAligned = phaseDiff < Math.PI / 4; // Within 45 degrees
-
-        // Check frequency harmony
-        float freqRatio = pattern.frequency / collective.dominantFrequency;
-        boolean harmonious = Math.abs(freqRatio - Math.round(freqRatio)) < 0.1;
-
-        return phaseAligned && harmonious;
-    }
-}
-
-class Agent {
-    final String id;
-    final StateTransitionOscillator oscillator;
-    final ResonanceActionSelector selector;
-    final LearningFeedbackStack feedbackStack;
-    SystemState state;
-
-    Agent(String id) {
-        this.id = id;
-        this.oscillator = new StateTransitionOscillator();
-        this.selector = new ResonanceActionSelector();
-        this.feedbackStack = new LearningFeedbackStack(id, "collective");
-    }
-
-    void executeWithCoordination(SelectedAction action, List<Agent> others) {
-        // Execute own action
-        execute(action);
-
-        // Send feedback to nearby agents
-        for (Agent other : others) {
-            if (isNearby(other)) {
-                FeedbackData feedback = createFeedbackFor(other);
-                ModulationSignal signal = other.feedbackStack.processFeedback(feedback);
-                other.oscillator.applyModulation(signal);
-            }
+        // Learn from successful navigation
+        if (goalReached(goal)) {
+            navigator.learnTrajectory(currentPath, calculateSuccess());
         }
     }
 }
 ```
 
-### Dynamic Environment Adaptation
+### Scenario 2: Market Trading Strategy
 
 ```java
-public class AdaptiveGoalSeeker {
-    private final StateTransitionOscillator oscillator;
-    private final ResonanceActionSelector selector;
-    private final Map<String, LearningFeedbackStack> environmentStacks;
-    private EnvironmentProfile currentProfile;
+public class TradingStrategyExample {
+    private TemporalGoalSeeker strategyPlanner;
 
-    public AdaptiveGoalSeeker() {
-        this.oscillator = new StateTransitionOscillator();
-        this.selector = new ResonanceActionSelector();
-        this.environmentStacks = new HashMap<>();
-    }
+    public void optimizePortfolio() {
+        // Define market state (prices, volumes, indicators)
+        State currentMarket = new State(new double[]{
+            getPrice("AAPL"), getVolume("AAPL"), getRSI("AAPL"),
+            getPrice("GOOGL"), getVolume("GOOGL"), getRSI("GOOGL"),
+            // ... more securities
+        });
 
-    public void adaptToEnvironment(Environment env) {
-        // Detect environment type
-        EnvironmentProfile profile = profileEnvironment(env);
+        // Define target portfolio state
+        State targetPortfolio = new State(new double[]{
+            0.3, // 30% AAPL
+            0.2, // 20% GOOGL
+            // ... target allocations
+        });
 
-        // Load or create feedback stack for this environment
-        String envKey = profile.getKey();
-        LearningFeedbackStack stack = environmentStacks.computeIfAbsent(
-            envKey,
-            k -> new LearningFeedbackStack("system", envKey)
+        // Generate trading sequence
+        List<State> tradingPlan = strategyPlanner.generateTrajectory(
+            currentMarket, targetPortfolio
         );
 
-        // Adjust oscillator frequencies for environment
-        adjustOscillatorForEnvironment(profile);
-
-        // Set exploration based on familiarity
-        float familiarity = calculateFamiliarity(profile);
-        selector.setExplorationRate(1.0f - familiarity);
-
-        currentProfile = profile;
-    }
-
-    private void adjustOscillatorForEnvironment(EnvironmentProfile profile) {
-        switch (profile.getType()) {
-            case STATIC:
-                // Lower frequencies for stable environment
-                oscillator.setFrequency("Band1", 0.5f);
-                oscillator.setFrequency("Band2", 2.0f);
-                break;
-
-            case DYNAMIC:
-                // Higher frequencies for changing environment
-                oscillator.setFrequency("Band1", 2.0f);
-                oscillator.setFrequency("Band2", 10.0f);
-                break;
-
-            case ADVERSARIAL:
-                // High frequencies for rapid response
-                oscillator.setFrequency("Band4", 30.0f);
-                oscillator.setFrequency("Band5", 60.0f);
-                break;
-
-            case COOPERATIVE:
-                // Synchronized frequencies for coordination
-                oscillator.setFrequency("Band3", 10.0f);
-                oscillator.setCoupling(0.8f); // Strong coupling
-                break;
-        }
-    }
-
-    private float calculateFamiliarity(EnvironmentProfile profile) {
-        String key = profile.getKey();
-        if (!environmentStacks.containsKey(key)) {
-            return 0.0f; // Completely unfamiliar
-        }
-
-        FeedbackStackMetrics metrics = environmentStacks.get(key).getMetrics();
-
-        // Familiarity based on success rate and experience
-        float successComponent = metrics.getSuccessRate();
-        float experienceComponent = Math.min(1.0f, metrics.total / 1000.0f);
-
-        return 0.7f * successComponent + 0.3f * experienceComponent;
-    }
-}
-```
-
----
-
-## Real-World Examples
-
-### Example 1: Drone Navigation
-
-```java
-public class DroneNavigationSystem {
-    private final StateTransitionOscillator oscillator;
-    private final ResonanceActionSelector selector;
-    private final LearningFeedbackStack feedbackStack;
-    private final DroneController drone;
-
-    public void navigateToTarget(GPS target) {
-        DroneState current = new DroneState(
-            drone.getGPS(),
-            drone.getIMU(),
-            drone.getBatteryLevel()
-        );
-
-        DroneGoal goal = new DroneGoal(
-            target,
-            FlightMode.EFFICIENT,
-            Priority.HIGH
-        );
-
-        while (!hasReachedTarget(target)) {
-            // Generate transition
-            StateTransition transition = oscillator.generateTransition(current, goal);
-
-            // Generate flight commands
-            List<ActionCandidate> commands = generateFlightCommands(transition);
-
-            // Select command
-            SelectedAction selected = selector.selectAction(current, goal, commands);
-
-            // Execute flight command
-            FlightCommand cmd = (FlightCommand) selected.action;
-            drone.execute(cmd);
-
-            // Process sensor feedback
-            SensorPacket sensors = drone.getSensorPacket();
-            FeedbackData feedback = new FeedbackData(
-                sensors.toArray(),
-                sensors.timestamp
-            );
-
-            ModulationSignal modulation = feedbackStack.processFeedback(feedback);
-
-            // Check for obstacles or wind
-            if (sensors.hasObstacle() || sensors.windSpeed > threshold) {
-                // Rapid adaptation needed
-                modulation = amplifyModulation(modulation, 2.0f);
-            }
-
-            // Learn from flight performance
-            float efficiency = calculateFlightEfficiency(sensors);
-            Effect effect = new Effect(efficiency > 0.7f, efficiency);
-            feedbackStack.learnFromEffect(modulation, effect);
-
-            // Apply modulation
-            oscillator.applyModulation(modulation);
-
-            // Update current state
-            current = new DroneState(
-                drone.getGPS(),
-                drone.getIMU(),
-                drone.getBatteryLevel()
-            );
-        }
-    }
-
-    private List<ActionCandidate> generateFlightCommands(StateTransition transition) {
-        List<ActionCandidate> commands = new ArrayList<>();
-
-        // Basic movements
-        commands.add(new FlightCommand("ascend", 0, 0, 1, 0));
-        commands.add(new FlightCommand("descend", 0, 0, -1, 0));
-        commands.add(new FlightCommand("forward", 1, 0, 0, 0));
-        commands.add(new FlightCommand("backward", -1, 0, 0, 0));
-        commands.add(new FlightCommand("left", 0, 1, 0, 0));
-        commands.add(new FlightCommand("right", 0, -1, 0, 0));
-        commands.add(new FlightCommand("rotate_cw", 0, 0, 0, 1));
-        commands.add(new FlightCommand("rotate_ccw", 0, 0, 0, -1));
-        commands.add(new FlightCommand("hover", 0, 0, 0, 0));
-
-        // Complex maneuvers based on transition
-        if (transition.strategy.intensity > 0.8f) {
-            commands.add(new FlightCommand("spiral_ascend", 1, 1, 1, 0.5f));
-            commands.add(new FlightCommand("quick_dodge", 2, 0, 0, 0));
-        }
-
-        return commands;
-    }
-}
-```
-
-### Example 2: Game AI - NPC Behavior
-
-```java
-public class NPCBehaviorSystem {
-    private final Map<String, StateTransitionOscillator> behaviorOscillators;
-    private final ResonanceActionSelector actionSelector;
-    private final Map<String, LearningFeedbackStack> emotionStacks;
-
-    public NPCBehaviorSystem() {
-        // Different oscillators for different behaviors
-        behaviorOscillators = Map.of(
-            "combat", new StateTransitionOscillator(),
-            "exploration", new StateTransitionOscillator(),
-            "social", new StateTransitionOscillator(),
-            "survival", new StateTransitionOscillator()
-        );
-
-        actionSelector = new ResonanceActionSelector();
-
-        // Emotion-driven feedback
-        emotionStacks = Map.of(
-            "fear", new LearningFeedbackStack("state", "fear"),
-            "anger", new LearningFeedbackStack("state", "anger"),
-            "curiosity", new LearningFeedbackStack("state", "curiosity"),
-            "joy", new LearningFeedbackStack("state", "joy")
-        );
-    }
-
-    public NPCAction decideBehavior(NPCState npc, GameWorld world) {
-        // Determine primary goal based on context
-        NPCGoal primaryGoal = determinePrimaryGoal(npc, world);
-
-        // Get relevant oscillator
-        StateTransitionOscillator oscillator = behaviorOscillators.get(
-            primaryGoal.getBehaviorType()
-        );
-
-        // Generate state transition
-        StateTransition transition = oscillator.generateTransition(
-            npc,
-            primaryGoal
-        );
-
-        // Generate possible actions
-        List<ActionCandidate> actions = new ArrayList<>();
-
-        // Combat actions
-        if (npc.isInCombat()) {
-            actions.add(new CombatAction("attack", npc.getTarget()));
-            actions.add(new CombatAction("defend", npc));
-            actions.add(new CombatAction("flee", findEscape(npc, world)));
-            actions.add(new CombatAction("call_help", npc.getAllies()));
-        }
-
-        // Social actions
-        if (npc.hasNearbyNPCs()) {
-            actions.add(new SocialAction("greet", npc.getNearestNPC()));
-            actions.add(new SocialAction("trade", npc.getTradePartner()));
-            actions.add(new SocialAction("follow", npc.getLeader()));
-        }
-
-        // Exploration actions
-        if (npc.isExploring()) {
-            actions.add(new ExploreAction("investigate", npc.getPointOfInterest()));
-            actions.add(new ExploreAction("patrol", npc.getPatrolRoute()));
-            actions.add(new ExploreAction("search", npc.getSearchArea()));
-        }
-
-        // Select action based on resonance
-        SelectedAction selected = actionSelector.selectAction(
-            npc,
-            primaryGoal,
-            actions
-        );
-
-        // Apply emotional modulation
-        applyEmotionalFeedback(npc, selected);
-
-        return (NPCAction) selected.action;
-    }
-
-    private void applyEmotionalFeedback(NPCState npc, SelectedAction action) {
-        // Get emotional state
-        EmotionalState emotions = npc.getEmotionalState();
-
-        // Process each emotion
-        for (Emotion emotion : emotions.getActiveEmotions()) {
-            float[] emotionVector = emotion.toVector();
-            FeedbackData feedback = new FeedbackData(
-                emotionVector,
-                System.currentTimeMillis()
-            );
-
-            LearningFeedbackStack stack = emotionStacks.get(emotion.getType());
-            ModulationSignal modulation = stack.processFeedback(feedback);
-
-            // Apply emotional modulation to relevant oscillator
-            String behaviorType = mapEmotionToBehavior(emotion);
-            behaviorOscillators.get(behaviorType).applyModulation(modulation);
+        // Execute trades following the plan
+        for (int i = 1; i < tradingPlan.size(); i++) {
+            State action = computeAction(tradingPlan.get(i-1), tradingPlan.get(i));
+            executeTrade(action);
         }
     }
 }
 ```
 
-### Example 3: Financial Trading
+### Scenario 3: Game AI Decision Making
 
 ```java
-public class TradingSystem {
-    private final StateTransitionOscillator marketOscillator;
-    private final ResonanceActionSelector tradeSelector;
-    private final Map<String, LearningFeedbackStack> assetFeedback;
+public class GameAIExample {
+    private TemporalGoalSeeker aiPlanner;
 
-    public TradingSystem(Portfolio portfolio) {
-        this.marketOscillator = new StateTransitionOscillator();
-        this.tradeSelector = new ResonanceActionSelector();
-        this.assetFeedback = new HashMap<>();
+    public void planStrategy() {
+        // Current game state
+        State gameState = new State(new double[]{
+            getPlayerHealth(), getPlayerMana(), getPlayerPosition(),
+            getEnemyHealth(), getEnemyPosition(), getObjectiveDistance()
+        });
 
-        // Configure for market frequencies
-        marketOscillator.setFrequency("Band1", 0.01f);  // Daily trends
-        marketOscillator.setFrequency("Band2", 0.1f);   // Hourly patterns
-        marketOscillator.setFrequency("Band3", 1.0f);   // Minute changes
-        marketOscillator.setFrequency("Band4", 10.0f);  // Second ticks
-        marketOscillator.setFrequency("Band5", 100.0f); // Millisecond updates
-    }
+        // Winning state
+        State winState = new State(new double[]{
+            1.0, // Full health
+            1.0, // Full mana
+            1.0, // At objective
+            0.0, // Enemy defeated
+            999, // Enemy far away
+            0.0  // At objective
+        });
 
-    public TradeDecision analyzeMarket(MarketState market, TradingGoal goal) {
-        // Generate market transition prediction
-        StateTransition prediction = marketOscillator.generateTransition(
-            market,
-            goal
-        );
+        // Generate strategy sequence
+        List<State> strategy = aiPlanner.generateTrajectory(gameState, winState);
 
-        // Generate trade candidates
-        List<ActionCandidate> trades = generateTradeCandidates(market, prediction);
-
-        // Select trade based on resonance
-        SelectedAction selected = tradeSelector.selectAction(
-            market,
-            goal,
-            trades
-        );
-
-        // Process market feedback for each asset
-        for (Asset asset : market.getAssets()) {
-            processAssetFeedback(asset);
+        // Learn from victories
+        if (gameWon()) {
+            aiPlanner.learnTrajectory(recordedStates, 1.0f);
         }
-
-        return new TradeDecision(selected);
-    }
-
-    private void processAssetFeedback(Asset asset) {
-        String symbol = asset.getSymbol();
-
-        LearningFeedbackStack stack = assetFeedback.computeIfAbsent(
-            symbol,
-            k -> new LearningFeedbackStack("market", symbol)
-        );
-
-        // Create feedback from price action
-        float[] priceData = {
-            asset.getPrice(),
-            asset.getVolume(),
-            asset.getVolatility(),
-            asset.getMomentum()
-        };
-
-        FeedbackData feedback = new FeedbackData(
-            priceData,
-            asset.getTimestamp()
-        );
-
-        ModulationSignal modulation = stack.processFeedback(feedback);
-
-        // Learn from profit/loss
-        float pnl = calculatePnL(asset);
-        Effect effect = new Effect(pnl > 0, Math.abs(pnl));
-        stack.learnFromEffect(modulation, effect);
-
-        // Apply market-specific modulation
-        marketOscillator.applyModulation(modulation);
-    }
-
-    private List<ActionCandidate> generateTradeCandidates(
-            MarketState market,
-            StateTransition prediction) {
-
-        List<ActionCandidate> trades = new ArrayList<>();
-
-        // Generate trades based on prediction confidence
-        float confidence = prediction.confidence;
-
-        if (confidence > 0.8f) {
-            // High confidence - larger positions
-            trades.add(new TradeAction("buy_large", 1000, market.getBestAsk()));
-            trades.add(new TradeAction("sell_large", 1000, market.getBestBid()));
-        }
-
-        if (confidence > 0.6f) {
-            // Medium confidence - normal positions
-            trades.add(new TradeAction("buy_medium", 500, market.getBestAsk()));
-            trades.add(new TradeAction("sell_medium", 500, market.getBestBid()));
-        }
-
-        // Always include small positions and hold
-        trades.add(new TradeAction("buy_small", 100, market.getBestAsk()));
-        trades.add(new TradeAction("sell_small", 100, market.getBestBid()));
-        trades.add(new TradeAction("hold", 0, 0));
-
-        // Market making
-        trades.add(new MarketMakeAction(
-            "make_market",
-            market.getMidPrice(),
-            market.getSpread()
-        ));
-
-        return trades;
     }
 }
 ```
@@ -840,87 +302,122 @@ public class TradingSystem {
 
 ## Performance Optimization
 
-### Parallel Processing
+### Using Vectorized Implementations
 
 ```java
-public class OptimizedGoalSeeker {
-    private final ForkJoinPool executorPool;
-    private final int parallelism;
+// For high-performance scenarios, use vectorized temporal modules
+import com.hellblazer.art.temporal.performance.VectorizedTemporalART;
 
-    public OptimizedGoalSeeker() {
-        this.parallelism = Runtime.getRuntime().availableProcessors();
-        this.executorPool = new ForkJoinPool(parallelism);
-    }
+// The TemporalGoalSeeker automatically uses vectorized implementations
+// when available for better performance
+```
 
-    public List<SelectedAction> selectMultipleActions(
-            List<SystemState> states,
-            List<GoalState> goals,
-            List<List<ActionCandidate>> candidateSets) {
+### Batch Learning
 
-        return executorPool.submit(() ->
-            IntStream.range(0, states.size())
-                .parallel()
-                .mapToObj(i -> {
-                    ResonanceActionSelector selector = new ResonanceActionSelector();
-                    return selector.selectAction(
-                        states.get(i),
-                        goals.get(i),
-                        candidateSets.get(i)
-                    );
-                })
-                .collect(Collectors.toList())
-        ).join();
-    }
+```java
+// Learn multiple trajectories in batch for efficiency
+List<List<State>> successfulTrajectories = loadTrajectories();
+
+for (var trajectory : successfulTrajectories) {
+    goalSeeker.learnTrajectory(trajectory, evaluateSuccess(trajectory));
 }
 ```
 
-### Caching and Memoization
+### Memory Management
 
 ```java
-public class CachedGoalSeeker {
-    private final Map<StateTransitionKey, StateTransition> transitionCache;
-    private final Map<SelectionKey, SelectedAction> selectionCache;
-    private final int maxCacheSize = 10000;
+// Configure working memory size for your use case
+var params = TemporalARTParameters.builder()
+    .workingMemorySize(100)  // Larger for complex trajectories
+    .maxCategories(1000)     // Limit pattern storage
+    .pruneThreshold(0.5f)    // Remove low-success patterns
+    .build();
+```
 
-    public StateTransition getCachedTransition(State from, State to) {
-        StateTransitionKey key = new StateTransitionKey(from, to);
+### Parallel Processing
 
-        return transitionCache.computeIfAbsent(key, k -> {
-            // Evict if cache too large
-            if (transitionCache.size() > maxCacheSize) {
-                evictOldestTransitions();
-            }
-            return oscillator.generateTransition(from, to);
+```java
+// Generate multiple trajectories in parallel
+CompletableFuture<List<State>> future1 =
+    CompletableFuture.supplyAsync(() -> goalSeeker.generateTrajectory(start1, goal1));
+CompletableFuture<List<State>> future2 =
+    CompletableFuture.supplyAsync(() -> goalSeeker.generateTrajectory(start2, goal2));
+
+CompletableFuture.allOf(future1, future2).join();
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Drone Path Planning
+
+```java
+public class DronePathPlanner {
+    private TemporalGoalSeeker pathPlanner;
+    private List<State> noFlyZones;
+
+    public List<State> planFlightPath(GPS start, GPS destination) {
+        // Convert GPS to state representation
+        State startState = gpsToState(start);
+        State goalState = gpsToState(destination);
+
+        // Generate initial path
+        List<State> path = pathPlanner.generateTrajectory(startState, goalState);
+
+        // Validate and adjust for no-fly zones
+        path = avoidNoFlyZones(path);
+
+        // Optimize for battery efficiency
+        path = optimizeForBattery(path);
+
+        return path;
+    }
+
+    private State gpsToState(GPS gps) {
+        return new State(new double[]{
+            gps.latitude, gps.longitude, gps.altitude,
+            0, 0, 0  // Initially no velocity
         });
     }
 }
 ```
 
-### Batch Processing
+### Example 2: Manufacturing Process Optimization
 
 ```java
-public class BatchProcessor {
-    public void processFeedbackBatch(List<FeedbackData> feedbacks) {
-        // Process in parallel batches
-        int batchSize = 100;
+public class ManufacturingOptimizer {
+    private TemporalGoalSeeker processPlanner;
 
-        for (int i = 0; i < feedbacks.size(); i += batchSize) {
-            int end = Math.min(i + batchSize, feedbacks.size());
-            List<FeedbackData> batch = feedbacks.subList(i, end);
+    public void optimizeProductionLine() {
+        // Current production state
+        State current = new State(new double[]{
+            getThroughput(), getQualityScore(), getEfficiency(),
+            getWasteRate(), getEnergyUsage(), getCost()
+        });
 
-            CompletableFuture<List<ModulationSignal>> future =
-                CompletableFuture.supplyAsync(() ->
-                    batch.parallelStream()
-                        .map(feedbackStack::processFeedback)
-                        .collect(Collectors.toList())
-                );
+        // Target optimal state
+        State optimal = new State(new double[]{
+            1.0,  // Maximum throughput
+            0.99, // High quality
+            0.95, // High efficiency
+            0.01, // Minimal waste
+            0.3,  // Low energy usage
+            0.2   // Low cost
+        });
 
-            // Apply modulations when ready
-            future.thenAccept(modulations -> {
-                for (ModulationSignal mod : modulations) {
-                    oscillator.applyModulation(mod);
-                }
-            });
+        // Generate optimization trajectory
+        List<State> optimizationPlan = processPlanner.generateTrajectory(current, optimal);
+
+        // Implement changes gradually
+        for (State targetState : optimizationPlan) {
+            adjustProductionParameters(targetState);
+            waitForStabilization();
+
+            // Learn from successful adjustments
+            if (improvementDetected()) {
+                processPlanner.learnTrajectory(getRecentStates(), getImprovement());
+            }
         }
     }
 }
@@ -932,112 +429,79 @@ public class BatchProcessor {
 
 ### Common Issues and Solutions
 
-#### Issue: Poor Action Selection
+#### Issue: No trajectory generated
 ```java
-// Symptom: Actions don't achieve goals
-// Solution: Increase resonance sensitivity
-selector.setResonanceAmplification(1.5f);
-selector.setExplorationRate(0.2f); // More exploration
-```
-
-#### Issue: Oscillator Instability
-```java
-// Symptom: Oscillations grow unbounded
-// Solution: Add damping
-oscillator.setDamping(0.1f); // 10% damping
-oscillator.setCouplingLimit(0.5f); // Limit coupling strength
-```
-
-#### Issue: Slow Learning
-```java
-// Symptom: Feedback doesn't improve performance
-// Solution: Adjust learning parameters
-feedbackStack.setLearningRate(0.2f); // Increase from default
-feedbackStack.setVigilance(0.5f); // Less selective
-```
-
-#### Issue: Memory Overflow
-```java
-// Symptom: OutOfMemoryError with large pattern memory
-// Solution: Implement memory management
-selector.setMaxPatternMemory(1000);
-if (selector.getPatternMemorySize() > 900) {
-    selector.pruneOldestPatterns(100);
+// Solution: Check if patterns have been learned
+if (goalSeeker.getStatistics().categoriesLearned == 0) {
+    // No patterns learned yet - train with examples
+    trainWithExamples(goalSeeker);
 }
 ```
 
-### Debugging Tools
-
+#### Issue: Generated trajectories are too long
 ```java
-public class GoalSeekingDebugger {
-    public void debugOscillatorState(StateTransitionOscillator oscillator) {
-        Map<String, OscillatorState> states = oscillator.getOscillatorStates();
+// Solution: Adjust parameters for more direct paths
+var params = TemporalARTParameters.builder()
+    .stepSize(0.2f)           // Larger steps
+    .convergenceThreshold(0.05f) // Less precision
+    .build();
+```
 
-        for (Map.Entry<String, OscillatorState> entry : states.entrySet()) {
-            System.out.printf("%s: phase=%.2f, amp=%.2f, freq=%.2f%n",
-                entry.getKey(),
-                entry.getValue().phase,
-                entry.getValue().amplitude,
-                entry.getValue().frequency
-            );
-        }
-    }
-
-    public void debugResonance(SelectedAction action) {
-        System.out.println("Selected: " + action.action);
-        System.out.println("Resonance: " + action.resonanceScore);
-        System.out.println("Confidence: " + action.confidence);
-
-        for (Map.Entry<String, Float> detail : action.evaluationDetails.entrySet()) {
-            System.out.printf("  %s: %.3f%n", detail.getKey(), detail.getValue());
-        }
-    }
-
-    public void debugLearning(LearningFeedbackStack stack) {
-        FeedbackStackMetrics metrics = stack.getMetrics();
-        System.out.printf("Success rate: %.1f%%%n", metrics.getSuccessRate() * 100);
-        System.out.println("Categories: " + metrics.categories);
-        System.out.println("Total trials: " + metrics.total);
-        System.out.println("Learning rate: " + metrics.learningRate);
-        System.out.println("Vigilance: " + metrics.vigilance);
-    }
+#### Issue: System not learning from trajectories
+```java
+// Solution: Check success threshold
+// Only trajectories with success > 0.5 are learned
+float success = evaluateTrajectory(trajectory);
+if (success > 0.5f) {
+    goalSeeker.learnTrajectory(trajectory, success);
+} else {
+    System.out.println("Trajectory not successful enough: " + success);
 }
 ```
 
-### Performance Profiling
+#### Issue: Pattern adaptation not working
+```java
+// Solution: Adjust similarity threshold
+var params = TemporalARTParameters.builder()
+    .vigilance(0.7f)  // Lower threshold for more flexible matching
+    .build();
+```
+
+### Performance Monitoring
 
 ```java
-public class PerformanceProfiler {
-    private final Map<String, Long> timings = new HashMap<>();
+// Monitor system performance
+var stats = goalSeeker.getStatistics();
+System.out.println("Categories learned: " + stats.categoriesLearned);
+System.out.println("Sequences generated: " + stats.sequencesGenerated);
+System.out.println("Average success: " + stats.averageSuccess);
+```
 
-    public void profile(String operation, Runnable task) {
-        long start = System.nanoTime();
-        task.run();
-        long duration = System.nanoTime() - start;
+### Debug Output
 
-        timings.merge(operation, duration, Long::sum);
-    }
-
-    public void printProfile() {
-        System.out.println("Performance Profile:");
-        timings.entrySet().stream()
-            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-            .forEach(e -> System.out.printf("%s: %.2f ms%n",
-                e.getKey(),
-                e.getValue() / 1_000_000.0
-            ));
-    }
-
-    // Usage
-    public void profiledGoalSeeking() {
-        profile("transition", () -> oscillator.generateTransition(current, goal));
-        profile("selection", () -> selector.selectAction(current, goal, candidates));
-        profile("feedback", () -> feedbackStack.processFeedback(feedback));
-        profile("learning", () -> feedbackStack.learnFromEffect(modulation, effect));
-    }
-}
+```java
+// Enable detailed logging
+Logger logger = LoggerFactory.getLogger(TemporalGoalSeeker.class);
+((ch.qos.logback.classic.Logger)logger).setLevel(Level.DEBUG);
 ```
 
 ---
 
-*This guide provides comprehensive examples for using the Goal-Seeking Neural Architecture. For additional support, see the [API Documentation](API.md) or [Architecture Guide](ARCHITECTURE.md).*
+## Best Practices
+
+1. **Start with simple trajectories** - Train on easy examples first
+2. **Learn incrementally** - Add complexity gradually
+3. **Monitor success rates** - Track what works
+4. **Tune parameters for your domain** - Adjust vigilance, learning rate
+5. **Use appropriate state representations** - Normalize values to [0,1]
+6. **Provide diverse training examples** - Cover various scenarios
+7. **Clean up old patterns** - Reset periodically if needed
+
+---
+
+## Further Resources
+
+- [API Documentation](./docs/api)
+- [Architecture Overview](./README.md)
+- [Test Examples](./src/test/java/com/hellblazer/art/goal/temporal)
+- [Research Papers](./docs/papers)
