@@ -44,6 +44,7 @@
         <module>gpu-test-framework</module>
         <module>art-markov</module>
         <module>art-temporal</module>
+        <module>art-laminar</module>
         <!-- art-hybrid removed: broken complement coding, see experimental profile -->
         <module>resource</module>
     </modules>
