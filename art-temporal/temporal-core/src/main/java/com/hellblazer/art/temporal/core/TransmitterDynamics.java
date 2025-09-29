@@ -42,21 +42,12 @@ public final class TransmitterDynamics implements DynamicalSystem<TransmitterSta
             derivatives[i] = recovery + depletion;
         }
 
-        // Create new state with updated levels (this would be integrated properly)
-        var newLevels = new double[transmitters.length];
-        for (int i = 0; i < transmitters.length; i++) {
-            newLevels[i] = transmitters[i] + derivatives[i] * 0.01; // Small time step
-            newLevels[i] = Math.max(0.0, Math.min(1.0, newLevels[i])); // Bound [0,1]
-        }
+        // DEBUG: Print derivatives to verify correctness
+        // System.err.println("TransmitterDynamics derivatives: " + java.util.Arrays.toString(derivatives));
 
-        var depletionHistory = state.getDepletionHistory();
-        for (int i = 0; i < transmitters.length; i++) {
-            if (transmitters[i] - newLevels[i] > 0) {
-                depletionHistory[i] += transmitters[i] - newLevels[i];
-            }
-        }
-
-        return new TransmitterState(newLevels, signals, depletionHistory);
+        // Return state with derivatives in the transmitter levels array
+        // The integrator will handle the actual integration
+        return new TransmitterState(derivatives, signals, state.getDepletionHistory());
     }
 
     @Override
@@ -145,6 +136,27 @@ public final class TransmitterDynamics implements DynamicalSystem<TransmitterSta
         lateAvg /= (transmitters.length - midpoint);
 
         return (earlyAvg - lateAvg) / (earlyAvg + lateAvg + 1e-10);
+    }
+
+    /**
+     * Override step to add proper clamping for transmitter levels.
+     */
+    @Override
+    public TransmitterState step(TransmitterState state, TransmitterParameters parameters, double time, double dt) {
+        var derivative = computeDerivative(state, parameters, time);
+        @SuppressWarnings("unchecked")
+        var scaledDerivative = (TransmitterState) derivative.scale(dt);
+        @SuppressWarnings("unchecked")
+        var newState = (TransmitterState) state.add(scaledDerivative);
+
+        // Clamp transmitter levels to [0, 1]
+        var levels = newState.getTransmitterLevels();
+        var clamped = new double[levels.length];
+        for (int i = 0; i < levels.length; i++) {
+            clamped[i] = Math.max(0.0, Math.min(1.0, levels[i]));
+        }
+
+        return new TransmitterState(clamped, newState.getPresynapticSignals(), newState.getDepletionHistory());
     }
 
     /**

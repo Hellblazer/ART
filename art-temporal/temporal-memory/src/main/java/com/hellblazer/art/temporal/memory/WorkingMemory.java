@@ -70,11 +70,15 @@ public class WorkingMemory {
         excitatory[currentPosition] = primacyActivation * inputStrength;
         shuntingState = new ShuntingState(shuntingState.getActivations(), excitatory);
 
-        // Update transmitter state with strong signal for visible depletion
-        transmitterState.setPresynapticSignal(currentPosition, inputStrength * 5.0);
+        // Set transmitter signal for THIS position only
+        // (Previous positions should have their signals at zero after their storage period)
+        transmitterState.setPresynapticSignal(currentPosition, inputStrength);
 
         // Evolve dynamics for duration
         evolveDynamics(duration);
+
+        // After evolution, clear this position's transmitter signal so it doesn't continue depleting
+        transmitterState.setPresynapticSignal(currentPosition, 0.0);
 
         currentPosition++;
         currentTime += duration;
@@ -133,25 +137,35 @@ public class WorkingMemory {
 
         var transmitterParams = TransmitterParameters.builder()
             .epsilon(parameters.getTransmitterRecoveryRate())
-            .lambda(parameters.getTransmitterDepletionLinear() * 10.0)  // Much stronger depletion
-            .mu(parameters.getTransmitterDepletionQuadratic() * 10.0)
+            .lambda(parameters.getTransmitterDepletionLinear())
+            .mu(parameters.getTransmitterDepletionQuadratic())
             .depletionThreshold(0.2)
             .initialLevel(1.0)
             .enableQuadratic(true)
             .build();
 
+        // Multi-scale integration: fast shunting, slow transmitters
+        // Shunting runs every step, transmitters run every 10 steps
+        // IMPORTANT: Don't apply gating during integration - it prevents activation buildup
+        int transmitterUpdateInterval = 10;
+
         for (int i = 0; i < steps; i++) {
-            // Update shunting dynamics
+            // Update shunting dynamics (fast time scale: ~10ms)
             shuntingState = shuntingDynamics.step(shuntingState, shuntingParams, currentTime, dt);
 
-            // Update transmitter dynamics with active signals for depletion
-            transmitterState = transmitterDynamics.step(transmitterState, transmitterParams, currentTime, dt);
-
-            // Apply transmitter gating to shunting activations
-            applyTransmitterGating();
+            // Update transmitter dynamics periodically (slow time scale: ~500ms)
+            if (i % transmitterUpdateInterval == 0) {
+                // Use larger time step for transmitters to match their slow time scale
+                transmitterState = transmitterDynamics.step(transmitterState, transmitterParams,
+                                                            currentTime, dt * transmitterUpdateInterval);
+            }
 
             currentTime += dt;
         }
+
+        // Apply transmitter gating ONCE at the end after activations have stabilized
+        // This creates the primacy gradient without preventing activation buildup
+        applyTransmitterGating();
     }
 
     /**

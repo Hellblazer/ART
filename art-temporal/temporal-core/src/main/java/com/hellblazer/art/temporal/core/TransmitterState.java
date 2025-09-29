@@ -11,7 +11,9 @@ public class TransmitterState extends State {
     private final double[] depletionHistory;   // Track cumulative depletion for reset decisions
 
     public TransmitterState(double[] transmitterLevels, double[] presynapticSignals, double[] depletionHistory) {
-        validateTransmitterLevels(transmitterLevels);
+        // NOTE: Validation removed to allow RK4 intermediate stages and derivatives
+        // which can be outside [0,1]. Final integrated values are clamped by the integrator.
+        // validateTransmitterLevels(transmitterLevels);
         this.transmitterLevels = transmitterLevels.clone();
         this.presynapticSignals = presynapticSignals.clone();
         this.depletionHistory = depletionHistory != null ? depletionHistory.clone() : new double[transmitterLevels.length];
@@ -105,10 +107,9 @@ public class TransmitterState extends State {
 
         var result = vectorizedOperation(transmitterLevels, t.transmitterLevels, (a, b) -> a.add(b));
 
-        // Clamp result to [0, 1] range for transmitter levels
-        for (int i = 0; i < result.length; i++) {
-            result[i] = Math.max(0.0, Math.min(1.0, result[i]));
-        }
+        // NOTE: We don't clamp here because this operation is used during RK4 integration
+        // where intermediate values (derivatives) can be outside [0,1].
+        // The integrator will clamp the final result if needed.
 
         var signals = vectorizedOperation(presynapticSignals, t.presynapticSignals, (a, b) -> a.add(b));
 
@@ -119,8 +120,9 @@ public class TransmitterState extends State {
     public State scale(double scalar) {
         var result = new double[transmitterLevels.length];
         for (int i = 0; i < transmitterLevels.length; i++) {
-            result[i] = Math.min(1.0, Math.max(0.0, transmitterLevels[i] * scalar));
+            result[i] = transmitterLevels[i] * scalar;
         }
+        // NOTE: No clamping - derivatives and intermediate RK4 stages need to be unclamped
         return new TransmitterState(result, presynapticSignals, depletionHistory);
     }
 
