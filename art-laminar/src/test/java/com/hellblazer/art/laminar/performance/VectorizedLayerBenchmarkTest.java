@@ -8,6 +8,7 @@ import com.hellblazer.art.laminar.layers.Layer6Implementation;
 import com.hellblazer.art.laminar.parameters.Layer4Parameters;
 import com.hellblazer.art.laminar.parameters.Layer5Parameters;
 import com.hellblazer.art.laminar.parameters.Layer6Parameters;
+import com.hellblazer.art.performance.VectorizedArrayOperations;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with Java ART Neural Networks. If not, see <https://www.gnu.org/licenses/>.
  */
-package com.hellblazer.art.laminar.performance;
+package com.hellblazer.art.performance;
 
 import jdk.incubator.vector.DoubleVector;
 import jdk.incubator.vector.VectorOperators;

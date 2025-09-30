@@ -7,7 +7,7 @@ import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer4Parameters;
 import com.hellblazer.art.laminar.parameters.LayerParameters;
-import com.hellblazer.art.laminar.performance.VectorizedArrayOperations;
+import com.hellblazer.art.performance.VectorizedArrayOperations;
 import com.hellblazer.art.temporal.core.ActivationState;
 import com.hellblazer.art.temporal.dynamics.ShuntingDynamicsImpl;
 import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
