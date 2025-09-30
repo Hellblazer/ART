@@ -3,6 +3,8 @@ package com.hellblazer.art.laminar.layers;
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.laminar.batch.BatchLayer;
+import com.hellblazer.art.laminar.batch.Layer5SIMDBatch;
+import com.hellblazer.art.laminar.batch.StatefulBatchProcessor;
 import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer5Parameters;
@@ -34,7 +36,7 @@ import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
  *
  * @author Hal Hildebrand
  */
-public class Layer5Implementation extends AbstractLayer implements BatchLayer {
+public class Layer5Implementation extends AbstractLayer implements BatchLayer, StatefulBatchProcessor {
 
     private ShuntingDynamicsImpl mediumDynamics;
     private Layer5Parameters currentParameters;
@@ -217,6 +219,35 @@ public class Layer5Implementation extends AbstractLayer implements BatchLayer {
     // ==================== Batch Processing Implementation ====================
 
     @Override
+    public Pattern processWithStatefulSIMD(Pattern input, LayerParameters parameters) {
+        if (!isStatefulSIMDBeneficial(input)) {
+            return processBottomUp(input, parameters);
+        }
+
+        var layer5Params = (parameters instanceof Layer5Parameters) ?
+            (Layer5Parameters) parameters : Layer5Parameters.builder().build();
+
+        // Create single-pattern batch with previous state
+        var batch = new Pattern[]{input};
+        Pattern[] previousStates = null;
+        if (previousActivation != null) {
+            previousStates = new Pattern[]{new DenseVector(previousActivation.clone())};
+        }
+
+        var simdOutputs = Layer5SIMDBatch.processBatchSIMD(batch, previousStates, layer5Params, size);
+
+        if (simdOutputs != null) {
+            // Update state
+            activation = simdOutputs[0];
+            previousActivation = ((DenseVector) simdOutputs[0]).data().clone();
+            return simdOutputs[0];
+        }
+
+        // Fall back to scalar
+        return processBottomUp(input, parameters);
+    }
+
+    @Override
     public Pattern[] processBatchBottomUp(Pattern[] inputs, LayerParameters parameters) {
         if (inputs == null || inputs.length == 0) {
             throw new IllegalArgumentException("inputs cannot be null or empty");
@@ -225,9 +256,23 @@ public class Layer5Implementation extends AbstractLayer implements BatchLayer {
             throw new NullPointerException("parameters cannot be null");
         }
 
-        // Use Layer5Parameters
         var layer5Params = (parameters instanceof Layer5Parameters) ?
             (Layer5Parameters) parameters : Layer5Parameters.builder().build();
+
+        // Phase 6A: Stateful batch processing
+        var batchSize = inputs.length;
+        var outputs = new Pattern[batchSize];
+
+        for (int i = 0; i < batchSize; i++) {
+            outputs[i] = processWithStatefulSIMD(inputs[i], layer5Params);
+        }
+
+        return outputs;
+    }
+
+    @Deprecated
+    private Pattern[] processBatchBottomUpLegacy(Pattern[] inputs, LayerParameters parameters) {
+        var layer5Params = (Layer5Parameters) parameters;
 
         // Create previous states array from current previousActivation
         Pattern[] previousStates = null;
@@ -239,8 +284,7 @@ public class Layer5Implementation extends AbstractLayer implements BatchLayer {
         }
 
         // Try SIMD batch processing (Phase 3 optimization)
-        var simdOutputs = com.hellblazer.art.laminar.batch.Layer5SIMDBatch.processBatchSIMD(
-            inputs, previousStates, layer5Params, size);
+        var simdOutputs = Layer5SIMDBatch.processBatchSIMD(inputs, previousStates, layer5Params, size);
 
         if (simdOutputs != null) {
             // SIMD path was beneficial - use it

@@ -306,4 +306,21 @@ public class BatchDataLayout {
     public static int getVectorLaneSize() {
         return SPECIES.length();
     }
+
+    /**
+     * Convert dimension-major array to Pattern array.
+     *
+     * @param dimensionMajor dimension-major array [dimension][batchSize]
+     * @param batchSize number of patterns
+     * @param dimension pattern dimension
+     * @return Pattern array [batchSize]
+     */
+    public static Pattern[] dimensionMajorToPatterns(double[][] dimensionMajor, int batchSize, int dimension) {
+        var patternMajor = transposeToPatternMajor(dimensionMajor);
+        var patterns = new Pattern[batchSize];
+        for (int i = 0; i < batchSize; i++) {
+            patterns[i] = new com.hellblazer.art.core.DenseVector(patternMajor[i]);
+        }
+        return patterns;
+    }
 }

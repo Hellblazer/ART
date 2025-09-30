@@ -3,6 +3,8 @@ package com.hellblazer.art.laminar.layers;
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
 import com.hellblazer.art.laminar.batch.BatchLayer;
+import com.hellblazer.art.laminar.batch.Layer6SIMDBatch;
+import com.hellblazer.art.laminar.batch.StatefulBatchProcessor;
 import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer6Parameters;
@@ -36,7 +38,7 @@ import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
  *
  * @author Hal Hildebrand
  */
-public class Layer6Implementation extends AbstractLayer implements BatchLayer {
+public class Layer6Implementation extends AbstractLayer implements BatchLayer, StatefulBatchProcessor {
 
     private ShuntingDynamicsImpl slowDynamics;
     private Layer6Parameters currentParameters;
@@ -284,6 +286,28 @@ public class Layer6Implementation extends AbstractLayer implements BatchLayer {
     // ==================== Batch Processing Implementation ====================
 
     @Override
+    public Pattern processWithStatefulSIMD(Pattern input, LayerParameters parameters) {
+        if (!isStatefulSIMDBeneficial(input)) {
+            return processBottomUp(input, parameters);
+        }
+
+        var layer6Params = (parameters instanceof Layer6Parameters) ?
+            (Layer6Parameters) parameters : Layer6Parameters.builder().build();
+
+        // Create single-pattern batch with top-down expectation
+        var batch = new Pattern[]{input};
+        var topDownBatch = new Pattern[]{topDownExpectation};
+        var simdOutputs = Layer6SIMDBatch.processBatchSIMD(batch, topDownBatch, layer6Params, size);
+
+        if (simdOutputs != null) {
+            activation = simdOutputs[0];
+            return simdOutputs[0];
+        }
+
+        return processBottomUp(input, parameters);
+    }
+
+    @Override
     public Pattern[] processBatchBottomUp(Pattern[] inputs, LayerParameters parameters) {
         if (inputs == null || inputs.length == 0) {
             throw new IllegalArgumentException("inputs cannot be null or empty");
@@ -292,37 +316,15 @@ public class Layer6Implementation extends AbstractLayer implements BatchLayer {
             throw new NullPointerException("parameters cannot be null");
         }
 
-        // Use Layer6Parameters
         var layer6Params = (parameters instanceof Layer6Parameters) ?
             (Layer6Parameters) parameters : Layer6Parameters.builder().build();
 
-        // Create top-down expectations array (same for all patterns in batch)
-        Pattern[] topDownExpectations = new Pattern[inputs.length];
-        for (int i = 0; i < inputs.length; i++) {
-            topDownExpectations[i] = topDownExpectation;
-        }
-
-        // Try SIMD batch processing (Phase 3 optimization)
-        var simdOutputs = com.hellblazer.art.laminar.batch.Layer6SIMDBatch.processBatchSIMD(
-            inputs, topDownExpectations, layer6Params, size);
-
-        if (simdOutputs != null) {
-            // SIMD path was beneficial - use it
-            if (simdOutputs.length > 0) {
-                activation = simdOutputs[simdOutputs.length - 1];
-            }
-            return simdOutputs;
-        }
-
-        // Fall back to sequential processing (Phase 2)
-        updateDynamicsParameters(layer6Params);
-
+        // Phase 6A: Stateful batch processing
         var batchSize = inputs.length;
         var outputs = new Pattern[batchSize];
 
-        // Process each pattern
         for (int i = 0; i < batchSize; i++) {
-            outputs[i] = processBottomUp(inputs[i], layer6Params);
+            outputs[i] = processWithStatefulSIMD(inputs[i], layer6Params);
         }
 
         return outputs;
