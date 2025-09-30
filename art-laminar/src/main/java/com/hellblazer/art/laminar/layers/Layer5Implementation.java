@@ -6,6 +6,7 @@ import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer5Parameters;
 import com.hellblazer.art.laminar.parameters.LayerParameters;
+import com.hellblazer.art.laminar.performance.VectorizedArrayOperations;
 import com.hellblazer.art.temporal.core.ActivationState;
 import com.hellblazer.art.temporal.dynamics.ShuntingDynamicsImpl;
 import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
@@ -73,16 +74,17 @@ public class Layer5Implementation extends AbstractLayer {
             inputArray[i] = input.get(i);
         }
 
-        // Apply amplification gain to input
+        // Apply amplification gain to input (vectorized)
         var amplificationGain = currentParameters.getAmplificationGain();
-        for (int i = 0; i < inputArray.length; i++) {
-            inputArray[i] *= amplificationGain;
-        }
+        VectorizedArrayOperations.scaleInPlace(inputArray, amplificationGain);
 
-        // Check for burst firing conditions
+        // Check for burst firing conditions and apply burst amplification
+        var burstThreshold = currentParameters.getBurstThreshold();
+        var burstAmplification = currentParameters.getBurstAmplification();
+
         boolean shouldBurst = false;
         for (int i = 0; i < inputArray.length; i++) {
-            if (inputArray[i] > currentParameters.getBurstThreshold()) {
+            if (inputArray[i] > burstThreshold) {
                 shouldBurst = true;
                 break;
             }
@@ -91,8 +93,8 @@ public class Layer5Implementation extends AbstractLayer {
         // Apply burst amplification if needed
         if (shouldBurst) {
             for (int i = 0; i < inputArray.length; i++) {
-                if (inputArray[i] > currentParameters.getBurstThreshold()) {
-                    inputArray[i] *= currentParameters.getBurstAmplification();
+                if (inputArray[i] > burstThreshold) {
+                    inputArray[i] *= burstAmplification;
                 }
             }
         }
@@ -100,49 +102,40 @@ public class Layer5Implementation extends AbstractLayer {
         // Set as excitatory input for medium dynamics
         mediumDynamics.setExcitatoryInput(inputArray);
 
-        // Use previous activation blended with new input for state persistence
-        var blendedState = new double[size];
+        // Use previous activation blended with new input for state persistence (vectorized)
         var persistence = 1.0 - currentParameters.getDecayRate() * 0.01;  // Convert to time step
-        for (int i = 0; i < size; i++) {
-            blendedState[i] = inputArray[i] + previousActivation[i] * persistence;
-        }
+        var decayedPrev = VectorizedArrayOperations.scale(previousActivation, persistence);
+        var blendedState = VectorizedArrayOperations.add(inputArray, decayedPrev);
         var currentState = new ActivationState(blendedState);
 
         // Evolve with medium time constant
         var timeStep = currentParameters.getTimeConstant() / 10000.0;  // Convert ms to seconds, use smaller step
         var evolvedState = mediumDynamics.evolve(currentState, timeStep);
 
-        // Apply output gain and normalization
+        // Apply output gain and normalization (vectorized)
         var result = evolvedState.getActivations();
         var outputGain = currentParameters.getOutputGain();
         var normalization = currentParameters.getOutputNormalization();
 
-        // Calculate sum for normalization
-        double sum = 0.0;
-        for (int i = 0; i < result.length; i++) {
-            result[i] *= outputGain;
-            sum += result[i];
-        }
+        // Apply output gain (vectorized)
+        VectorizedArrayOperations.scaleInPlace(result, outputGain);
+
+        // Calculate sum for normalization (vectorized)
+        var sum = VectorizedArrayOperations.sum(result);
 
         // Apply normalization if sum is significant
         if (sum > 0.01 && normalization > 0) {
             var normalizer = 1.0 / (1.0 + normalization * sum);
-            for (int i = 0; i < result.length; i++) {
-                result[i] *= normalizer;
-            }
+            VectorizedArrayOperations.scaleInPlace(result, normalizer);
         }
 
-        // Apply ceiling and floor constraints
-        for (int i = 0; i < result.length; i++) {
-            // Only apply ceiling if value exceeds it
-            if (result[i] > currentParameters.getCeiling()) {
-                result[i] = currentParameters.getCeiling();
-            }
-            result[i] = Math.max(currentParameters.getFloor(), result[i]);
+        // Apply ceiling and floor constraints (vectorized)
+        var ceiling = currentParameters.getCeiling();
+        var floor = currentParameters.getFloor();
+        VectorizedArrayOperations.clampInPlace(result, floor, ceiling);
 
-            // Store for state persistence
-            previousActivation[i] = result[i];
-        }
+        // Store for state persistence
+        System.arraycopy(result, 0, previousActivation, 0, result.length);
 
         // Update activation and notify listeners
         activation = new DenseVector(result);

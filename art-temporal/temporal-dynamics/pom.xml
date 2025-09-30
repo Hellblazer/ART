@@ -21,6 +21,11 @@
             <groupId>com.hellblazer.art</groupId>
             <artifactId>temporal-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.hellblazer.art</groupId>
+            <artifactId>art-laminar</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Math Libraries -->
         <dependency>

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,12 +28,14 @@ class TemporalChunkingTest extends CanonicalCircuitTestBase {
     private MockLayer baseLayer;
     private TemporalChunkingLayerDecorator chunkingLayer;
     private ChunkingParameters parameters;
+    private Random random;  // Deterministic random for reproducibility
 
     @BeforeEach
     void setUp() {
         baseLayer = new MockLayer(10);
         parameters = ChunkingParameters.paperDefaults();
         chunkingLayer = new TemporalChunkingLayerDecorator(baseLayer, parameters);
+        random = new Random(42);  // Fixed seed for reproducibility
     }
 
     @Test
@@ -99,11 +102,11 @@ class TemporalChunkingTest extends CanonicalCircuitTestBase {
 
         chunkingLayer = new TemporalChunkingLayerDecorator(baseLayer, params);
 
-        // Add incoherent patterns (random normalized patterns)
-        // Each pattern has L2 norm ~1.0 but patterns are uncorrelated
+        // Add truly incoherent patterns (orthogonal patterns for guaranteed low coherence)
+        // Each pattern activates different dimensions with no overlap
         for (int i = 0; i < 5; i++) {
-            var randomPattern = createNormalizedRandomPattern();
-            chunkingLayer.processWithChunking(randomPattern, 0.01);
+            var orthogonalPattern = createOrthogonalPattern(i);
+            chunkingLayer.processWithChunking(orthogonalPattern, 0.01);
         }
 
         assertFalse(chunkingLayer.shouldFormChunk(),
@@ -506,10 +509,25 @@ class TemporalChunkingTest extends CanonicalCircuitTestBase {
         return new DenseVector(values);
     }
 
+    /**
+     * Create orthogonal patterns where each pattern activates different dimensions.
+     * This guarantees near-zero cosine similarity between consecutive patterns.
+     */
+    private Pattern createOrthogonalPattern(int index) {
+        double[] values = new double[baseLayer.size()];
+        // Each pattern activates 2 dimensions: index and index+1 (mod size)
+        // This ensures consecutive patterns have zero overlap
+        int dim1 = (index * 2) % baseLayer.size();
+        int dim2 = (index * 2 + 1) % baseLayer.size();
+        values[dim1] = 0.7;  // Strong activation
+        values[dim2] = 0.7;  // Strong activation
+        return new DenseVector(values);
+    }
+
     private Pattern createRandomPattern() {
         double[] values = new double[baseLayer.size()];
         for (int i = 0; i < values.length; i++) {
-            values[i] = Math.random();
+            values[i] = random.nextDouble();
         }
         return new DenseVector(values);
     }
@@ -520,7 +538,7 @@ class TemporalChunkingTest extends CanonicalCircuitTestBase {
 
         // Generate random values
         for (int i = 0; i < values.length; i++) {
-            values[i] = Math.random();
+            values[i] = random.nextDouble();
             sumSquares += values[i] * values[i];
         }
 
@@ -538,7 +556,7 @@ class TemporalChunkingTest extends CanonicalCircuitTestBase {
     private Pattern addNoise(Pattern base, double noiseLevel) {
         double[] values = new double[base.dimension()];
         for (int i = 0; i < values.length; i++) {
-            values[i] = base.get(i) + (Math.random() - 0.5) * 2 * noiseLevel;
+            values[i] = base.get(i) + (random.nextDouble() - 0.5) * 2 * noiseLevel;
             values[i] = Math.max(0.0, Math.min(1.0, values[i]));
         }
         return new DenseVector(values);

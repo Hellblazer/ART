@@ -2,10 +2,12 @@ package com.hellblazer.art.laminar.layers;
 
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.laminar.batch.BatchLayer;
 import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer4Parameters;
 import com.hellblazer.art.laminar.parameters.LayerParameters;
+import com.hellblazer.art.laminar.performance.VectorizedArrayOperations;
 import com.hellblazer.art.temporal.core.ActivationState;
 import com.hellblazer.art.temporal.dynamics.ShuntingDynamicsImpl;
 import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
@@ -23,10 +25,11 @@ import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
  * - Simple feedforward processing
  * - Minimal lateral inhibition in basic circuits
  * - Direct transformation of thalamic input to cortical representation
+ * - Batch processing support for efficient multi-pattern processing
  *
  * @author Hal Hildebrand
  */
-public class Layer4Implementation extends AbstractLayer {
+public class Layer4Implementation extends AbstractLayer implements BatchLayer {
 
     private ShuntingDynamicsImpl fastDynamics;
     private Layer4Parameters currentParameters;
@@ -59,17 +62,16 @@ public class Layer4Implementation extends AbstractLayer {
         // Update shunting dynamics parameters based on Layer4Parameters
         updateDynamicsParameters(currentParameters);
 
-        // Convert input to activation array
+        // Convert input to activation array and apply driving strength
         var inputArray = new double[size];
         for (int i = 0; i < Math.min(input.dimension(), size); i++) {
             inputArray[i] = input.get(i);
         }
 
         // Apply driving strength to input (Layer 4 receives strong thalamic drive)
+        // Use vectorized scaling for performance
         var drivingStrength = currentParameters.getDrivingStrength();
-        for (int i = 0; i < inputArray.length; i++) {
-            inputArray[i] *= drivingStrength;
-        }
+        VectorizedArrayOperations.scaleInPlace(inputArray, drivingStrength);
 
         // Set as excitatory input for fast dynamics
         fastDynamics.setExcitatoryInput(inputArray);
@@ -82,18 +84,22 @@ public class Layer4Implementation extends AbstractLayer {
         var timeStep = Math.min(currentParameters.getTimeConstant() / 1000.0, 0.01); // Cap at 10ms
         var evolvedState = fastDynamics.evolve(currentState, timeStep);
 
-        // Apply ceiling and floor constraints
+        // Apply ceiling and floor constraints with soft sigmoid saturation
         var result = evolvedState.getActivations();
+        var ceiling = currentParameters.getCeiling();
+        var floor = currentParameters.getFloor();
+
+        // Apply soft sigmoid saturation for biological plausibility
+        // Maps unbounded activation to [0, ceiling] range
         for (int i = 0; i < result.length; i++) {
-            // Apply soft sigmoid saturation for biological plausibility
-            // Maps unbounded activation to [0, ceiling] range
             if (result[i] > 0) {
-                var ceiling = currentParameters.getCeiling();
                 // Sigmoid: ceiling * x / (1 + x) for x > 0
                 result[i] = ceiling * result[i] / (1.0 + result[i]);
             }
-            result[i] = Math.max(currentParameters.getFloor(), result[i]);
         }
+
+        // Vectorized floor constraint
+        VectorizedArrayOperations.clampInPlace(result, floor, ceiling);
 
         // Update activation and return
         activation = new DenseVector(result);
@@ -158,5 +164,88 @@ public class Layer4Implementation extends AbstractLayer {
             array[i] = pattern.get(i);
         }
         return array;
+    }
+
+    // ==================== Batch Processing Implementation ====================
+
+    @Override
+    public Pattern[] processBatchBottomUp(Pattern[] inputs, LayerParameters parameters) {
+        if (inputs == null || inputs.length == 0) {
+            throw new IllegalArgumentException("inputs cannot be null or empty");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("parameters cannot be null");
+        }
+
+        // Use Layer4Parameters
+        var layer4Params = (parameters instanceof Layer4Parameters) ?
+            (Layer4Parameters) parameters : Layer4Parameters.builder().build();
+
+        // Update dynamics parameters once for entire batch
+        updateDynamicsParameters(layer4Params);
+
+        var batchSize = inputs.length;
+        var outputs = new Pattern[batchSize];
+        var drivingStrength = layer4Params.getDrivingStrength();
+        var ceiling = layer4Params.getCeiling();
+        var floor = layer4Params.getFloor();
+        var timeStep = Math.min(layer4Params.getTimeConstant() / 1000.0, 0.01);
+
+        // Process each pattern with shared dynamics configuration
+        for (int i = 0; i < batchSize; i++) {
+            var input = inputs[i];
+            if (input == null) {
+                throw new IllegalArgumentException("inputs[" + i + "] is null");
+            }
+            if (input.dimension() != size && input.dimension() < size) {
+                // Allow smaller inputs (zero-pad), but not larger
+                var padded = new double[size];
+                for (int j = 0; j < input.dimension(); j++) {
+                    padded[j] = input.get(j);
+                }
+                input = new DenseVector(padded);
+            }
+
+            // Convert and scale input (vectorized)
+            var inputArray = patternToArray(input);
+            VectorizedArrayOperations.scaleInPlace(inputArray, drivingStrength);
+
+            // Set excitatory input
+            fastDynamics.setExcitatoryInput(inputArray);
+
+            // Evolve dynamics
+            var currentState = new ActivationState(inputArray);
+            var evolvedState = fastDynamics.evolve(currentState, timeStep);
+
+            // Apply sigmoid saturation
+            var result = evolvedState.getActivations();
+            for (int j = 0; j < result.length; j++) {
+                if (result[j] > 0) {
+                    result[j] = ceiling * result[j] / (1.0 + result[j]);
+                }
+            }
+
+            // Apply constraints (vectorized)
+            VectorizedArrayOperations.clampInPlace(result, floor, ceiling);
+
+            outputs[i] = new DenseVector(result);
+        }
+
+        // Update activation to last pattern (maintains single-pattern semantics)
+        if (batchSize > 0) {
+            activation = outputs[batchSize - 1];
+        }
+
+        return outputs;
+    }
+
+    @Override
+    public int getSize() {
+        return size;
+    }
+
+    @Override
+    public String getId() {
+        return id;
     }
 }

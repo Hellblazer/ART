@@ -6,6 +6,7 @@ import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer6Parameters;
 import com.hellblazer.art.laminar.parameters.LayerParameters;
+import com.hellblazer.art.laminar.performance.VectorizedArrayOperations;
 import com.hellblazer.art.temporal.core.ActivationState;
 import com.hellblazer.art.temporal.dynamics.ShuntingDynamicsImpl;
 import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
@@ -129,15 +130,17 @@ public class Layer6Implementation extends AbstractLayer {
         // Get evolved result
         result = evolvedState.getActivations();
 
-        // Apply final constraints
+        // Apply final constraints (vectorized where possible)
+        var ceiling = currentParameters.getCeiling();
+        var floor = currentParameters.getFloor();
+
+        // First apply general clamp (vectorized)
+        VectorizedArrayOperations.clampInPlace(result, floor, ceiling);
+
+        // Then ensure modulatory behavior (critical - must check bottom-up)
         for (int i = 0; i < result.length; i++) {
-            // CRITICAL: Ensure modulatory behavior
-            if (bottomUpArray[i] <= currentParameters.getFloor()) {
+            if (bottomUpArray[i] <= floor) {
                 result[i] = 0.0;  // No bottom-up = no output!
-            } else {
-                // Apply ceiling and floor
-                result[i] = Math.max(currentParameters.getFloor(),
-                            Math.min(currentParameters.getCeiling(), result[i]));
             }
         }
 
@@ -184,15 +187,17 @@ public class Layer6Implementation extends AbstractLayer {
     }
 
     /**
-     * Update persistent modulation state.
+     * Update persistent modulation state (vectorized).
      */
     private void updateModulationState(double[] topDown, Layer6Parameters params) {
         var decayRate = params.getDecayRate();
-        for (int i = 0; i < size; i++) {
-            // Slow decay with integration of new top-down
-            modulationState[i] = modulationState[i] * (1.0 - decayRate * 0.02) +
-                                 topDown[i] * decayRate * 0.02;
-        }
+        var decayFactor = 1.0 - decayRate * 0.02;
+        var integrationFactor = decayRate * 0.02;
+
+        // Vectorized: modulationState = modulationState * decayFactor + topDown * integrationFactor
+        var decayed = VectorizedArrayOperations.scale(modulationState, decayFactor);
+        var integrated = VectorizedArrayOperations.scale(topDown, integrationFactor);
+        modulationState = VectorizedArrayOperations.add(decayed, integrated);
     }
 
     /**
