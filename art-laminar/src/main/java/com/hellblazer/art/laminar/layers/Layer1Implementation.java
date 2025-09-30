@@ -2,6 +2,7 @@ package com.hellblazer.art.laminar.layers;
 
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.laminar.batch.BatchLayer;
 import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.parameters.Layer1Parameters;
@@ -34,7 +35,7 @@ import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
  *
  * @author Hal Hildebrand
  */
-public class Layer1Implementation extends AbstractLayer {
+public class Layer1Implementation extends AbstractLayer implements BatchLayer {
 
     private ShuntingDynamicsImpl verySlowDynamics;
     private Layer1Parameters currentParameters;
@@ -261,5 +262,76 @@ public class Layer1Implementation extends AbstractLayer {
 
         // Create new dynamics instance with updated parameters
         this.verySlowDynamics = new ShuntingDynamicsImpl(shuntingParams, size);
+    }
+
+    // ==================== Batch Processing Implementation ====================
+
+    /**
+     * Process batch of top-down expectations.
+     *
+     * NOTE: Layer 1 has unique API - it processes TOP-DOWN signals, not bottom-up!
+     * This method processes expectations from higher cortical areas.
+     *
+     * Layer 1 has complex state (attention, priming, memory traces) that accumulates
+     * over time. For semantic equivalence with sequential processing in a circuit context,
+     * we process sequentially to maintain proper state evolution.
+     */
+    public Pattern[] processTopDownBatch(Pattern[] expectations, LayerParameters parameters) {
+        if (expectations == null || expectations.length == 0) {
+            throw new IllegalArgumentException("expectations cannot be null or empty");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("parameters cannot be null");
+        }
+
+        // Use Layer1Parameters
+        var layer1Params = (parameters instanceof Layer1Parameters) ?
+            (Layer1Parameters) parameters : Layer1Parameters.builder().build();
+
+        // Phase 5: Always fall back to sequential for Layer 1 in circuit context
+        // Layer 1 has complex state dependencies (attention, priming, memory)
+        // that require sequential processing for correct behavior.
+        //
+        // Phase 6 can explore stateful batch processing if needed.
+
+        updateDynamicsParameters(layer1Params);
+
+        var batchSize = expectations.length;
+        var outputs = new Pattern[batchSize];
+
+        // Process each pattern sequentially to maintain state accumulation
+        for (int i = 0; i < batchSize; i++) {
+            outputs[i] = processTopDown(expectations[i], layer1Params);
+        }
+
+        return outputs;
+    }
+
+    @Override
+    public Pattern[] processBatchBottomUp(Pattern[] inputs, LayerParameters parameters) {
+        // Layer 1 primarily processes top-down signals
+        // Bottom-up processing is minimal - return current activation for all
+        if (inputs == null || inputs.length == 0) {
+            throw new IllegalArgumentException("inputs cannot be null or empty");
+        }
+
+        var outputs = new Pattern[inputs.length];
+        var currentActivation = activation != null ? activation : new DenseVector(new double[size]);
+
+        for (int i = 0; i < inputs.length; i++) {
+            outputs[i] = currentActivation;
+        }
+
+        return outputs;
+    }
+
+    @Override
+    public int getSize() {
+        return size;
+    }
+
+    @Override
+    public String getId() {
+        return id;
     }
 }

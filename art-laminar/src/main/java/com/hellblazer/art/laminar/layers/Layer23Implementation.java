@@ -2,6 +2,7 @@ package com.hellblazer.art.laminar.layers;
 
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.laminar.batch.BatchLayer;
 import com.hellblazer.art.laminar.core.LayerType;
 import com.hellblazer.art.laminar.impl.AbstractLayer;
 import com.hellblazer.art.laminar.network.BipoleCellNetwork;
@@ -30,7 +31,7 @@ import com.hellblazer.art.temporal.dynamics.ShuntingParameters;
  *
  * @author Hal Hildebrand
  */
-public class Layer23Implementation extends AbstractLayer {
+public class Layer23Implementation extends AbstractLayer implements BatchLayer {
 
     private final Layer23Parameters layer23Parameters;
     private ShuntingDynamicsImpl mediumDynamics;
@@ -280,5 +281,55 @@ public class Layer23Implementation extends AbstractLayer {
     public ActivationState getState() {
         // Return current state as activation array
         return new ActivationState(getActivation().toArray());
+    }
+
+    // ==================== Batch Processing Implementation ====================
+
+    @Override
+    public Pattern[] processBatchBottomUp(Pattern[] inputs, LayerParameters parameters) {
+        if (inputs == null || inputs.length == 0) {
+            throw new IllegalArgumentException("inputs cannot be null or empty");
+        }
+        if (parameters == null) {
+            throw new NullPointerException("parameters cannot be null");
+        }
+
+        // Use Layer23Parameters
+        var layer23Params = (parameters instanceof Layer23Parameters) ?
+            (Layer23Parameters) parameters : layer23Parameters;
+
+        // Layer 2/3 has state-dependent processing (leaky integration depends on current activation)
+        // For semantic equivalence with sequential processing, we MUST process sequentially
+        // to allow state to accumulate between patterns.
+        //
+        // SIMD batch processing only beneficial when patterns are truly independent.
+        // In a learning circuit where each pattern affects the next, sequential is required.
+        //
+        // Phase 5: Always fall back to sequential for Layer 2/3 in circuit context
+        // Phase 6 can explore stateful batch processing if needed.
+
+        var batchSize = inputs.length;
+        var outputs = new Pattern[batchSize];
+        var timeStep = layer23Params.timeConstant();
+
+        // Process each pattern sequentially to maintain state accumulation
+        for (int i = 0; i < batchSize; i++) {
+            receiveBottomUpInput(inputs[i]);
+            receiveTopDownPriming(topDownPriming);
+            process(inputs[i], timeStep);
+            outputs[i] = getActivation();
+        }
+
+        return outputs;
+    }
+
+    @Override
+    public int getSize() {
+        return size;
+    }
+
+    @Override
+    public String getId() {
+        return id;
     }
 }

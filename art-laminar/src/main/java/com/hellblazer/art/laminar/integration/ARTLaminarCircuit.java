@@ -431,12 +431,14 @@ public class ARTLaminarCircuit implements AutoCloseable, BatchProcessable {
      * @return batch results
      */
     private BatchResult processBatchSequential(Pattern[] patterns, BatchOptions options) {
-        // Phase 2: Use layer batch operations for larger batches
-        if (patterns.length >= 20 && layer4 instanceof com.hellblazer.art.laminar.batch.BatchLayer) {
-            return processBatchWithLayerBatching(patterns, options);
-        }
+        // Phase 5: Layer batching disabled for semantic equivalence in circuit context
+        // Individual layer SIMD implementations (Layer1/23/4/5/6SIMDBatch) are correct
+        // and achieve 0.00e+00 max difference, but full circuit batching requires
+        // sequential processing to maintain proper state evolution and ART learning.
+        //
+        // Phase 6 will explore true batch circuit processing with stateful layers.
 
-        // Phase 1: Sequential processing with overhead amortization
+        // Always use Phase 1: Sequential processing with overhead amortization
         return processBatchPhase1(patterns, options);
     }
 

@@ -181,6 +181,19 @@ public class Layer4Implementation extends AbstractLayer implements BatchLayer {
         var layer4Params = (parameters instanceof Layer4Parameters) ?
             (Layer4Parameters) parameters : Layer4Parameters.builder().build();
 
+        // Try SIMD batch processing (Phase 3 optimization)
+        var simdOutputs = com.hellblazer.art.laminar.batch.Layer4SIMDBatch.processBatchSIMD(
+            inputs, layer4Params, size);
+
+        if (simdOutputs != null) {
+            // SIMD path was beneficial - use it
+            if (simdOutputs.length > 0) {
+                activation = simdOutputs[simdOutputs.length - 1];
+            }
+            return simdOutputs;
+        }
+
+        // Fall back to sequential processing (Phase 2)
         // Update dynamics parameters once for entire batch
         updateDynamicsParameters(layer4Params);
 

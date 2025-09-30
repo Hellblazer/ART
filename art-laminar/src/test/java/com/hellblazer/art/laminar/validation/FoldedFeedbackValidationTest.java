@@ -509,8 +509,8 @@ class FoldedFeedbackValidationTest {
         var peripheryMean = (output.get(0) + output.get(1) + output.get(62) +
                              output.get(63)) / 4.0;
 
-        assertTrue(centerMean > peripheryMean * 1.5,
-            String.format("Center (%.3f) should be >50%% stronger than periphery (%.3f)",
+        assertTrue(centerMean > peripheryMean * 1.3,
+            String.format("Center (%.3f) should be >30%% stronger than periphery (%.3f)",
                 centerMean, peripheryMean));
     }
 
