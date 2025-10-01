@@ -64,10 +64,11 @@ public class BipoleCellNetwork {
         int iterations = propagationEnabled ? 15 : 10;
 
         for (int iter = 0; iter < iterations; iter++) {
-            // Compute horizontal inputs for each cell
-            for (int i = 0; i < networkSize; i++) {
-                var cell = cells.get(i);
+            // First pass: Compute all horizontal inputs from CURRENT state
+            double[] leftInputs = new double[networkSize];
+            double[] rightInputs = new double[networkSize];
 
+            for (int i = 0; i < networkSize; i++) {
                 // Compute left horizontal input
                 double leftInput = 0.0;
                 for (int j = Math.max(0, i - parameters.maxHorizontalRange()); j < i; j++) {
@@ -76,6 +77,7 @@ public class BipoleCellNetwork {
                         leftInput += weight * cells.get(j).getActivation();
                     }
                 }
+                leftInputs[i] = leftInput;
 
                 // Compute right horizontal input
                 double rightInput = 0.0;
@@ -85,15 +87,27 @@ public class BipoleCellNetwork {
                         rightInput += weight * cells.get(j).getActivation();
                     }
                 }
+                rightInputs[i] = rightInput;
+            }
+
+            // Second pass: Update all cells using precomputed horizontal inputs
+            for (int i = 0; i < networkSize; i++) {
+                var cell = cells.get(i);
+
+                // Store current activation before update
+                double currentActivation = cell.getActivation();
 
                 // Update cell activation using three-way logic
                 // Use full direct input throughout, as the cell dynamics handle temporal integration
                 double directInput = inputData[i];
-                double activation = cell.computeActivation(directInput, leftInput, rightInput, TIME_STEP);
+
+                // Temporarily set activation back to ensure computeActivation uses correct base
+                cell.setActivation(currentActivation);
+                double activation = cell.computeActivation(directInput, leftInputs[i], rightInputs[i], TIME_STEP);
                 outputData[i] = activation;
             }
 
-            // Update cell activations for next iteration
+            // Third pass: Synchronously update all cell activations for next iteration
             for (int i = 0; i < networkSize; i++) {
                 cells.get(i).setActivation(outputData[i]);
             }
@@ -125,6 +139,15 @@ public class BipoleCellNetwork {
         }
 
         return weights;
+    }
+
+    /**
+     * Get connection weights (for testing).
+     *
+     * @return Connection weight matrix
+     */
+    public double[][] getConnectionWeights() {
+        return connectionWeights;
     }
 
     /**

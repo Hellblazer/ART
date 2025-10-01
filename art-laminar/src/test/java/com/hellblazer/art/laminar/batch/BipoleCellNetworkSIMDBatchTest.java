@@ -44,8 +44,9 @@ class BipoleCellNetworkSIMDBatchTest {
         // Create simple pattern with some activations
         var pattern = createPattern(dimension, new int[]{0, 10, 20, 30});
 
-        // Create connection weights (self-connections only for simplicity)
-        var weights = createSelfConnectionWeights(dimension);
+        // Get connection weights using same logic as BipoleCellNetwork
+        var network = new BipoleCellNetwork(params);
+        var weights = getConnectionWeightsFromNetwork(network);
 
         // Process batch
         var patterns = new Pattern[]{pattern};
@@ -55,9 +56,10 @@ class BipoleCellNetworkSIMDBatchTest {
         assertEquals(1, result.length, "Should have 1 output pattern");
         assertEquals(dimension, result[0].dimension(), "Output dimension should match input");
 
-        // With self-connections and strong initial values, should maintain activation
+        // With horizontal connections and moderate initial values, should maintain activation
         assertTrue(result[0].get(0) > 0.5, "Strong activation should persist");
     }
+
 
     /**
      * Test 2: Semantic equivalence - SIMD batch vs sequential processing.
@@ -89,8 +91,49 @@ class BipoleCellNetworkSIMDBatchTest {
             sequentialResults[i] = seqNetwork.process(patterns[i]);
         }
 
-        // Compare results
-        var maxDiff = comparePatternArrays(simdResults, sequentialResults);
+        // Compare results with detailed diagnostics
+        var maxDiff = 0.0;
+        int maxDiffBatch = -1;
+        int maxDiffDim = -1;
+        double simdValue = 0.0, seqValue = 0.0;
+
+        for (int b = 0; b < batchSize; b++) {
+            for (int d = 0; d < dimension; d++) {
+                var diff = Math.abs(simdResults[b].get(d) - sequentialResults[b].get(d));
+                if (diff > maxDiff) {
+                    maxDiff = diff;
+                    maxDiffBatch = b;
+                    maxDiffDim = d;
+                    simdValue = simdResults[b].get(d);
+                    seqValue = sequentialResults[b].get(d);
+                }
+            }
+        }
+
+        if (maxDiff > EPSILON) {
+            System.out.println("\n=== SEMANTIC EQUIVALENCE DEBUG ===");
+            System.out.printf("Max difference = %.6f at batch %d, dimension %d%n", maxDiff, maxDiffBatch, maxDiffDim);
+            System.out.printf("SIMD value: %.6f, Sequential value: %.6f%n", simdValue, seqValue);
+            System.out.printf("Input pattern value at [%d][%d]: %.6f%n",
+                maxDiffBatch, maxDiffDim, patterns[maxDiffBatch].get(maxDiffDim));
+
+            // Show a few more values around the problem area
+            if (maxDiffDim > 0) {
+                System.out.printf("Previous dim [%d][%d]: SIMD=%.6f, Seq=%.6f, diff=%.6f%n",
+                    maxDiffBatch, maxDiffDim-1,
+                    simdResults[maxDiffBatch].get(maxDiffDim-1),
+                    sequentialResults[maxDiffBatch].get(maxDiffDim-1),
+                    Math.abs(simdResults[maxDiffBatch].get(maxDiffDim-1) - sequentialResults[maxDiffBatch].get(maxDiffDim-1)));
+            }
+            if (maxDiffDim < dimension-1) {
+                System.out.printf("Next dim [%d][%d]: SIMD=%.6f, Seq=%.6f, diff=%.6f%n",
+                    maxDiffBatch, maxDiffDim+1,
+                    simdResults[maxDiffBatch].get(maxDiffDim+1),
+                    sequentialResults[maxDiffBatch].get(maxDiffDim+1),
+                    Math.abs(simdResults[maxDiffBatch].get(maxDiffDim+1) - sequentialResults[maxDiffBatch].get(maxDiffDim+1)));
+            }
+        }
+
         System.out.printf("Bipole SIMD semantic equivalence: max difference = %.2e%n", maxDiff);
 
         assertEquals(0.0, maxDiff, EPSILON,
@@ -130,6 +173,13 @@ class BipoleCellNetworkSIMDBatchTest {
 
     /**
      * Test 4: Horizontal input computation correctness.
+     *
+     * With synchronous updates: dimension 0 has strong direct input (1.0 > 0.8 threshold),
+     * so it will activate. Dimension 1 receives left horizontal input (0.8 * activation[0])
+     * BUT with no direct input and no bilateral support, it won't fire.
+     *
+     * To properly test horizontal activation, we need BOTH left and right inputs > 0.1
+     * for bilateral firing.
      */
     @Test
     void testHorizontalInputComputation() {
@@ -137,27 +187,28 @@ class BipoleCellNetworkSIMDBatchTest {
         var batchSize = 4;
         var params = createDefaultParameters();
 
-        // Create patterns with known activations
+        // Create patterns with activations at positions that create bilateral support
         var patterns = new Pattern[batchSize];
         for (int b = 0; b < batchSize; b++) {
             var data = new double[dimension];
-            data[0] = 1.0;  // All patterns have activation at dimension 0
+            data[0] = 1.0;  // Left neighbor of dimension 1
+            data[2] = 1.0;  // Right neighbor of dimension 1
             patterns[b] = new DenseVector(data);
         }
 
-        // Create connection weights: dimension 0 connects to dimension 1
+        // Create connection weights: dimension 1 receives from both neighbors
         var weights = new double[dimension][dimension];
-        weights[1][0] = 0.8;  // Dimension 1 receives from dimension 0
+        weights[1][0] = 0.8;  // Left horizontal input
+        weights[1][2] = 0.8;  // Right horizontal input
 
-        // Process batch (need to access internals for this test)
-        // Use reflection or package-private access for testing
         var simdResults = BipoleCellNetworkSIMDBatch.processBatch(patterns, weights, params);
         assertNotNull(simdResults);
 
-        // All patterns should have activation at dimension 1 due to horizontal input
+        // With bilateral horizontal support, dimension 1 should activate
+        // Condition 2 fires: left > 0.1 AND right > 0.1
         for (int b = 0; b < batchSize; b++) {
             assertTrue(simdResults[b].get(1) > 0.0,
-                       "Dimension 1 should have activation from horizontal input");
+                       "Dimension 1 should activate with bilateral horizontal support");
         }
     }
 
@@ -197,6 +248,9 @@ class BipoleCellNetworkSIMDBatchTest {
 
     /**
      * Test 6: Three-way firing logic - Condition 2 (bilateral horizontal).
+     *
+     * With synchronous updates: need strong activations at BOTH neighbors
+     * to create sufficient horizontal input (> 0.1 on BOTH sides).
      */
     @Test
     void testThreeWayFiringCondition2() {
@@ -214,18 +268,24 @@ class BipoleCellNetworkSIMDBatchTest {
             .timeConstant(0.05)
             .build();
 
-        // Create patterns with moderate activation
-        var patterns = createPatternsWithActivations(batchSize, dimension, 0.5);
+        // Create patterns with STRONG activations at neighbors to create bilateral support
+        var patterns = new Pattern[batchSize];
+        for (int b = 0; b < batchSize; b++) {
+            var data = new double[dimension];
+            data[0] = 1.0;  // Strong left neighbor
+            data[2] = 1.0;  // Strong right neighbor
+            patterns[b] = new DenseVector(data);
+        }
 
         // Create bilateral connections (both sides)
         var weights = new double[dimension][dimension];
-        weights[1][0] = 0.8;  // Left connection
-        weights[1][2] = 0.8;  // Right connection
+        weights[1][0] = 0.8;  // Left connection (will give 0.8 horizontal input)
+        weights[1][2] = 0.8;  // Right connection (will give 0.8 horizontal input)
 
         var results = BipoleCellNetworkSIMDBatch.processBatch(patterns, weights, params);
         assertNotNull(results);
 
-        // Dimension 1 should activate due to bilateral horizontal support
+        // Dimension 1 should activate: left=0.8 > 0.1 AND right=0.8 > 0.1 triggers bilateral
         for (var result : results) {
             assertTrue(result.get(1) > 0.0, "Bilateral horizontal should activate");
         }
@@ -233,6 +293,9 @@ class BipoleCellNetworkSIMDBatchTest {
 
     /**
      * Test 7: Three-way firing logic - Condition 3 (weak direct + horizontal).
+     *
+     * With synchronous updates: dimension 1 needs weak direct input AND
+     * sufficient horizontal input from an already-active neighbor.
      */
     @Test
     void testThreeWayFiringCondition3() {
@@ -242,7 +305,7 @@ class BipoleCellNetworkSIMDBatchTest {
             .networkSize(dimension)
             .strongDirectThreshold(0.9)  // Very high to exclude condition 1
             .weakDirectThreshold(0.3)  // Weak direct threshold
-            .horizontalThreshold(0.3)
+            .horizontalThreshold(0.3)   // Horizontal threshold
             .maxHorizontalRange(3)
             .distanceSigma(2.0)
             .maxWeight(1.0)
@@ -250,19 +313,26 @@ class BipoleCellNetworkSIMDBatchTest {
             .timeConstant(0.05)
             .build();
 
-        // Create patterns with weak activation (above threshold3, below threshold1)
-        var patterns = createPatternsWithActivations(batchSize, dimension, 0.4);
+        // Create patterns with weak direct at dim 1, strong at dim 0 to provide horizontal
+        var patterns = new Pattern[batchSize];
+        for (int b = 0; b < batchSize; b++) {
+            var data = new double[dimension];
+            data[0] = 1.0;  // Strong neighbor to provide horizontal input
+            data[1] = 0.4;  // Weak direct (0.4 > weakThreshold=0.3)
+            patterns[b] = new DenseVector(data);
+        }
 
-        // Create single connection (not bilateral)
+        // Create single connection (left horizontal from dim 0)
         var weights = new double[dimension][dimension];
-        weights[1][0] = 0.5;
+        weights[1][0] = 0.5;  // Will give 0.5 horizontal input (> horizontalThreshold=0.3)
 
         var results = BipoleCellNetworkSIMDBatch.processBatch(patterns, weights, params);
         assertNotNull(results);
 
-        // Dimension 1 should activate due to weak direct + horizontal
+        // Dimension 1 should activate: direct=0.4 > 0.3 AND horizontal=0.5 > 0.3
+        // This triggers condition 3: weak direct + horizontal
         for (var result : results) {
-            assertTrue(result.get(1) > 0.0, "Weak direct + horizontal should activate");
+            assertTrue(result.get(1) > 0.4, "Weak direct + horizontal should activate above initial");
         }
     }
 
@@ -626,23 +696,7 @@ class BipoleCellNetworkSIMDBatchTest {
      * Get connection weights from network using the same logic as BipoleCellNetwork.computeConnectionWeights().
      */
     private double[][] getConnectionWeightsFromNetwork(BipoleCellNetwork network) {
-        var params = network.getParameters();
-        var networkSize = params.networkSize();
-        var weights = new double[networkSize][networkSize];
-
-        for (int i = 0; i < networkSize; i++) {
-            for (int j = 0; j < networkSize; j++) {
-                if (i != j) {
-                    int distance = Math.abs(i - j);
-                    if (distance > 0 && distance <= params.maxHorizontalRange()) {
-                        // Exponential decay with distance
-                        weights[i][j] = params.maxWeight() *
-                            Math.exp(-distance / params.distanceSigma());
-                    }
-                }
-            }
-        }
-
-        return weights;
+        // Use the actual weights from the network to ensure consistency
+        return network.getConnectionWeights();
     }
 }
