@@ -45,7 +45,7 @@ import java.util.Set;
  *
  * @see "A Canonical Laminar Neocortical Circuit..." Raizada & Grossberg (2003)
  * @see "Adaptive Resonance Theory" Carpenter & Grossberg (1987)
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class FullLaminarCircuitImpl {
 

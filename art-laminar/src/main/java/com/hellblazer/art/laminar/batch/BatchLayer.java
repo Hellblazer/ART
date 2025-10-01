@@ -28,7 +28,7 @@ import com.hellblazer.art.laminar.parameters.LayerParameters;
  * <p>Batch processing must produce identical results to sequential single-pattern
  * processing. The only difference should be performance.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public interface BatchLayer {
 

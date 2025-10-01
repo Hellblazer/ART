@@ -37,7 +37,7 @@ import jdk.incubator.vector.VectorSpecies;
  *   <li>Saturation (SIMD)</li>
  * </ol>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class Layer6SIMDBatch {
 

@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * RED Phase: All tests written to fail initially (no implementation yet)
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class ARTLaminarCircuitTest {
 

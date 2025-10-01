@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>End-to-end integration produces semantically equivalent results</li>
  * </ul>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  * @see ARTLaminarCircuit
  * @see VectorizedARTLaminarCircuit
  * @see LaminarARTBridge

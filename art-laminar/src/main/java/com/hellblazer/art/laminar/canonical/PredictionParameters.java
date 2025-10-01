@@ -11,7 +11,7 @@ package com.hellblazer.art.laminar.canonical;
  * @param maxTemplateUpdates learning limit per category
  * @param templateLearningRate how fast templates adapt [0,1]
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record PredictionParameters(
     double topDownGain,

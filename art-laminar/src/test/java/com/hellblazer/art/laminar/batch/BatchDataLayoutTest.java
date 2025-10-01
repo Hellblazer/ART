@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests data layout transformation utilities that enable SIMD vectorization
  * across batch dimension for 2-3x performance improvement.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class BatchDataLayoutTest {
 

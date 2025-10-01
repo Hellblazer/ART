@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Complex cell pooling
  * - Bipole network DISABLED in Phase 5 (deferred to Phase 6)
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class Layer23SIMDBatchTest {
 
@@ -461,7 +461,7 @@ class Layer23SIMDBatchTest {
 
     @Test
     void testBipoleNetworkDisabled() {
-        // Test that bipole network is disabled in SIMD mode (Phase 5 limitation)
+        // Phase 6D limitation: Bipole network requires stateful processing
         var batchSize = 64;
         var dimension = 64;
 
@@ -481,6 +481,7 @@ class Layer23SIMDBatchTest {
         var outputs = Layer23SIMDBatch.processBatchSIMD(bottomUp, topDown, paramsWithBipole, dimension);
 
         // Should return null (fall back to sequential) when bipole enabled
+        // Bipole requires stateful processing (processes previous activation)
         assertNull(outputs, "SIMD should fall back to sequential when bipole network enabled");
     }
 

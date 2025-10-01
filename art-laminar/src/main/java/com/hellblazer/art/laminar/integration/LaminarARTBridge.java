@@ -31,7 +31,7 @@ import java.util.Objects;
  * Expectation: [0.8, 0.2, 0.3, 0.7]  // First half only
  * </pre>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public final class LaminarARTBridge {
 

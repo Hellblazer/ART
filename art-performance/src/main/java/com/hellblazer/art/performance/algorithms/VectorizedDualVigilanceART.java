@@ -31,7 +31,7 @@ import java.util.Objects;
  * 3. Accept category only if both thresholds are satisfied
  * 4. Update weights using dual vigilance learning rule
  * 
- * @author Claude (Anthropic AI)
+ * @author Hal Hildebrand
  * @version 1.0
  */
 public final class VectorizedDualVigilanceART extends AbstractVectorizedART<VectorizedPerformanceStats, VectorizedDualVigilanceParameters> {

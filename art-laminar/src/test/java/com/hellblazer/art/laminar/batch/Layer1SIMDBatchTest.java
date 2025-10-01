@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Sustained persistence (effects last after input ends)
  * - Priming-only behavior (does NOT drive responses)
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class Layer1SIMDBatchTest {
 

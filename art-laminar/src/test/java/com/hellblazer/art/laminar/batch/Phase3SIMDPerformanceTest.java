@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Layer 6 SIMD optimization
  * - ART matching SIMD optimization
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class Phase3SIMDPerformanceTest {
 

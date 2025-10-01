@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p><b>Phase 2 - RED Phase:</b> All tests written to fail initially (no implementation yet)
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class VectorizedARTLaminarCircuitTest {
 

@@ -23,7 +23,7 @@ import com.hellblazer.art.core.Pattern;
  * @param lastExpectation most recent top-down expectation generated
  *
  * @see "Adaptive Resonance Theory" Carpenter & Grossberg (1987)
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record CircuitState(
     boolean isResonating,

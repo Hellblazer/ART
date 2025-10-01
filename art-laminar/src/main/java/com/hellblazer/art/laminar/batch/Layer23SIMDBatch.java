@@ -36,14 +36,15 @@ import jdk.incubator.vector.VectorSpecies;
  *   <li>Saturation (SIMD)</li>
  * </ol>
  *
- * <h2>Phase 5 Limitations</h2>
+ * <h2>Phase 6D Limitation</h2>
  * <ul>
- *   <li>Bipole cell network is DISABLED (returns null if enableHorizontalGrouping=true)</li>
- *   <li>Falls back to sequential processing when bipole network enabled</li>
- *   <li>Full bipole SIMD optimization deferred to Phase 6</li>
+ *   <li>Bipole network requires STATEFUL processing (processes previous activation)</li>
+ *   <li>Mini-batch SIMD is STATELESS (each pattern processed independently)</li>
+ *   <li>Falls back to sequential when horizontal grouping enabled</li>
+ *   <li>Future: Stateful bipole SIMD would require maintaining activation state across mini-batches</li>
  * </ul>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class Layer23SIMDBatch {
 
@@ -392,21 +393,22 @@ public class Layer23SIMDBatch {
      *
      * <p>Main entry point for Layer 2/3 SIMD batch processing.
      *
-     * <p><b>Phase 5 Limitation:</b> Bipole cell network is DISABLED.
+     * <p><b>Phase 6D limitation:</b> Bipole network is NOT supported in stateless mini-batch SIMD.
      * If {@code enableHorizontalGrouping} is true, returns null (falls back to sequential).
      *
      * @param bottomUpInputs bottom-up input patterns from Layer 4
      * @param topDownPriming top-down priming patterns from Layer 1, or null
      * @param params Layer 2/3 parameters
      * @param size layer size
-     * @return processed patterns, or null if SIMD not beneficial or bipole network enabled
+     * @return processed patterns, or null if SIMD not beneficial
      */
     public static Pattern[] processBatchSIMD(Pattern[] bottomUpInputs, Pattern[] topDownPriming,
                                               Layer23Parameters params, int size) {
-        // CRITICAL: Check if bipole network is enabled
-        // Phase 5 does NOT support bipole network in SIMD mode
+        // Phase 6D limitation: Bipole network requires stateful processing
+        // The bipole network processes PREVIOUS activation state, not current input
+        // Mini-batch SIMD is stateless, so we fall back to sequential for bipole
         if (params.enableHorizontalGrouping()) {
-            return null;  // Fall back to sequential - bipole network needs sequential processing in Phase 5
+            return null;  // Fall back to sequential - bipole needs state between patterns
         }
 
         // Check if transpose-and-vectorize is beneficial
@@ -438,4 +440,5 @@ public class Layer23SIMDBatch {
         // Convert back to patterns (transpose to pattern-major)
         return batch.toPatterns();
     }
+
 }

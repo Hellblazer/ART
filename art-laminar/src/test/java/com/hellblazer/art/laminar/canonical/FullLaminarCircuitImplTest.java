@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 4. Category search with reset
  * 5. Template learning during resonance
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class FullLaminarCircuitImplTest {
 

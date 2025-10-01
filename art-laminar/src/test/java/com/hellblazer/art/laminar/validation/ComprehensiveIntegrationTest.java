@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 3. Edge cases (extremes, boundaries, degenerate inputs)
  * 4. End-to-end scenarios (realistic usage patterns)
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class ComprehensiveIntegrationTest {
 

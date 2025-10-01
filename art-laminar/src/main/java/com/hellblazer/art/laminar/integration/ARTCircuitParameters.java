@@ -38,7 +38,7 @@ import com.hellblazer.art.laminar.canonical.CircuitParameters;
  *
  * @see FuzzyParameters
  * @see CircuitParameters
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record ARTCircuitParameters(
     int inputSize,

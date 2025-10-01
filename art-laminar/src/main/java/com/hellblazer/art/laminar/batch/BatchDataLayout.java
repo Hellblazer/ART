@@ -42,7 +42,7 @@ import jdk.incubator.vector.VectorSpecies;
  *   <li><b>Best for</b>: Batch size ≥ 32, dimension ≥ 64</li>
  * </ul>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class BatchDataLayout {
 

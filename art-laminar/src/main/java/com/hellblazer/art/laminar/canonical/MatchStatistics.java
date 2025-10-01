@@ -18,7 +18,7 @@ import com.hellblazer.art.core.Pattern;
  * @param inputNorm L1 norm of input: Σ|input[i]|
  * @param expectationNorm L1 norm of expectation: Σ|expectation[i]|
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record MatchStatistics(
     double matchScore,

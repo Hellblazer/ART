@@ -14,7 +14,7 @@ import com.hellblazer.art.core.Pattern;
  * @param resonating whether this pattern achieved resonance
  *
  * @see BatchResult#getResult(int)
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record PatternResult(
     Pattern output,

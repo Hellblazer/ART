@@ -17,7 +17,7 @@ import java.util.Objects;
  * Weight format: [w_min_1, w_min_2, ..., w_min_n, w_max_1, w_max_2, ..., w_max_n]
  * where w_min represents the minimum learned values and w_max represents maximum learned values.
  * 
- * @author Claude (Anthropic AI)
+ * @author Hal Hildebrand
  * @version 1.0
  */
 public final class VectorizedDualVigilanceWeight implements WeightVector {

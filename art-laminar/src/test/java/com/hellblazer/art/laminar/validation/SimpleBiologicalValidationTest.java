@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Simplified biological validation tests for art-laminar.
  * Validates key biological principles from Grossberg's work.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class SimpleBiologicalValidationTest {
 

@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for batch processing API implementation.
  * Validates Phase 1: Sequential batch processing with overhead amortization.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class BatchProcessingTest {
 

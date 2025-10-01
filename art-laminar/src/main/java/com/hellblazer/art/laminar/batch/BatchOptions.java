@@ -24,7 +24,7 @@ package com.hellblazer.art.laminar.batch;
  * @param cacheOptimize optimize memory layout for cache locality
  * @param trackDetailedStats collect detailed per-layer performance metrics
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record BatchOptions(
     boolean enableParallelism,

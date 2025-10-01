@@ -48,7 +48,7 @@ import java.util.Objects;
  *
  * @see ARTLaminarCircuit
  * @see VectorizedFuzzyART
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class VectorizedARTLaminarCircuit implements AutoCloseable {
 

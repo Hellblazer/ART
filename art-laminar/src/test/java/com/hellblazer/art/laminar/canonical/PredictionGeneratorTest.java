@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * These tests verify the prediction generation mechanism that creates top-down
  * expectations from Layer 5 category activations.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class PredictionGeneratorTest {
 

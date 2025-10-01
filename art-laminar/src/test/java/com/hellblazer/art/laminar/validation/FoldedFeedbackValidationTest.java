@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Grossberg (1999) "How does the cerebral cortex work?"
  * - Carpenter & Grossberg (1987) "ART 2: Self-organization of stable category..."
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class FoldedFeedbackValidationTest {
 

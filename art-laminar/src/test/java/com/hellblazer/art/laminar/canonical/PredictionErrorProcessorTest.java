@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * NOT: |input ∩ expectation| / |input + expectation|  ← This is WRONG!
  * </pre>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class PredictionErrorProcessorTest {
 

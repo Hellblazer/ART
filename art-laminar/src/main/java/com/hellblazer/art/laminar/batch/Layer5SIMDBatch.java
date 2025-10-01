@@ -37,7 +37,7 @@ import jdk.incubator.vector.VectorSpecies;
  *   <li>Output normalization (SIMD with reduction)</li>
  * </ol>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class Layer5SIMDBatch {
 

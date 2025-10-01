@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Exact shunting dynamics
  * - Saturation
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class Layer6SIMDBatchTest {
 

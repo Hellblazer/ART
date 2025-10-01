@@ -45,7 +45,7 @@ import java.util.Objects;
  * @see FuzzyART
  * @see FullLaminarCircuitImpl
  * @see BatchProcessable
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class ARTLaminarCircuit implements AutoCloseable, BatchProcessable {
 

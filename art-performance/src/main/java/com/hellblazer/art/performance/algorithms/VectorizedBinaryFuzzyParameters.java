@@ -12,7 +12,7 @@ package com.hellblazer.art.performance.algorithms;
  * - beta: Learning rate parameter [0,1]
  * - binaryThreshold: Threshold for binary optimization (default 0.1)
  * 
- * @author Claude (Anthropic AI)
+ * @author Hal Hildebrand
  * @version 1.0
  */
 public record VectorizedBinaryFuzzyParameters(

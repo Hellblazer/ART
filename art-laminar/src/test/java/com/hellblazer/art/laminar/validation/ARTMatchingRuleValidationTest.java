@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * Key Formula: M = |X ∩ E| / |X| = Σ min(x_i, e_i) / Σ x_i
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class ARTMatchingRuleValidationTest {
 

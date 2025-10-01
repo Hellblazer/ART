@@ -23,7 +23,7 @@ import com.hellblazer.art.core.Pattern;
  *
  * @see BatchResult
  * @see BatchOptions
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public interface BatchProcessable {
 

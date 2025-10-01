@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Performance validation tests for art-laminar.
  * Validates compliance with Phase 2 performance targets: < 10ms per pattern.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class PerformanceValidationTest {
 

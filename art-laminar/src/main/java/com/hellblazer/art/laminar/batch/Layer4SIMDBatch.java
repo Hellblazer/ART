@@ -47,7 +47,7 @@ import jdk.incubator.vector.VectorSpecies;
  * Pattern[] outputs = batch.toPatterns();
  * </pre>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class Layer4SIMDBatch {
 

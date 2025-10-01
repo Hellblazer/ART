@@ -11,7 +11,7 @@ package com.hellblazer.art.laminar.canonical;
  * @param maxSearchIterations maximum category search attempts
  * @param enableResonance whether to use resonance dynamics
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record MatchingParameters(
     double vigilance,

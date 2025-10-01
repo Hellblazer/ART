@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Performance tests for Phase 2 batch processing (layer-level batching).
  * Validates that layer batch operations provide measurable speedup.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class BatchPhase2PerformanceTest {
 

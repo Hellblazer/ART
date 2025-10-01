@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * in canonical neocortical circuit.
  *
  * @see "A Canonical Laminar Neocortical Circuit..." Raizada & Grossberg (2003)
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class PredictionGenerator {
 

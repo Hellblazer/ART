@@ -1,93 +1,111 @@
 # ART Laminar Circuits Module
 
-Integration of Grossberg's canonical laminar circuit with temporal dynamics for ART neural networks.
+Integration of Grossberg's canonical laminar circuit with SIMD batch processing for ART neural networks.
 
 ## Overview
 
-This module integrates the temporal dynamics from art-temporal with laminar pathway processing, implementing Grossberg's canonical laminar circuit architecture from "A Canonical Laminar Neocortical Circuit Whose Bottom-Up, Horizontal, and Top-Down Pathways Control Attention, Learning, and Prediction". It provides multi-scale temporal dynamics with proper time scale separation between fast shunting dynamics (~10-100ms) and slow transmitter habituation (~500-5000ms).
+This module implements Grossberg's canonical laminar circuit architecture from "A Canonical Laminar Neocortical Circuit Whose Bottom-Up, Horizontal, and Top-Down Pathways Control Attention, Learning, and Prediction" with high-performance SIMD batch processing optimizations.
+
+## Current Status
+
+**Phase 6C Complete**: Stateful batch processing with mini-batch SIMD optimization
+- **Test Suite**: 402/402 tests passing (100%)
+- **Performance**: 1.30x speedup over baseline sequential processing
+- **Semantic Equivalence**: 0.00e+00 max difference (bit-exact)
+
+## Key Features
+
+### Laminar Circuit Architecture
+- **6 cortical layers**: Layers 1, 2/3, 4, 5, 6 with biologically-inspired dynamics
+- **Multiple pathways**: Bottom-up, top-down, and horizontal connections
+- **ART integration**: Complete ART matching and learning dynamics
+- **Temporal dynamics**: Multi-scale processing with proper time scale separation
+
+### High-Performance SIMD Processing
+- **Mini-batch optimization**: 32-pattern batches for optimal SIMD efficiency
+- **Java Vector API**: Hardware-accelerated SIMD operations
+- **Automatic fallback**: Graceful degradation to sequential when SIMD not beneficial
+- **Bit-exact equivalence**: 0.00e+00 difference from sequential processing
+
+### State Management
+- **Stateful processing**: Proper state evolution across patterns
+- **Sequential semantics**: Pattern N+1 sees effects of Pattern N
+- **Layer-level SIMD**: SIMD optimization within each layer's processing
+- **ART learning**: Sequential category learning with SIMD-optimized layers
+
+## Performance
+
+**Throughput**: 1049.7 patterns/sec (vs 807 baseline)
+- **Single-pattern**: 1239.04 μs/pattern
+- **Batch (Phase 6C)**: 952.64 μs/pattern
+- **Speedup**: 1.30x ✅
+
+**Optimized Layers**:
+- Layer 4: SIMD shunting dynamics
+- Layer 5: SIMD burst firing and amplification
+- Layer 6: SIMD ART matching rule
+- Layer 2/3: Sequential (bipole network complexity)
+- Layer 1: Sequential (complex attention state)
 
 ## Structure
 
 ```
 art-laminar/
-├── canonical/               # Canonical circuit integration
-│   ├── ShuntingPathwayDecorator.java      # Temporal dynamics decorator
-│   ├── TemporallyIntegratedPathway.java   # Integration interface
-│   ├── SimpleIntegrator.java              # RK4 integrator
-│   └── TimeScale.java                     # Time scale enumeration
-├── temporal/                # Temporal chunking (LIST PARSE)
-│   ├── TemporalChunkingLayer.java         # Chunking interface
-│   ├── TemporalChunkingLayerDecorator.java # Chunking decorator
-│   ├── TemporalChunk.java                 # Chunk representation
-│   ├── ChunkingState.java                 # State management
-│   ├── ChunkingParameters.java            # Chunking parameters
-│   └── ChunkingStatistics.java            # Statistics tracking
-├── core/                    # Core pathway interfaces
-├── impl/                    # Pathway implementations
-├── performance/             # Vectorized variants
-└── test/
-    ├── canonical/           # Integration tests
-    │   ├── CanonicalCircuitTestBase.java      # Test utilities
-    │   ├── ShuntingDynamicsPathwayTest.java   # 13 tests
-    │   ├── TransmitterDynamicsTest.java       # 12 tests
-    │   └── TimeScaleSeparationTest.java       # 9 tests
-    └── temporal/            # Chunking tests
-        └── TemporalChunkingTest.java          # 15 tests
+├── src/main/java/com/hellblazer/art/laminar/
+│   ├── batch/                  # SIMD batch processing
+│   │   ├── BatchDataLayout.java           # Transpose infrastructure
+│   │   ├── BatchShuntingDynamics.java     # Exact dynamics
+│   │   ├── Layer4SIMDBatch.java           # Layer 4 SIMD
+│   │   ├── Layer5SIMDBatch.java           # Layer 5 SIMD
+│   │   ├── Layer6SIMDBatch.java           # Layer 6 SIMD
+│   │   ├── Layer23SIMDBatch.java          # Layer 2/3 SIMD
+│   │   ├── Layer1SIMDBatch.java           # Layer 1 SIMD
+│   │   └── StatefulBatchProcessor.java    # Stateful interface
+│   ├── layers/                 # Layer implementations
+│   │   ├── Layer1Implementation.java      # Top-down priming
+│   │   ├── Layer23Implementation.java     # Horizontal grouping
+│   │   ├── Layer4Implementation.java      # Thalamic input
+│   │   ├── Layer5Implementation.java      # Output amplification
+│   │   └── Layer6Implementation.java      # ART matching
+│   ├── integration/            # Circuit integration
+│   │   └── ARTLaminarCircuit.java         # Full circuit
+│   ├── canonical/              # Canonical circuit (temporal dynamics)
+│   ├── temporal/               # Temporal chunking (LIST PARSE)
+│   └── network/                # Bipole cell networks
+└── src/test/java/              # Comprehensive test suite (402 tests)
 ```
 
-## Phase 1 Week 1 Integration (Complete)
+## Phase Progression
 
-Successfully integrated temporal dynamics into laminar pathways:
+### ✅ Phase 1-2: Temporal Dynamics & Chunking
+- Temporal dynamics integration with RK4
+- LIST PARSE temporal chunking
+- Working memory with primacy gradient
+- Time scale separation validation
 
-- ✅ Created integration interfaces and decorator pattern
-- ✅ Implemented multi-scale RK4 integration
-- ✅ Fixed critical bugs in art-temporal core (TransmitterDynamics, ShuntingDynamics)
-- ✅ Fixed WorkingMemory transmitter signal management
-- ✅ 34 comprehensive tests validating equation correctness
-- ✅ 100% test pass rate (54 total tests)
+### ✅ Phase 3: Layer SIMD Foundation
+- Transpose-and-vectorize architecture
+- Layer 4, 5, 6 SIMD batch processing
+- BatchShuntingDynamics for exact equivalence
+- Cost-benefit analysis for automatic SIMD selection
 
-**Key Features:**
-- Non-invasive decoration of existing pathways
-- Proper time scale separation (50x between fast/slow)
-- Transmitter habituation for primacy gradient effects
-- Shunting dynamics with lateral inhibition
-- Backward compatible with existing pathway implementations
+### ✅ Phase 5: Complete Layer SIMD
+- Layer 1 SIMD (top-down processing)
+- Layer 2/3 SIMD (without bipole network)
+- Individual layer semantic equivalence (0.00e+00)
+- All 5 layers with SIMD capability
 
-## Phase 1 Week 2 - Temporal Chunking (✅ COMPLETE)
+### ✅ Phase 6A: Stateful Batch Processing
+- StatefulBatchProcessor interface
+- Sequential pattern processing with layer-level SIMD
+- Proper state evolution maintained
+- Circuit integration complete
 
-Successfully implemented LIST PARSE model temporal chunking for layers:
-
-- ✅ Temporal chunking infrastructure (6 classes)
-- ✅ TemporalChunkingLayer interface
-- ✅ Decorator pattern for non-invasive layer enhancement
-- ✅ Activation history management (Miller's 7±2)
-- ✅ Chunk formation with coherence thresholds
-- ✅ Chunk decay and pruning dynamics
-- ✅ Temporal context extraction from chunks
-- ✅ 15 comprehensive tests (100% passing)
-- ✅ LayerState record with activation + context
-- ✅ Context weight control for blending
-- ✅ 13 layer state tests (100% passing)
-- ✅ MultiScaleCoordinator (FAST/MEDIUM/SLOW coordination)
-- ✅ MultiScaleLayerProcessor (integrated processing)
-- ✅ 12 multi-scale coordination tests (100% passing)
-- ✅ WorkingMemoryLayerBridge (STORE 2 + LIST PARSE)
-- ✅ Integrated primacy gradient + chunking
-- ✅ 10 WorkingMemory integration tests (100% passing)
-- ✅ Comprehensive paper validation document
-- ✅ 12/12 specifications validated against Grossberg & Kazerounian (2016)
-
-**Chunking Features:**
-- Chunk types: SMALL (1-3), MEDIUM (4-5), LARGE (6-7), SUPER (8-12)
-- Coherence-based chunk formation (cosine similarity)
-- Exponential decay with configurable rates
-- Representative pattern computation (weighted averaging)
-- Statistics tracking (formation rate, average size, coherence)
-- Configurable parameters from Grossberg & Kazerounian (2016)
-
-## Vectorized Variant
-
-The `VectorizedLaminarCircuit` class uses the Java Vector API (incubator) for SIMD operations. Performance improvements vary based on hardware and data characteristics. The implementation targets ARM64/Apple Silicon but should work on other platforms supporting the Vector API.
+### ✅ Phase 6C: Performance Optimization
+- Mini-batch SIMD (32 patterns per batch)
+- 1.30x speedup achieved
+- Interface casting elimination
+- Production-ready performance
 
 ## Building and Testing
 
@@ -95,68 +113,118 @@ The `VectorizedLaminarCircuit` class uses the Java Vector API (incubator) for SI
 # Compile
 mvn compile -pl art-laminar
 
-# Run tests
+# Run all tests (402 tests)
 mvn test -pl art-laminar
 
-# Specific test
-mvn test -pl art-laminar -Dtest=VectorizedLaminarCircuitTest
+# Run specific test category
+mvn test -pl art-laminar -Dtest=BatchProcessingTest
+mvn test -pl art-laminar -Dtest=Layer4SIMDBatchTest
+mvn test -pl art-laminar -Dtest=ARTLaminarCircuitTest
 ```
 
-**Current test results: 104/104 tests passing (100%)**
-- 3 BasicCompilationTest
-- 5 VectorizedLaminarCircuitTest
-- 11 BackwardCompatibilityTest
-- 13 ShuntingDynamicsPathwayTest
-- 12 TransmitterDynamicsTest
-- 1 TransmitterIntegrationDebugTest
-- 9 TimeScaleSeparationTest
-- 18 TemporalChunkingTest (includes layer state tests)
-- 10 LayerStateTest
-- 12 MultiScaleCoordinationTest
-- 10 WorkingMemoryIntegrationTest
+**Test Results**: 402/402 tests passing (100%)
+- Batch Processing: 14 tests (Phase 6C validation)
+- Layer SIMD: 73 tests (all layers)
+- Integration: 6 tests (circuit-level)
+- Canonical Circuit: 59 tests
+- Temporal Dynamics: 50 tests
+- Validation: 200+ tests
+
+## Usage Example
+
+```java
+// Create circuit with default parameters
+var params = ARTCircuitParameters.builder(256)
+    .vigilance(0.85)
+    .learningRate(0.8)
+    .maxCategories(100)
+    .build();
+
+var circuit = new ARTLaminarCircuit(params);
+
+// Process single pattern
+var pattern = new DenseVector(inputData);
+var result = circuit.process(pattern);
+
+// Process batch with SIMD optimization (Phase 6C)
+var patterns = new Pattern[100];
+// ... fill patterns ...
+var batchResult = circuit.processBatch(patterns);
+
+// Access performance statistics
+var stats = batchResult.statistics();
+System.out.printf("Speedup: %.2fx%n", stats.getSpeedup(baselineTime));
+System.out.printf("Throughput: %.1f patterns/sec%n",
+    stats.getPatternsPerSecond());
+```
 
 ## Dependencies
 
 - **art-core**: Core ART interfaces and pattern types
-- **art-temporal**: Temporal dynamics (shunting, transmitter gates, integration)
-  - temporal-core: DynamicalSystem, ShuntingDynamics, TransmitterDynamics
-  - temporal-memory: WorkingMemory with primacy gradient
+- **art-temporal**: Temporal dynamics (shunting, transmitter gates)
 - **art-performance**: Vectorization interfaces
-- **Java 24** with preview features and incubator modules
+- **Java 24** with preview features and Vector API
+
+## Documentation
+
+All phase documentation has been archived in `archive/` directory:
+- Phase completion reports (Phase 3, 5, 6A, 6C)
+- Design documents
+- Performance analyses
+- Validation reports
+
+Current documentation:
+- **README.md**: This overview (updated)
+- **PHASE6C-COMPLETION.md**: Latest completion report
+- **archive/**: Historical development documentation
 
 ## Theoretical Foundation
 
-The shunting dynamics and transmitter habituation equations are consistent with Grossberg's canonical laminar circuit framework. These fundamental dynamics appear across multiple Grossberg papers and are implemented in the art-temporal module.
+Based on Grossberg's canonical laminar circuit:
+- Shunting dynamics for neural activation
+- ART matching rule for category learning
+- Multi-scale temporal processing
+- Top-down/bottom-up integration
 
-**Shunting Dynamics:**
-```
-dX_i/dt = -A_i * X_i + (B - X_i) * S_i - X_i * Σ(j≠i) I_ij
-```
+**Key Equations** (see PHASE6C-COMPLETION.md for details):
+- Shunting dynamics: `dx/dt = -Ax + (B-x)E - xI`
+- ART matching: `M = |X ∩ E| / |X|`
+- Vigilance test: `if M ≥ ρ: learn; else: search`
 
-**Transmitter Habituation:**
-```
-dZ_i/dt = ε(1 - Z_i) - Z_i(λ * S_i + μ * S_i²)
-```
+## Performance Characteristics
 
-**Time Scales:**
-- Fast (10-100ms): Neural activation, sensory processing
-- Slow (500-5000ms): Transmitter depletion, learning updates
+**Optimal Configuration**:
+- Batch size: ≥32 patterns (SIMD threshold)
+- Dimension: ≥64 (SIMD beneficial)
+- Pattern type: Independent or weakly dependent
 
-## Validation
+**Expected Speedup**:
+- Small batches (< 32): ~1.0x (sequential faster)
+- Medium batches (32-64): ~1.15x (SIMD emerging)
+- Large batches (≥64): ~1.30x (SIMD optimal)
 
-- Equation implementations validated against paper specifications
-- Numerical stability verified across parameter ranges
-- Time scale separation confirmed (>50x ratio)
-- Primacy gradient effects demonstrated in WorkingMemory
-- Integration accuracy: RK4 with adaptive clamping
+## Known Limitations
 
-## Limitations
+- **Bipole network**: Layer 2/3 horizontal grouping falls back to sequential (Phase 6B future work)
+- **Layer 1 & 2/3 SIMD**: Complex state makes single-pattern SIMD overhead high
+- **Mini-batch boundaries**: Last mini-batch may be < 32 (falls back to scalar)
+- **Vector API**: Requires Java 24 with preview features
 
-- Experimental implementation for research purposes
-- Performance depends on hardware and JVM optimizations
-- Vector API still in incubator status (Java 24)
-- Focus on temporal dynamics; spatial processing ongoing
+## Future Work
+
+- **Phase 6B** (optional): BipoleCellNetwork SIMD with left/right separation
+- **Phase 6D** (optional): Increase mini-batch size to 64
+- **GPU acceleration**: Port SIMD operations to GPU kernels
+- **Adaptive batching**: Runtime batch size optimization
 
 ## License
 
 GNU Affero General Public License v3.0
+
+## Citation
+
+Based on Grossberg, S. (2013). "Adaptive Resonance Theory: How a brain learns to consciously attend, learn, and recognize a changing world." Neural Networks, 37, 1-47.
+
+Implementation incorporates latest research from:
+- Raizada, R. D. S., & Grossberg, S. (2003). "Towards a theory of the laminar architecture of cerebral cortex."
+- Grossberg, S., & Kazerounian, S. (2016). "The LIST PARSE model of serial learning and recognition."

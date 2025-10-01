@@ -33,7 +33,7 @@ import java.util.Map;
  * 4. Apply fuzzy AND operations with choice function
  * 5. Check vigilance and update weights accordingly
  * 
- * @author Claude (Anthropic AI)
+ * @author Hal Hildebrand
  * @version 1.0
  */
 public final class VectorizedBinaryFuzzyART extends BaseART 

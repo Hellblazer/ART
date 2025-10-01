@@ -28,7 +28,7 @@ package com.hellblazer.art.laminar.batch;
  * @param parallelTasks count of parallel tasks executed
  * @param cacheHitRate estimated cache hit rate (0.0-1.0, -1.0 if not tracked)
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record BatchStatistics(
     int batchSize,

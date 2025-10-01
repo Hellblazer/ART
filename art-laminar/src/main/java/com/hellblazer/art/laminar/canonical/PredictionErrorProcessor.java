@@ -43,7 +43,7 @@ import com.hellblazer.art.core.Pattern;
  *
  * @see "Adaptive Resonance Theory" Carpenter & Grossberg (1987)
  * @see "A Canonical Laminar Neocortical Circuit..." Raizada & Grossberg (2003)
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class PredictionErrorProcessor {
 

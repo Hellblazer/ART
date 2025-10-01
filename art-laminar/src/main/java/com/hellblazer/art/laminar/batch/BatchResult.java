@@ -35,7 +35,7 @@ import java.util.Objects;
  * @param statistics batch-level performance metrics
  *
  * @see BatchProcessable#processBatch(Pattern[])
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public record BatchResult(
     Pattern[] outputs,

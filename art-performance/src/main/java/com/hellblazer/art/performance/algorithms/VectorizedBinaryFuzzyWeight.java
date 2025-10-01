@@ -22,7 +22,7 @@ import java.util.Objects;
  * - SIMD operations with binary-aware algorithms
  * - Reduced precision requirements for binary patterns
  * 
- * @author Claude (Anthropic AI)
+ * @author Hal Hildebrand
  * @version 1.0
  */
 public final class VectorizedBinaryFuzzyWeight implements WeightVector {

@@ -51,7 +51,7 @@ import jdk.incubator.vector.VectorSpecies;
  *   <li>Priming ONLY - capped at 0.5 to prevent driving responses</li>
  * </ul>
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class Layer1SIMDBatch {
 

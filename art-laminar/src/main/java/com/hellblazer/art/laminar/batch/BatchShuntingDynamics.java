@@ -19,7 +19,7 @@ import jdk.incubator.vector.VectorSpecies;
  * <p>This implementation produces bit-exact results compared to sequential
  * processing with ShuntingDynamicsImpl when parameters match.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 public class BatchShuntingDynamics {
 

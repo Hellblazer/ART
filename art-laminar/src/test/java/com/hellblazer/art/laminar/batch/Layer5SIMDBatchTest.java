@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Exact shunting dynamics
  * - Output normalization
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class Layer5SIMDBatchTest {
 

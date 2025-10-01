@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * Validates Phase 3 transpose-and-vectorize pattern for Layer 4.
  *
- * @author Claude Code
+ * @author Hal Hildebrand
  */
 class Layer4SIMDBatchTest {
 
