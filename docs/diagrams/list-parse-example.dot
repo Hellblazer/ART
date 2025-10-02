@@ -1,0 +1,131 @@
+digraph ListParseExample {
+    rankdir=TB;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="LIST PARSE Example: Speech Sequence Chunking\n\"PLEASE-SEND-HELP\" → [PLEASE][SEND][HELP]";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Input sequence
+    subgraph cluster_input {
+        label="Input Phoneme Sequence (0-1500ms)";
+        style=filled;
+        color="#E3F2FD";
+
+        p [label="P\nt=0", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        l [label="L\nt=100", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        e1 [label="E\nt=200", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        a [label="A\nt=300", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        s1 [label="S\nt=400", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        e2 [label="E\nt=500", shape=ellipse, fillcolor="#90CAF9", style=filled];
+
+        s2 [label="S\nt=600", shape=ellipse, fillcolor="#64B5F6", style=filled];
+        e3 [label="E\nt=700", shape=ellipse, fillcolor="#64B5F6", style=filled];
+        n [label="N\nt=800", shape=ellipse, fillcolor="#64B5F6", style=filled];
+        d [label="D\nt=900", shape=ellipse, fillcolor="#64B5F6", style=filled];
+
+        h [label="H\nt=1000", shape=ellipse, fillcolor="#42A5F5", style=filled];
+        e4 [label="E\nt=1100", shape=ellipse, fillcolor="#42A5F5", style=filled];
+        l2 [label="L\nt=1200", shape=ellipse, fillcolor="#42A5F5", style=filled];
+        p2 [label="P\nt=1300", shape=ellipse, fillcolor="#42A5F5", style=filled];
+
+        p -> l -> e1 -> a -> s1 -> e2 -> s2 -> e3 -> n -> d -> h -> e4 -> l2 -> p2 [label="time →"];
+    }
+
+    // Working memory state
+    subgraph cluster_wm {
+        label="Working Memory (Item Scale: 50-100ms)";
+        style=filled;
+        color="#FFF9C4";
+
+        wm_items [label="Items Stored:\n[P, L, E, A, S, E]\n↓\n[S, E, N, D]\n↓\n[H, E, L, P]", shape=box, fillcolor="#FFF59D", style=filled];
+        wm_primacy [label="Primacy Applied:\n[1.0, 0.9, 0.8, ...]\nEarly = Strong", shape=box, fillcolor="#FFE082", style=filled];
+    }
+
+    p -> wm_items [label="store"];
+    e2 -> wm_items [label="store"];
+    d -> wm_items [label="store"];
+
+    wm_items -> wm_primacy [label="weight"];
+
+    // Masking field competition
+    subgraph cluster_mask {
+        label="Masking Field (Chunk Scale: 200-400ms)";
+        style=filled;
+        color="#C8E6C9";
+
+        mask1 [label="Category 1\nact=0.95\nWINNER", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white, penwidth=3];
+        mask2 [label="Category 2\nact=0.88\nWINNER", shape=ellipse, fillcolor="#66BB6A", style=filled, fontcolor=white, penwidth=3];
+        mask3 [label="Category 3\nact=0.82\nWINNER", shape=ellipse, fillcolor="#81C784", style=filled, penwidth=3];
+
+        mask1 -> mask2 -> mask3 [label="sequential chunks"];
+    }
+
+    wm_primacy -> mask1 [label="chunk 1\n(0-500ms)", color="#4CAF50", penwidth=2];
+    wm_primacy -> mask2 [label="chunk 2\n(600-900ms)", color="#66BB6A", penwidth=2];
+    wm_primacy -> mask3 [label="chunk 3\n(1000-1300ms)", color="#81C784", penwidth=2];
+
+    // Chunk boundaries
+    subgraph cluster_boundaries {
+        label="Detected Chunk Boundaries";
+        style=filled;
+        color="#FFE0B2";
+
+        b1 [label="Boundary 1\nt=500ms\nPLEASE|", shape=diamond, fillcolor="#FF9800", style=filled, penwidth=2];
+        b2 [label="Boundary 2\nt=900ms\nSEND|", shape=diamond, fillcolor="#FFB74D", style=filled, penwidth=2];
+        b3 [label="Boundary 3\nt=1300ms\nHELP|", shape=diamond, fillcolor="#FFCC80", style=filled, penwidth=2];
+    }
+
+    mask1 -> b1 [label="emit"];
+    mask2 -> b2 [label="emit"];
+    mask3 -> b3 [label="emit"];
+
+    // Transmitter dynamics
+    subgraph cluster_transmitter {
+        label="Transmitter Habituation";
+        style=filled;
+        color="#F3E5F5";
+
+        trans [label="Transmitter Z(t):\n1.0 → 0.3 → 1.0\n(depletion & recovery)", shape=box, fillcolor="#E1BEE7", style=filled];
+        reset [label="Reset Signal\n(prevents loops)", shape=box, fillcolor="#CE93D8", style=filled];
+    }
+
+    b1 -> trans [label="depletes", style=dashed];
+    trans -> reset [label="triggers"];
+    reset -> wm_items [label="clear", style=dashed, color="#9C27B0"];
+
+    // Output chunks
+    subgraph cluster_output {
+        label="Output: Hierarchical Chunk Structure";
+        style=filled;
+        color="#A5D6A7";
+
+        chunk1 [label="CHUNK 1:\n[PLEASE]\n(word level)", shape=box, fillcolor="#81C784", style=filled, penwidth=2];
+        chunk2 [label="CHUNK 2:\n[SEND]\n(word level)", shape=box, fillcolor="#81C784", style=filled, penwidth=2];
+        chunk3 [label="CHUNK 3:\n[HELP]\n(word level)", shape=box, fillcolor="#81C784", style=filled, penwidth=2];
+
+        phrase [label="PHRASE:\n[PLEASE-SEND-HELP]\n(sentence level)", shape=box, fillcolor="#4CAF50", style=filled, fontcolor=white, penwidth=3];
+
+        chunk1 -> phrase;
+        chunk2 -> phrase;
+        chunk3 -> phrase;
+    }
+
+    b1 -> chunk1;
+    b2 -> chunk2;
+    b3 -> chunk3;
+
+    // Cognitive functions
+    functions [label="Demonstrates:\n• Multi-scale temporal chunking\n• Working memory gating\n• Automatic segmentation\n• Hierarchical structure\n• Speech/motor sequences", shape=note, fillcolor="#FFF9C4", style=filled];
+
+    phrase -> functions [style=dotted];
+
+    // Implementation
+    impl [label="MaskingField.java\n+ WorkingMemory.java\n+ TransmitterDynamics.java", shape=component, fillcolor="#FFE082", style=filled];
+
+    phrase -> impl [style=dotted, color="#FF6F00"];
+}

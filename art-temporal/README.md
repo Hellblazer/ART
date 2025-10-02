@@ -8,6 +8,8 @@ This module provides temporal dynamics for ART networks, enabling sequence learn
 
 ## Architecture
 
+![Temporal Processing Architecture](../docs/diagrams/temporal-architecture.svg)
+
 The temporal implementation consists of seven modules that work together to provide multi-scale temporal processing:
 
 ### Module Structure
@@ -204,6 +206,17 @@ The temporal modules depend on:
 - Java 24+ for virtual threads and modern features
 - art-core for base ART interfaces
 - Java Vector API (incubator) for SIMD operations
+
+## Alternative Implementation
+
+The **art-cortical** module provides a unified implementation combining temporal and laminar processing:
+- Unified temporal + spatial processing (6-layer cortical circuit)
+- 154 passing tests
+- See [art-cortical/ART_CORTICAL_COMPLETE.md](../art-cortical/ART_CORTICAL_COMPLETE.md)
+
+Both modules are actively maintained:
+- **art-temporal** (this module): Modular, paper-focused with 7 submodules
+- **art-cortical**: Unified architecture
 
 ## Documentation
 

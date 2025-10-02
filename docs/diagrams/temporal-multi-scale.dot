@@ -1,0 +1,41 @@
+digraph TemporalMultiScale {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=16];
+    edge [fontname="Arial", fontsize=14];
+    splines=ortho;
+    nodesep=1.2;
+    ranksep=1.2;
+
+    // Input
+    input [label="Temporal\nPattern", shape=ellipse, fillcolor="#E3F2FD",
+           penwidth=3, fontsize=18];
+
+    // Item Scale
+    items [label="Item Scale\n\n1-2 elements\n50-100ms",
+           fillcolor="#BBDEFB", penwidth=2, fontsize=16, width=2.5];
+
+    // Chunk Scale (emphasized)
+    chunks [label="Chunk Scale\n\n3-4 elements\n200-400ms",
+            fillcolor="#A5D6A7", penwidth=4, fontsize=16, width=2.5,
+            style="rounded,filled,bold"];
+
+    // List Scale
+    lists [label="List Scale\n\n5-7 elements\n500ms-1s",
+           fillcolor="#EF9A9A", penwidth=2, fontsize=16, width=2.5];
+
+    // Winner
+    winner [label="Winner\n\nChunk Scale", shape=hexagon, fillcolor="#FFC107",
+            penwidth=4, fontsize=18];
+
+    // Bottom-up excitation
+    input -> items [label="activate", penwidth=4, color="#1976D2"];
+    items -> chunks [label="excite ↑", penwidth=4, color="#388E3C"];
+    chunks -> lists [label="excite ↑", penwidth=3, color="#388E3C"];
+
+    // Top-down inhibition
+    lists -> chunks [label="inhibit ↓", color="#D32F2F", penwidth=3, style=dashed];
+    chunks -> items [label="inhibit ↓", color="#D32F2F", penwidth=3, style=dashed];
+
+    // Winner selection
+    chunks -> winner [label="strongest", penwidth=5, color="#F57F17"];
+}

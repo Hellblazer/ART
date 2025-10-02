@@ -1,0 +1,115 @@
+digraph WorkingMemoryPrimacy {
+    rankdir=TB;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Working Memory Primacy Gradient\nSerial Position Effect (STORE 2)";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Input sequence
+    subgraph cluster_input {
+        label="Input Sequence (e.g., digits: 5-5-5-1-2-3-4)";
+        style=filled;
+        color="#E3F2FD";
+
+        in1 [label="5\nt=0", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        in2 [label="5\nt=1", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        in3 [label="5\nt=2", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        in4 [label="1\nt=3", shape=ellipse, fillcolor="#90CAF9", style=filled];
+        in5 [label="2\nt=4", shape=ellipse, fillcolor="#90CAF9", style=filled];
+        in6 [label="3\nt=5", shape=ellipse, fillcolor="#64B5F6", style=filled];
+        in7 [label="4\nt=6", shape=ellipse, fillcolor="#64B5F6", style=filled];
+
+        in1 -> in2 -> in3 -> in4 -> in5 -> in6 -> in7 [label="time →"];
+    }
+
+    // Primacy gradient application
+    subgraph cluster_gradient {
+        label="Primacy Gradient Function";
+        style=filled;
+        color="#FFF9C4";
+
+        formula [label="G(t) = exp(-t/τ)\nτ = time constant", shape=box, fillcolor="#FFF59D", style=filled];
+        curve [label="Gradient Curve:\n━━━╲\n    ╲\n     ╲___", shape=note, fillcolor="#FFE082", style=filled];
+    }
+
+    // Working memory storage
+    subgraph cluster_wm {
+        label="Working Memory Storage (Weighted)";
+        style=filled;
+        color="#C8E6C9";
+
+        wm1 [label="5\nw=1.00", shape=box, fillcolor="#4CAF50", style=filled, fontcolor=white, penwidth=3];
+        wm2 [label="5\nw=0.87", shape=box, fillcolor="#66BB6A", style=filled, fontcolor=white];
+        wm3 [label="5\nw=0.74", shape=box, fillcolor="#81C784", style=filled];
+        wm4 [label="1\nw=0.61", shape=box, fillcolor="#A5D6A7", style=filled];
+        wm5 [label="2\nw=0.50", shape=box, fillcolor="#C8E6C9", style=filled];
+        wm6 [label="3\nw=0.41", shape=box, fillcolor="#E8F5E9", style=filled];
+        wm7 [label="4\nw=0.33", shape=box, fillcolor="#F1F8E9", style=filled];
+
+        wm1 -> wm2 -> wm3 -> wm4 -> wm5 -> wm6 -> wm7 [style=invis];
+    }
+
+    // Connections
+    in1 -> wm1 [label="G(0)=1.0", color="#4CAF50", penwidth=2];
+    in2 -> wm2 [label="G(1)=0.87", color="#66BB6A"];
+    in3 -> wm3 [label="G(2)=0.74", color="#81C784"];
+    in4 -> wm4 [label="G(3)=0.61", color="#A5D6A7"];
+    in5 -> wm5 [label="G(4)=0.50", color="#C8E6C9"];
+    in6 -> wm6 [label="G(5)=0.41"];
+    in7 -> wm7 [label="G(6)=0.33"];
+
+    formula -> wm1 [style=dotted, label="applies"];
+
+    // Chunking influence
+    subgraph cluster_chunking {
+        label="Influence on Chunking";
+        style=filled;
+        color="#FFE0B2";
+
+        chunk1 [label="Chunk 1: [555]\nStrong boundary\n(primacy peak)", shape=box, fillcolor="#FF9800", style=filled, penwidth=2];
+        chunk2 [label="Chunk 2: [1234]\nWeaker items\n(recency)", shape=box, fillcolor="#FFB74D", style=filled];
+    }
+
+    wm1 -> chunk1 [style=dashed, color="#FF6F00"];
+    wm2 -> chunk1 [style=dashed, color="#FF6F00"];
+    wm3 -> chunk1 [style=dashed, color="#FF6F00"];
+
+    wm4 -> chunk2 [style=dashed];
+    wm5 -> chunk2 [style=dashed];
+    wm6 -> chunk2 [style=dashed];
+    wm7 -> chunk2 [style=dashed];
+
+    // Serial position effects
+    subgraph cluster_effects {
+        label="Serial Position Effects";
+        style=filled;
+        color="#F3E5F5";
+
+        primacy [label="Primacy Effect\nEarly items stronger\n(better recall)", shape=box, fillcolor="#E1BEE7", style=filled];
+        recency [label="Recency Effect\nRecent items moderate\n(still active)", shape=box, fillcolor="#CE93D8", style=filled];
+        middle [label="Middle Items\nWeakest\n(interference)", shape=box, fillcolor="#BA68C8", style=filled];
+    }
+
+    wm1 -> primacy [style=dotted, color="#9C27B0"];
+    wm7 -> recency [style=dotted, color="#9C27B0"];
+    wm4 -> middle [style=dotted, color="#9C27B0"];
+
+    // Implementation
+    impl [label="PrimacyGradientController.java\ninitializeForSequence()", shape=component, fillcolor="#FFE082", style=filled];
+    wm1 -> impl [style=dotted, color="#FF6F00"];
+
+    // Parameters
+    params [label="Parameters:\n• τ (time constant): 3.0-5.0\n• Decay rate: exp(-1/τ)\n• Range: [0, 1]\n• Applied per time step", shape=note, fillcolor="#E1F5FE", style=filled];
+
+    impl -> params [style=dotted];
+
+    // Cognitive phenomena
+    phenomena [label="Explains:\n• Miller's 7±2 (chunk capacity)\n• Serial position curve\n• Primacy > recency\n• Chunk boundary detection\n• Temporal credit assignment", shape=note, fillcolor="#FFF9C4", style=filled];
+
+    impl -> phenomena [style=dotted];
+}

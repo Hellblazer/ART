@@ -1,0 +1,87 @@
+digraph TransmitterHabituation {
+    rankdir=TB;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Transmitter Habituation Dynamics\nEquation: dZ/dt = ε(1-Z) - Z(λS + μS²)";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Main equation components
+    subgraph cluster_equation {
+        label="Transmitter Dynamics";
+        style=filled;
+        color=lightgrey;
+
+        recovery [label="Recovery Term\nε(1-Z)\n(exponential recovery)", shape=box, fillcolor="#C8E6C9", style=filled];
+        depletion [label="Depletion Term\n-Z(λS + μS²)\n(activity-dependent)", shape=box, fillcolor="#FFCCBC", style=filled];
+    }
+
+    // Transmitter states
+    subgraph cluster_states {
+        label="Transmitter Level Evolution";
+        style=filled;
+        color="#F0F0F0";
+
+        z_full [label="Z(0) = 1.0\nFull capacity", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white];
+        z_active [label="Z(t₁)\nDuring activity", shape=ellipse, fillcolor="#FDD835", style=filled];
+        z_depleted [label="Z(t₂)\nDepleted", shape=ellipse, fillcolor="#EF5350", style=filled, fontcolor=white];
+        z_recover [label="Z(t₃)\nRecovering", shape=ellipse, fillcolor="#66BB6A", style=filled];
+    }
+
+    // Activity patterns
+    subgraph cluster_activity {
+        label="Synaptic Activity (S)";
+        style=filled;
+        color="#E3F2FD";
+
+        s_low [label="S = low\nMinimal depletion", shape=box, fillcolor="#BBDEFB", style=filled];
+        s_high [label="S = high\nRapid depletion", shape=box, fillcolor="#1976D2", style=filled, fontcolor=white];
+        s_sustained [label="S = sustained\nPerseveration", shape=box, fillcolor="#0D47A1", style=filled, fontcolor=white];
+    }
+
+    // Parameters
+    subgraph cluster_params {
+        label="Parameters";
+        style=filled;
+        color="#F3E5F5";
+
+        param_eps [label="ε: Recovery rate\n(0.01 - 0.1)", shape=note, fillcolor="white", style=filled];
+        param_lambda [label="λ: Linear depletion\n(0.5 - 2.0)", shape=note, fillcolor="white", style=filled];
+        param_mu [label="μ: Quadratic depletion\n(0.1 - 1.0)", shape=note, fillcolor="white", style=filled];
+    }
+
+    // Flow
+    z_full -> z_active [label="Activity starts\nS > 0", color="#FF6F00"];
+    z_active -> z_depleted [label="Sustained S\nZ → 0", color="#D32F2F"];
+    z_depleted -> z_recover [label="Activity stops\nS → 0", color="#388E3C"];
+    z_recover -> z_full [label="Recovery\nε(1-Z)", style=dashed, color="#4CAF50"];
+
+    s_low -> z_active [label="slow depletion", style=dotted];
+    s_high -> z_depleted [label="fast depletion", style=dotted];
+    s_sustained -> z_depleted [label="prevents recovery", color="#D32F2F"];
+
+    recovery -> z_recover [style=dashed];
+    depletion -> z_depleted [color="#FF6F00"];
+
+    param_eps -> recovery [style=dotted];
+    param_lambda -> depletion [style=dotted];
+    param_mu -> depletion [style=dotted];
+
+    // Implementation
+    impl [label="TransmitterDynamics.java\nupdate() method", shape=component, fillcolor="#FFE082", style=filled];
+    z_recover -> impl [label="implements", style=dashed, color="#FF6F00"];
+
+    // Key functions
+    functions [label="Prevents:\n• Perseveration (stuck in loops)\n• Runaway activation\n• Catastrophic forgetting\n\nEnables:\n• Temporal chunking\n• Working memory reset\n• Sequence boundaries", shape=note, fillcolor="#FFF9C4", style=filled];
+
+    impl -> functions [style=dotted];
+
+    // Time constants
+    timescales [label="Time Scales:\n• Depletion: 50-200ms\n• Recovery: 200-500ms\n• Full recovery: 500-1000ms", shape=note, fillcolor="#E1F5FE", style=filled];
+
+    z_full -> timescales [style=dotted];
+}

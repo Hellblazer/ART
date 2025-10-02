@@ -56,6 +56,13 @@
             <artifactId>logback-classic</artifactId>
         </dependency>
 
+        <!-- FFT Processing for Oscillatory Dynamics -->
+        <dependency>
+            <groupId>com.github.wendykierp</groupId>
+            <artifactId>JTransforms</artifactId>
+            <version>3.1</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

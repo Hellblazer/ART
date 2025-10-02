@@ -1,0 +1,192 @@
+digraph CorticalProcessingCycle {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    title [label="Complete Cortical Processing Cycle\nEnd-to-End Sequence Learning",
+           shape=plaintext, fontsize=16, fontname="Arial Bold"];
+
+    // Time annotations (across top)
+    t0 [label="t=0ms", shape=plaintext, fontsize=10];
+    t100 [label="t=100ms", shape=plaintext, fontsize=10];
+    t300 [label="t=300ms", shape=plaintext, fontsize=10];
+    t500 [label="t=500ms", shape=plaintext, fontsize=10];
+    t800 [label="t=800ms", shape=plaintext, fontsize=10];
+    t1200 [label="t=1200ms", shape=plaintext, fontsize=10];
+
+    t0 -> t100 -> t300 -> t500 -> t800 -> t1200 [style=invis];
+
+    // Input sequence
+    input_seq [label="Input Sequence\n[item₁, item₂, item₃, item₄, item₅, item₆, item₇]",
+               shape=ellipse, fillcolor="#E8F4F8", penwidth=2];
+
+    // PHASE 1: Working Memory (0-100ms)
+    subgraph cluster_phase1 {
+        label="PHASE 1: Item Storage (0-100ms)";
+        style=filled;
+        fillcolor="#E3F2FD";
+        fontsize=13;
+
+        wm_store1 [label="Store Item 1\nt=0ms", fillcolor="#BBDEFB"];
+        wm_store2 [label="Store Item 2\nt=14ms", fillcolor="#BBDEFB"];
+        wm_store3 [label="Store Item 3\nt=28ms", fillcolor="#BBDEFB"];
+        wm_storedots [label="...", shape=plaintext];
+        wm_store7 [label="Store Item 7\nt=84ms", fillcolor="#BBDEFB"];
+
+        wm_primacy [label="Primacy Gradient\nApplied", fillcolor="#90CAF9", penwidth=2];
+        wm_pattern [label="Temporal Pattern\nFormed", fillcolor="#90CAF9", penwidth=2];
+
+        wm_store1 -> wm_store2 -> wm_store3 -> wm_storedots -> wm_store7 [label="time →"];
+        wm_store7 -> wm_primacy -> wm_pattern;
+    }
+
+    input_seq -> wm_store1 [label="present items\n100ms/item", color="#1976D2", penwidth=2];
+
+    // PHASE 2: Multi-Scale Activation (100-500ms)
+    subgraph cluster_phase2 {
+        label="PHASE 2: Multi-Scale Competition (100-500ms)";
+        style=filled;
+        fillcolor="#C8E6C9";
+        fontsize=13;
+
+        mf_item_activate [label="Item Scale Activate\nt=100-150ms\n1-2 element nodes", fillcolor="#A5D6A7"];
+        mf_chunk_activate [label="Chunk Scale Activate\nt=150-300ms\n3-4 element nodes", fillcolor="#81C784", penwidth=2];
+        mf_list_activate [label="List Scale Activate\nt=300-500ms\n5-7 element nodes", fillcolor="#66BB6A"];
+
+        mf_compete [label="Mexican Hat\nCompetition", fillcolor="#4CAF50", penwidth=2];
+
+        mf_item_activate -> mf_chunk_activate -> mf_list_activate -> mf_compete;
+    }
+
+    wm_pattern -> mf_item_activate [label="temporal\npattern", color="#388E3C", penwidth=2];
+
+    // Chunking decision
+    chunk_decision [label="Chunking Decision:\n[items 1-3] + [items 4-7]\nChunk scale wins",
+                    shape=hexagon, fillcolor="#FFC107", penwidth=3, fontsize=12];
+
+    mf_compete -> chunk_decision [label="winner", color="#F57F17", penwidth=2];
+
+    // PHASE 3: Laminar Processing (500-800ms)
+    subgraph cluster_phase3 {
+        label="PHASE 3: Laminar Circuit Processing (500-800ms)";
+        style=filled;
+        fillcolor="#FFF9C4";
+        fontsize=13;
+
+        // First chunk processing
+        subgraph cluster_chunk1 {
+            label="Chunk 1: [1,2,3]";
+            fillcolor="#FFE082";
+            style=filled;
+
+            c1_l4 [label="L4: Receive\nt=500ms", fillcolor="#FFF176"];
+            c1_l23 [label="L2/3: Group\nt=520ms", fillcolor="#FFB74D"];
+            c1_l5 [label="L5: Categorize\nt=550ms", fillcolor="#FFF176"];
+            c1_l6 [label="L6: Feedback\nt=570ms", fillcolor="#CE93D8"];
+            c1_resonate [label="Resonance\nNew category!", fillcolor="#4CAF50", penwidth=2];
+
+            c1_l4 -> c1_l23 -> c1_l5 -> c1_l6 -> c1_resonate;
+        }
+
+        // Second chunk processing
+        subgraph cluster_chunk2 {
+            label="Chunk 2: [4,5,6,7]";
+            fillcolor="#FFE082";
+            style=filled;
+
+            c2_l4 [label="L4: Receive\nt=600ms", fillcolor="#FFF176"];
+            c2_l23 [label="L2/3: Group\nt=620ms", fillcolor="#FFB74D"];
+            c2_l5 [label="L5: Categorize\nt=650ms", fillcolor="#FFF176"];
+            c2_l6 [label="L6: Feedback\nt=670ms", fillcolor="#CE93D8"];
+            c2_resonate [label="Resonance\nNew category!", fillcolor="#4CAF50", penwidth=2];
+
+            c2_l4 -> c2_l23 -> c2_l5 -> c2_l6 -> c2_resonate;
+        }
+    }
+
+    chunk_decision -> c1_l4 [label="chunk 1", color="#FBC02D", penwidth=2];
+    chunk_decision -> c2_l4 [label="chunk 2", color="#FBC02D", penwidth=2];
+
+    // PHASE 4: Category Learning (800-1200ms)
+    subgraph cluster_phase4 {
+        label="PHASE 4: Long-Term Learning (800-1200ms)";
+        style=filled;
+        fillcolor="#E1BEE7";
+        fontsize=13;
+
+        learn_cat1 [label="Learn Category A\nWeight: [1,2,3]\nt=800-1000ms", fillcolor="#CE93D8", penwidth=2];
+        learn_cat2 [label="Learn Category B\nWeight: [4,5,6,7]\nt=1000-1200ms", fillcolor="#CE93D8", penwidth=2];
+
+        sequence_cat [label="Sequence Category\nA → B\n(temporal order)", fillcolor="#BA68C8", penwidth=3];
+
+        learn_cat1 -> sequence_cat;
+        learn_cat2 -> sequence_cat;
+    }
+
+    c1_resonate -> learn_cat1 [label="learn", color="#7B1FA2", penwidth=2];
+    c2_resonate -> learn_cat2 [label="learn", color="#7B1FA2", penwidth=2];
+
+    // Output
+    output [label="Learned Representation:\nSequence → 2 Chunks → 2 Categories\nTemporal order preserved",
+            shape=box, fillcolor="#E8F5E9", style="rounded,filled,bold",
+            penwidth=3, fontsize=12];
+
+    sequence_cat -> output [color="#2E7D32", penwidth=3];
+
+    // Parallel SIMD processing annotation
+    simd_parallel [label="SIMD Optimization:\nIf batch size ≥32:\n• Process 32 patterns in parallel\n• 1.30x speedup\n• Maintain sequential semantics",
+                   shape=note, fillcolor="#E1F5FE", penwidth=2];
+
+    c1_l4 -> simd_parallel [style=dotted];
+    c2_l4 -> simd_parallel [style=dotted];
+
+    // Time scale summary
+    timescales [label="Time Scale Hierarchy:\n• Items: 10-100ms (fast)\n• Chunks: 200-400ms (medium)\n• Categories: 500-1000ms (slow)\n• Sequences: 1000-2000ms (very slow)",
+                shape=note, fillcolor="#FFF3E0", fontsize=11];
+
+    // State evolution
+    state_evolution [label="State Evolution:\nPattern N+1 depends on N:\n• Working memory accumulates\n• Categories incrementally learned\n• Vigilance modulates specificity",
+                     shape=note, fillcolor="#C8E6C9", fontsize=11];
+
+    // Equations
+    eq_primacy [label="Primacy Gradient:\nstrength(i) = exp(-0.15 × i)",
+                shape=note, fillcolor="#90CAF9"];
+
+    eq_chunk [label="Chunk Competition:\ndx/dt = -Ax + (B-x)E - xI\nLarger scales inhibit smaller",
+              shape=note, fillcolor="#81C784"];
+
+    eq_match [label="ART Matching:\nM = |X ∩ E| / |X|\nResonance if M ≥ ρ",
+              shape=note, fillcolor="#CE93D8"];
+
+    // Implementation references
+    impl [label="End-to-End Classes:\nMultiScaleCoordinator.java\nTemporalChunkingLayer.java\nARTLaminarCircuit.java\nStatefulBatchProcessor.java\nWorkingMemory.java\nMaskingField.java",
+          shape=note, fillcolor="#E8F5E9"];
+
+    // Cognitive phenomenon
+    phenomenon [label="Models Human Cognition:\n• Sequence chunking (phone numbers)\n• Serial position effects\n• Category learning\n• Working memory limits (7±2)\n• Multi-scale temporal integration",
+                shape=note, fillcolor="#FFE0B2", fontsize=11];
+
+    // Position annotations (time alignment)
+    {rank=same; t0; input_seq;}
+    {rank=same; t100; wm_pattern; eq_primacy;}
+    {rank=same; t300; mf_chunk_activate; eq_chunk;}
+    {rank=same; t500; chunk_decision;}
+    {rank=same; t800; c1_l5; c2_l4; simd_parallel; eq_match;}
+    {rank=same; t1200; learn_cat2; state_evolution;}
+    {rank=same; output; impl; timescales; phenomenon;}
+
+    // Legend
+    subgraph cluster_legend {
+        label="Processing Phases";
+        style=filled;
+        fillcolor="#F5F5F5";
+
+        leg_temporal [label="Temporal\n0-500ms", fillcolor="#BBDEFB"];
+        leg_chunking [label="Chunking\n100-500ms", fillcolor="#A5D6A7"];
+        leg_laminar [label="Laminar\n500-800ms", fillcolor="#FFF176"];
+        leg_learning [label="Learning\n800-1200ms", fillcolor="#CE93D8"];
+
+        leg_temporal -> leg_chunking -> leg_laminar -> leg_learning [style=invis];
+    }
+}

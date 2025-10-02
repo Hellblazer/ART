@@ -1,0 +1,176 @@
+digraph CorticalUnifiedArchitecture {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Color scheme
+    // Blue: Temporal processing (fast)
+    // Green: Multi-scale processing (medium)
+    // Red: Integration/slow processing
+    // Yellow: Bottom-up laminar
+    // Purple: Top-down laminar
+
+    // Input
+    input [label="Temporal Input\n(sequence of patterns)", shape=ellipse, fillcolor="#E8F4F8"];
+
+    // Temporal Processing Layer
+    subgraph cluster_temporal {
+        label="Temporal Processing\n(art-temporal: 145 tests)";
+        style=filled;
+        fillcolor="#E3F2FD";
+        fontsize=14;
+
+        // Working Memory
+        subgraph cluster_wm {
+            label="Working Memory (STORE 2)\n10-100ms";
+            style=filled;
+            fillcolor="#BBDEFB";
+
+            wm_store [label="Item Storage\nWorkingMemory.java", fillcolor="#90CAF9"];
+            wm_primacy [label="Primacy Gradient\nPosition-dependent decay", fillcolor="#90CAF9"];
+            wm_pattern [label="Temporal Pattern\nSequence → Vector", fillcolor="#90CAF9"];
+
+            wm_store -> wm_primacy [label="apply"];
+            wm_primacy -> wm_pattern [label="form"];
+        }
+
+        // Masking Field
+        subgraph cluster_masking {
+            label="Masking Field (LIST PARSE)\n50-500ms";
+            style=filled;
+            fillcolor="#A5D6A7";
+
+            mf_item [label="Item Scale\n1-2 elements", fillcolor="#81C784"];
+            mf_chunk [label="Chunk Scale\n3-4 elements", fillcolor="#81C784"];
+            mf_list [label="List Scale\n5-7 elements", fillcolor="#81C784"];
+            mf_compete [label="Multi-Scale\nCompetition", fillcolor="#81C784"];
+
+            mf_item -> mf_compete [label="inhibit"];
+            mf_chunk -> mf_compete [label="inhibit"];
+            mf_list -> mf_compete [label="inhibit"];
+        }
+
+        wm_pattern -> mf_item [label="temporal\npattern", color="#1976D2", penwidth=2];
+    }
+
+    // Multi-Scale Coordinator
+    coordinator [label="Multi-Scale Coordinator\nMultiScaleCoordinator.java\nOrchestrates temporal chunking",
+                 shape=hexagon, fillcolor="#FFE082", fontsize=13, penwidth=2];
+
+    mf_compete -> coordinator [label="chunks", color="#388E3C", penwidth=2];
+
+    // Laminar Circuit Processing
+    subgraph cluster_laminar {
+        label="Laminar Circuit Processing\n(art-laminar: 402 tests)";
+        style=filled;
+        fillcolor="#FFF9C4";
+        fontsize=14;
+
+        // Layer 4 - Input
+        l4 [label="Layer 4: Input Reception\nThalamic + ART Matching\nLayer4Implementation.java", fillcolor="#FFF176"];
+
+        // Layer 2/3 - Grouping
+        l23 [label="Layer 2/3: Horizontal Grouping\nBipole cells, spatial binding\nLayer23Implementation.java", fillcolor="#FFB74D"];
+
+        // Layer 5 - Categories
+        l5 [label="Layer 5: Category Output\nBurst firing, amplification\nLayer5Implementation.java", fillcolor="#FFF176"];
+
+        // Layer 6 - Feedback
+        l6 [label="Layer 6: Top-Down Feedback\nExpectation generation\nLayer6Implementation.java", fillcolor="#CE93D8"];
+
+        // Layer 1 - Attention
+        l1 [label="Layer 1: Attentional Priming\nGain modulation\nLayer1Implementation.java", fillcolor="#CE93D8"];
+
+        // Bottom-up flow
+        l4 -> l23 [label="features", color="#FBC02D", penwidth=3];
+        l23 -> l5 [label="representation", color="#FBC02D", penwidth=3];
+
+        // Top-down flow
+        l5 -> l6 [label="category", color="#9C27B0", penwidth=2];
+        l6 -> l1 [label="expectation", color="#9C27B0", penwidth=2];
+        l1 -> l4 [label="modulation", color="#9C27B0", penwidth=2, style=dashed];
+    }
+
+    // Integration points
+    coordinator -> l4 [label="chunked\npatterns", color="#FF6F00", penwidth=3];
+
+    // Resonance check
+    resonance [label="Resonance Check\nChunk matches expectation?\nMatch ≥ vigilance",
+               shape=diamond, fillcolor="#C8E6C9", penwidth=2];
+
+    l4 -> resonance [label="match score"];
+    resonance -> l5 [label="learn\nchunk", color="#4CAF50", penwidth=2];
+    resonance -> coordinator [label="reset\nsearch new", color="#F44336", penwidth=2, style=dashed];
+
+    // Batch Processing Layer
+    subgraph cluster_batch {
+        label="SIMD Batch Processing\n(Phase 6C)";
+        style=filled;
+        fillcolor="#E1F5FE";
+        fontsize=14;
+
+        batch_input [label="Pattern Batch\n(32+ patterns)", fillcolor="#B3E5FC"];
+        batch_proc [label="StatefulBatchProcessor\nMini-batch SIMD", fillcolor="#B3E5FC"];
+        batch_output [label="Category Batch\n1.30x speedup", fillcolor="#B3E5FC"];
+
+        batch_input -> batch_proc [label="vectorize"];
+        batch_proc -> batch_output [label="process"];
+    }
+
+    l4 -> batch_proc [label="use for\nlarge batches", style=dotted];
+
+    // Temporal Chunking Integration
+    temporal_chunk [label="Temporal Chunking Layer\nTemporalChunkingLayer.java\nBridges temporal → laminar",
+                    shape=hexagon, fillcolor="#FFCC80", fontsize=13, penwidth=2];
+
+    coordinator -> temporal_chunk [label="chunks"];
+    temporal_chunk -> l4 [label="spatial\npatterns", color="#E65100", penwidth=2];
+
+    // Output
+    output [label="Learned Temporal Categories\n(sequences → chunks → categories)",
+            shape=ellipse, fillcolor="#E8F5E9"];
+
+    l5 -> output [label="categorized\nsequence", color="#2E7D32", penwidth=2];
+
+    // Performance annotations
+    perf_temporal [label="Temporal:\n14x memory speedup\n1.53x shunting speedup",
+                   shape=note, fillcolor="#BBDEFB"];
+    perf_laminar [label="Laminar:\n1.30x batch speedup\n1050 patterns/sec",
+                  shape=note, fillcolor="#FFF176"];
+    perf_integration [label="Integration:\nEnd-to-end sequence learning\nMulti-scale temporal chunking",
+                      shape=note, fillcolor="#FFE082"];
+
+    // Time scale annotations
+    time_fast [label="Fast: 10-100ms\nItem dynamics", shape=note, fillcolor="#90CAF9"];
+    time_medium [label="Medium: 50-500ms\nChunk formation", shape=note, fillcolor="#81C784"];
+    time_slow [label="Slow: 200-500ms\nCategory learning", shape=note, fillcolor="#FFF176"];
+
+    // Implementation reference
+    impl_ref [label="Key Classes:\nMultiScaleCoordinator.java\nTemporalChunkingLayer.java\nARTLaminarCircuit.java\nStatefulBatchProcessor.java\n\n547 tests total (100%)",
+              shape=note, fillcolor="#E8F5E9"];
+
+    // Position annotations
+    {rank=same; perf_temporal; wm_store;}
+    {rank=same; time_fast; wm_pattern;}
+    {rank=same; perf_integration; coordinator;}
+    {rank=same; time_medium; mf_compete;}
+    {rank=same; perf_laminar; l5;}
+    {rank=same; time_slow; l5;}
+    {rank=same; impl_ref; resonance;}
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor="#F5F5F5";
+
+        leg_temporal [label="Temporal\nProcessing", fillcolor="#BBDEFB"];
+        leg_laminar [label="Laminar\nProcessing", fillcolor="#FFF176"];
+        leg_integration [label="Multi-Scale\nCoordination", fillcolor="#FFE082"];
+        leg_batch [label="SIMD\nBatch", fillcolor="#B3E5FC"];
+
+        leg_temporal -> leg_laminar [style=invis];
+        leg_laminar -> leg_integration [style=invis];
+        leg_integration -> leg_batch [style=invis];
+    }
+}

@@ -1,0 +1,34 @@
+digraph TemporalArchitecture {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=16];
+    edge [fontname="Arial", fontsize=14];
+    splines=ortho;
+    nodesep=0.8;
+    ranksep=1.0;
+
+    // Input
+    input [label="Input\nSequence", shape=ellipse, fillcolor="#E3F2FD",
+           penwidth=3, fontsize=18];
+
+    // Working Memory
+    wm [label="Working Memory\n\nStore items\nApply primacy gradient\n\n10-100ms",
+        fillcolor="#BBDEFB", penwidth=3, fontsize=16];
+
+    // Multi-scale masking
+    masking [label="Multi-Scale Masking\n\nItem (1-2) • Chunk (3-4) • List (5-7)\nCompetition + Winner selection\n\n200-400ms",
+             fillcolor="#A5D6A7", penwidth=3, fontsize=16, style="rounded,filled,bold"];
+
+    // Categories
+    categories [label="Temporal Categories\n\nLearned chunk patterns\n\n500ms-1s",
+                fillcolor="#CE93D8", penwidth=3, fontsize=16];
+
+    // Output
+    output [label="Chunked\nSequence", shape=ellipse,
+            fillcolor="#E8F5E9", penwidth=3, fontsize=18];
+
+    // Main flow
+    input -> wm [label="store", penwidth=4, color="#1976D2"];
+    wm -> masking [label="temporal\npattern", penwidth=4, color="#388E3C"];
+    masking -> categories [label="winning\nchunks", penwidth=4, color="#7B1FA2"];
+    categories -> output [label="recall", penwidth=4, color="#2E7D32"];
+}

@@ -1,0 +1,51 @@
+digraph Laminar6Layer {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=16];
+    edge [fontname="Arial", fontsize=14];
+    splines=polyline;
+    nodesep=1.0;
+    ranksep=1.2;
+
+    // Input
+    input [label="Thalamic\nInput", shape=ellipse, fillcolor="#E3F2FD",
+           penwidth=3, fontsize=18];
+
+    // Layer 4 - Input
+    l4 [label="Layer 4\n\nInput + ART Matching",
+        fillcolor="#FFF176", penwidth=3, fontsize=16, width=2.5];
+
+    // Layer 2/3 - Grouping
+    l23 [label="Layer 2/3\n\nHorizontal Grouping",
+         fillcolor="#FFB74D", penwidth=3, fontsize=16, width=2.5];
+
+    // Layer 5 - Categories
+    l5 [label="Layer 5\n\nCategories",
+        fillcolor="#FFF176", penwidth=3, fontsize=16, width=2.5];
+
+    // Layer 6 - Feedback
+    l6 [label="Layer 6\n\nTop-Down Feedback",
+        fillcolor="#CE93D8", penwidth=3, fontsize=16, width=2.5];
+
+    // Layer 1 - Attention
+    l1 [label="Layer 1\n\nAttentional Modulation",
+        fillcolor="#CE93D8", penwidth=3, fontsize=16, width=2.5];
+
+    // Resonance
+    resonance [label="Resonance\nCheck", shape=diamond,
+               fillcolor="#C8E6C9", penwidth=3, fontsize=16];
+
+    // Bottom-up (yellow)
+    input -> l4 [label="  input  ", color="#FBC02D", penwidth=4];
+    l4 -> l23 [label="  features  ", color="#FBC02D", penwidth=4];
+    l23 -> l5 [label="  grouped  ", color="#FBC02D", penwidth=4];
+
+    // Top-down (purple)
+    l5 -> l6 [label="  category  ", color="#9C27B0", penwidth=3];
+    l6 -> l1 [label="  expectation  ", color="#9C27B0", penwidth=3];
+    l1 -> l4 [label="  modulate  ", color="#9C27B0", penwidth=3, style=dashed];
+
+    // Resonance check
+    l4 -> resonance [penwidth=2];
+    resonance -> l5 [label="learn", color="#4CAF50", penwidth=3];
+    resonance -> input [label="reset", color="#F44336", penwidth=2, style=dashed];
+}

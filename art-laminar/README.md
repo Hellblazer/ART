@@ -15,6 +15,8 @@ This module implements Grossberg's canonical laminar circuit architecture from "
 
 ## Key Features
 
+![6-Layer Laminar Circuit](../docs/diagrams/laminar-6-layer.svg)
+
 ### Laminar Circuit Architecture
 - **6 cortical layers**: Layers 1, 2/3, 4, 5, 6 with biologically-inspired dynamics
 - **Multiple pathways**: Bottom-up, top-down, and horizontal connections
@@ -75,38 +77,6 @@ art-laminar/
 └── src/test/java/              # Comprehensive test suite (402 tests)
 ```
 
-## Phase Progression
-
-### ✅ Phase 1-2: Temporal Dynamics & Chunking
-- Temporal dynamics integration with RK4
-- LIST PARSE temporal chunking
-- Working memory with primacy gradient
-- Time scale separation validation
-
-### ✅ Phase 3: Layer SIMD Foundation
-- Transpose-and-vectorize architecture
-- Layer 4, 5, 6 SIMD batch processing
-- BatchShuntingDynamics for exact equivalence
-- Cost-benefit analysis for automatic SIMD selection
-
-### ✅ Phase 5: Complete Layer SIMD
-- Layer 1 SIMD (top-down processing)
-- Layer 2/3 SIMD (without bipole network)
-- Individual layer semantic equivalence (0.00e+00)
-- All 5 layers with SIMD capability
-
-### ✅ Phase 6A: Stateful Batch Processing
-- StatefulBatchProcessor interface
-- Sequential pattern processing with layer-level SIMD
-- Proper state evolution maintained
-- Circuit integration complete
-
-### ✅ Phase 6C: Performance Optimization
-- Mini-batch SIMD (32 patterns per batch)
-- 1.30x speedup achieved
-- Interface casting elimination
-- Production-ready performance
-
 ## Building and Testing
 
 ```bash
@@ -164,6 +134,18 @@ System.out.printf("Throughput: %.1f patterns/sec%n",
 - **art-temporal**: Temporal dynamics (shunting, transmitter gates)
 - **art-performance**: Vectorization interfaces
 - **Java 24** with preview features and Vector API
+
+## Alternative Implementation
+
+The **art-cortical** module provides a unified implementation combining laminar and temporal processing:
+- Complete 6-layer cortical circuit (L1, L2/3, L4, L5, L6)
+- Unified temporal + spatial processing
+- 154 passing tests
+- See [art-cortical/ART_CORTICAL_COMPLETE.md](../art-cortical/ART_CORTICAL_COMPLETE.md)
+
+Both modules are actively maintained:
+- **art-laminar** (this module): SIMD batch processing (1.30x speedup)
+- **art-cortical**: Unified architecture
 
 ## Documentation
 

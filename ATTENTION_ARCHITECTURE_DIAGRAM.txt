@@ -1,0 +1,269 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                   SURFACE AND BOUNDARY ATTENTION ARCHITECTURE                  ║
+║                            ART Neural Network Project                          ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                            ATTENTION CIRCUIT                                   │
+│                         (art-attention module)                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+                                    ┌─────────────────────┐
+                                    │   PPC Attention     │
+                                    │       Field         │
+                                    │  ┌───────────────┐  │
+                                    │  │ Surface Shroud│  │ Ventral "What"
+                                    │  │  Formation    │  │ Conscious
+                                    │  └───────┬───────┘  │ Perception
+                                    │  ┌───────▼───────┐  │
+                                    │  │Boundary Shroud│  │ Dorsal "Where/How"
+                                    │  │  Formation    │  │ Motor Control
+                                    │  └───────┬───────┘  │
+                                    │  ┌───────▼───────┐  │
+                                    │  │ Winner-Take-  │  │
+                                    │  │     All       │  │
+                                    │  └───────────────┘  │
+                                    └─────────┬──────┬────┘
+                                           │      │
+                        Top-Down           │      │           Top-Down
+                        Surface            │      │           Boundary
+                        Attention          │      │           Attention
+                                           │      │
+                    ┌──────────────────────┘      └──────────────────────┐
+                    │                                                     │
+         ┌──────────▼──────────────┐                       ┌─────────────▼─────────┐
+         │   Surface Layer        │◄──────────────────────┤   Layer 1 (L1)         │
+         │      (V4)              │  Boundary Gating      │   Top-down             │
+         │                        │  (prevents diffusion) │   Expectation          │
+         │  ┌──────────────────┐  │                       │   (Modified)            │
+         │  │  Filling-In      │  │                       └───────────┬────────────┘
+         │  │  Dynamics        │  │                                   │
+         │  │  (FACADE)        │  │                                   │
+         │  └──────────────────┘  │                       ┌───────────▼────────────┐
+         │  ┌──────────────────┐  │                       │   Layer 2/3            │
+         │  │ Surface          │  │◄──────────────────────┤   Horizontal           │
+         │  │ Qualia:          │  │  Boundary Signals     │   Grouping             │
+         │  │ - Color          │  │                       │                        │
+         │  │ - Brightness     │  │                       │  ┌──────────────────┐  │
+         │  │ - Depth          │  │                       │  │ BipoleCellNet    │  │
+         │  └──────────────────┘  │                       │  │ (Existing!)      │  │
+         └──────────┬─────────────┘                       │  │ - Long-range     │  │
+                    │                                     │  │ - Completion     │  │
+                    │ V4-PPC                              │  │ - Illusory       │  │
+                    │ Resonance                           │  └──────────────────┘  │
+                    │ ~40 Hz                              └───────────┬────────────┘
+                    │                                                 │
+         ┌──────────▼─────────────┐                       ┌───────────▼────────────┐
+         │  Surface-Shroud        │                       │   Boundary-Shroud      │
+         │    Resonance           │                       │     Resonance          │
+         │                        │                       │                        │
+         │  ┌──────────────────┐  │                       │  ┌──────────────────┐  │
+         │  │ Oscillatory      │  │                       │  │ Oscillatory      │  │
+         │  │ Dynamics         │  │                       │  │ Dynamics         │  │
+         │  │ (Gamma ~40Hz)    │  │                       │  │ (Gamma ~40Hz)    │  │
+         │  └──────────────────┘  │                       │  └──────────────────┘  │
+         │  ┌──────────────────┐  │                       │  ┌──────────────────┐  │
+         │  │ Resonance        │  │                       │  │ Reaching         │  │
+         │  │ Detector         │  │                       │  │ Pathway          │  │
+         │  └──────────────────┘  │                       │  └──────────────────┘  │
+         │                        │                       │                        │
+         │ STATE:                 │                       │ STATE:                 │
+         │ - NO_RESONANCE         │                       │ - NO_RESONANCE         │
+         │ - SEARCHING            │                       │ - SEARCHING            │
+         │ - RESONANT ✓           │                       │ - RESONANT ✓           │
+         │                        │                       │                        │
+         │ OUTPUT:                │                       │ OUTPUT:                │
+         │ Conscious Visual       │                       │ Motor Coordinates      │
+         │ Qualia                 │                       │ Action Preparation     │
+         └────────────────────────┘                       └────────────────────────┘
+                    │                                                  │
+                    │                                                  │
+                    └───────────────────┬──────────────────────────────┘
+                                        │
+                                        │ Top-Down Modulation
+                                        │ (Attention Feedback)
+                                        │
+                            ┌───────────▼────────────┐
+                            │   Layer 4 (L4)         │
+                            │   Bottom-up Input      │
+                            │   (LGN → V1 → V2)      │
+                            │   (Existing)           │
+                            └────────────────────────┘
+                                        ▲
+                                        │
+                                        │ Sensory Input
+                                        │
+                                  INPUT PATTERN
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                              KEY INNOVATIONS                                   ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  1. FORM-FITTING SHROUDS (Not circular spotlight!)                             ║
+║     → Attention wraps object contours                                          ║
+║     → Uses boundary completion to constrain shape                              ║
+║     → Multiple shrouds track multiple objects                                  ║
+║                                                                                ║
+║  2. SURFACE-SHROUD RESONANCE (V4 ↔ PPC)                                        ║
+║     → Gamma oscillations at ~40 Hz                                             ║
+║     → Resonance = Conscious visual perception                                  ║
+║     → Fills-in color, brightness, depth (visual qualia)                        ║
+║                                                                                ║
+║  3. BOUNDARY-SHROUD RESONANCE (Layer 2/3 ↔ PPC)                                ║
+║     → Gamma oscillations for motor control                                     ║
+║     → Enables reaching to object contours                                      ║
+║     → Visual-motor transformation                                              ║
+║                                                                                ║
+║  4. DUAL ATTENTION STREAMS                                                     ║
+║     → Ventral "what": Surface attention → Conscious perception                 ║
+║     → Dorsal "where/how": Boundary attention → Motor control                   ║
+║     → Operate independently or together                                        ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                            INTEGRATION POINTS                                  ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  EXISTING COMPONENTS (Unchanged):                                              ║
+║  ✓ Layer 4: Bottom-up input processing                                         ║
+║  ✓ Layer 2/3: BipoleCellNetwork for boundary completion                        ║
+║  ✓ Layer 1: Top-down expectations (modified for attention)                      ║
+║  ✓ Layer 5/6: Feedback pathways                                                ║
+║                                                                                ║
+║  NEW COMPONENTS (art-attention):                                               ║
+║  + SurfaceLayer: V4-equivalent with filling-in (FACADE)                         ║
+║  + SpatialAttentionField: PPC-equivalent with form-fitting shrouds              ║
+║  + SurfaceResonance: V4-PPC gamma resonance for consciousness                  ║
+║  + BoundaryAttentionController: Enhanced boundary attention                    ║
+║  + BoundaryResonance: Boundary-PPC resonance for motor control                 ║
+║  + AttentionCircuit: Unified integration and control                            ║
+║                                                                                ║
+║  BRIDGES:                                                                      ║
+║  → LaminarAttentionBridge: art-laminar integration                             ║
+║  → CorticalAttentionBridge: art-cortical integration                           ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          PROCESSING FLOW                                       ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  INPUT → Layer 4 → Layer 2/3 Grouping ─┬─→ Boundary Completion                 ║
+║                                         │                                      ║
+║                                         └─→ Surface Input                      ║
+║                                                                                ║
+║  Boundary Completion ─┬─→ SurfaceLayer (filling-in with boundary gating)        ║
+║                       │                                                        ║
+║                       └─→ PPC Attention (shroud formation)                     ║
+║                                                                                ║
+║  SurfaceLayer + PPC Shroud → Surface-Shroud Resonance (~40 Hz)                 ║
+║  BoundaryCompletion + PPC Shroud → Boundary-Shroud Resonance (~40 Hz)          ║
+║                                                                                ║
+║  IF RESONANT:                                                                  ║
+║    Surface → Conscious perception (visual qualia)                              ║
+║    Boundary → Motor preparation (reaching coordinates)                         ║
+║    Top-down modulation → Layer 1 & Layer 4 (attention feedback)                ║
+║                                                                                ║
+║  OUTPUT: AttentionState with resonance info, shrouds, actions                  ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        MATHEMATICAL EQUATIONS                                  ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  SURFACE FILLING-IN (FACADE):                                                  ║
+║    ∂S/∂t = D∇²S - λS + I(x,t)·(1 - B(x))                                       ║
+║                                                                                ║
+║    Where: S = surface, D = diffusion, λ = decay, I = input, B = boundary       ║
+║                                                                                ║
+║  SHROUD FORMATION:                                                             ║
+║    ∂A/∂t = D_a∇²A - λ_aA + G·(1-B(x)) + T(x)                                   ║
+║                                                                                ║
+║    Where: A = attention, G = gain, T = target                                  ║
+║                                                                                ║
+║  RESONANCE DYNAMICS:                                                           ║
+║    dS/dt = -α_s·S + (B_s - S)·[I_s + β·A] - S·I_inh                            ║
+║    dA/dt = -α_a·A + (B_a - A)·[T + γ·S] - A·C                                  ║
+║                                                                                ║
+║    Where: β, γ = coupling strengths (β=0.3, γ=0.4)                             ║
+║                                                                                ║
+║  RESONANCE CONDITION:                                                          ║
+║    R(t) = ∫[t-T, t] S(τ)·A(τ)·cos(2πf_γτ) dτ > θ_res                           ║
+║                                                                                ║
+║    Where: f_γ = 40 Hz, θ_res = 0.6, T = 50-100ms                               ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          PERFORMANCE TARGETS                                   ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  REAL-TIME (60 Hz = 16.67ms per frame):                                        ║
+║    Laminar circuit:     8ms  (existing)                                        ║
+║    Attention circuit:   8ms  (target)                                          ║
+║    ─────────────────────────────────────                                       ║
+║    TOTAL:              16ms  ✓ ACHIEVABLE                                      ║
+║                                                                                ║
+║  COMPONENT BREAKDOWN (size=128, vectorized):                                   ║
+║    Filling-in:         <1ms   (20 iterations × 50μs)                           ║
+║    Shroud formation:   <0.5ms (10 iterations × 50μs)                           ║
+║    Resonance:          <0.5ms (cross-correlation)                              ║
+║    Boundary attention: <0.3ms (enhancement)                                    ║
+║    Integration:        <0.2ms (bridging)                                       ║
+║    ─────────────────────────────────────                                       ║
+║    TOTAL:              <2.5ms                                                  ║
+║                                                                                ║
+║  SIMD SPEEDUP:                                                                 ║
+║    AVX2 (4 doubles):   4x faster than scalar                                   ║
+║    AVX-512 (8 doubles): 8x faster than scalar                                  ║
+║    Batch (32 patterns): 15-20x faster (amortized)                              ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        8-PHASE IMPLEMENTATION PLAN                             ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  Phase 1: Surface Layer Foundation          (Weeks 1-2)  [Risk: LOW]           ║
+║  Phase 2: PPC Attention Field               (Weeks 2-3)  [Risk: MEDIUM]        ║
+║  Phase 3: Surface-Shroud Resonance          (Weeks 3-4)  [Risk: MEDIUM]        ║
+║  Phase 4: Boundary Attention Enhancement    (Weeks 4-5)  [Risk: LOW]           ║
+║  Phase 5: Laminar Integration ★             (Weeks 5-6)  [Risk: HIGH]          ║
+║  Phase 6: Cortical Integration ★            (Weeks 6-7)  [Risk: HIGH]          ║
+║  Phase 7: Vectorization & Performance       (Weeks 7-8)  [Risk: LOW]           ║
+║  Phase 8: Validation & Documentation        (Week 8)     [Risk: LOW]           ║
+║                                                                                ║
+║  ★ = Critical phases requiring extra attention and testing                     ║
+║                                                                                ║
+║  TOTAL: 8 weeks, 131 new tests, maintains 1680+ existing tests (100% pass)     ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        CRITICAL SUCCESS FACTORS                                ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  ✓ Zero Regression: ALL 1680+ existing tests pass (100%)                       ║
+║  ✓ Neurobiological Fidelity: Equations match papers (1e-10 precision)          ║
+║  ✓ Form-Fitting: Shroud follows shape, NOT circular (>90% accuracy)            ║
+║  ✓ Gamma Resonance: Oscillations at 40 Hz ± 2 Hz                               ║
+║  ✓ Performance: Vectorized ≥4x faster, real-time 60 Hz                         ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Legend:
+  ──→  Unidirectional data flow
+  ◄──► Bidirectional resonance (oscillatory)
+  ┌──┐ Component/module
+  ║  ║ Important boundary
+  ✓    Success/complete
+  ★    Critical/high-risk
