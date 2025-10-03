@@ -2,6 +2,9 @@ package com.hellblazer.art.cortical.layers;
 
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.cortical.analysis.CircularBuffer;
+import com.hellblazer.art.cortical.analysis.OscillationAnalyzer;
+import com.hellblazer.art.cortical.analysis.OscillationMetrics;
 import com.hellblazer.art.cortical.dynamics.ShuntingDynamics;
 import com.hellblazer.art.cortical.dynamics.ShuntingParameters;
 
@@ -48,6 +51,12 @@ public final class Layer4 implements Layer {
     private Pattern activation;
     private Layer4Parameters currentParameters;
 
+    // Oscillation tracking (Phase 2: Oscillatory Dynamics Integration)
+    private OscillationAnalyzer oscillationAnalyzer;
+    private CircularBuffer<double[]> activationHistory;
+    private OscillationMetrics currentMetrics;
+    private double currentTimestamp;
+
     /**
      * Create Layer 4 with given ID and size.
      *
@@ -65,6 +74,7 @@ public final class Layer4 implements Layer {
         this.weights = new WeightMatrix(size, size);
         this.listeners = new CopyOnWriteArrayList<>();
         this.activation = new DenseVector(new double[size]);
+        this.currentTimestamp = 0.0;
 
         // Initialize with default fast dynamics
         initializeFastDynamics();
@@ -154,14 +164,37 @@ public final class Layer4 implements Layer {
         // Apply soft sigmoid saturation for biological plausibility
         // Maps unbounded scaled input to [0, ceiling] range
         // Based on Grossberg (1973) sigmoid saturation function
+        // Modified to preserve oscillatory dynamics for frequency analysis
         var result = new double[size];
+
+        // For oscillatory inputs, preserve the waveform shape while applying saturation
+        // Use a bipolar sigmoid that maps [-inf, inf] to [floor, ceiling] smoothly
+        var range = ceiling - floor;
+        var midpoint = floor + range / 2.0;
+
         for (var i = 0; i < inputArray.length; i++) {
-            if (inputArray[i] > 0) {
-                // Sigmoid: ceiling * x / (1 + x) for x > 0
-                result[i] = ceiling * inputArray[i] / (1.0 + inputArray[i]);
+            var x = inputArray[i];
+
+            // For very small inputs (near zero), use unipolar sigmoid for backward compatibility
+            // For oscillatory inputs, use bipolar sigmoid to preserve waveform
+            if (Math.abs(x) < 0.01) {
+                // Unipolar sigmoid for near-zero inputs: map [0, inf] to [floor, ceiling]
+                if (x >= 0) {
+                    result[i] = floor + range * x / (1.0 + x);
+                } else {
+                    result[i] = floor;
+                }
             } else {
-                result[i] = 0.0;
+                // Bipolar sigmoid for oscillatory inputs: preserves zero-crossings
+                // tanh-based compression preserves oscillation shape
+                var compressed = Math.tanh(x * 0.5);  // Gentle compression factor
+
+                // Map from [-1, 1] to [floor, ceiling]
+                result[i] = midpoint + (compressed * range / 2.0);
             }
+
+            // Ensure bounds
+            result[i] = Math.max(floor, Math.min(ceiling, result[i]));
         }
 
         // Apply lateral inhibition only if configured (minimal for Layer 4)
@@ -183,8 +216,23 @@ public final class Layer4 implements Layer {
             }
         }
 
-        // Update activation and return
+        // Update activation
         activation = new DenseVector(result);
+
+        // Oscillation analysis (if enabled)
+        if (oscillationAnalyzer != null && activationHistory != null) {
+            // Record activation snapshot
+            activationHistory.add(result.clone());
+
+            // Analyze when history buffer is full
+            if (activationHistory.isFull()) {
+                currentMetrics = oscillationAnalyzer.analyze(activationHistory, currentTimestamp);
+            }
+
+            // Increment timestamp (assuming 1ms timesteps for 1000 Hz sampling)
+            currentTimestamp += 0.001;
+        }
+
         return activation;
     }
 
@@ -258,6 +306,13 @@ public final class Layer4 implements Layer {
         activation = new DenseVector(new double[size]);
         dynamics.reset();
         currentParameters = null;
+
+        // Clear oscillation tracking
+        if (activationHistory != null) {
+            activationHistory.clear();
+        }
+        currentMetrics = null;
+        currentTimestamp = 0.0;
     }
 
     @Override
@@ -334,5 +389,76 @@ public final class Layer4 implements Layer {
 
         // Create new dynamics instance with updated parameters
         this.dynamics = new ShuntingDynamics(shuntingParams);
+    }
+
+    // ============== Oscillation Tracking API (Phase 2) ==============
+
+    /**
+     * Enable oscillation tracking for this layer.
+     *
+     * <p>When enabled, the layer will maintain a circular buffer of activation
+     * history and compute oscillation metrics using FFT analysis.
+     *
+     * @param samplingRate Sampling rate in Hz (typically 1000 for 1ms timesteps)
+     * @param historySize Number of samples to analyze (power-of-2 recommended)
+     * @throws IllegalArgumentException if parameters invalid
+     */
+    public void enableOscillationTracking(double samplingRate, int historySize) {
+        if (samplingRate <= 0) {
+            throw new IllegalArgumentException("samplingRate must be positive: " + samplingRate);
+        }
+        if (historySize <= 0) {
+            throw new IllegalArgumentException("historySize must be positive: " + historySize);
+        }
+
+        this.oscillationAnalyzer = new OscillationAnalyzer(samplingRate, historySize);
+        this.activationHistory = new CircularBuffer<>(historySize);
+        this.currentMetrics = null;
+        this.currentTimestamp = 0.0;
+    }
+
+    /**
+     * Disable oscillation tracking.
+     *
+     * <p>Clears all oscillation-related state and metrics.
+     */
+    public void disableOscillationTracking() {
+        this.oscillationAnalyzer = null;
+        this.activationHistory = null;
+        this.currentMetrics = null;
+        this.currentTimestamp = 0.0;
+    }
+
+    /**
+     * Get current oscillation metrics.
+     *
+     * <p>Returns null if:
+     * <ul>
+     *   <li>Oscillation tracking is disabled</li>
+     *   <li>Activation history buffer not yet full</li>
+     * </ul>
+     *
+     * @return Current oscillation metrics, or null if unavailable
+     */
+    public OscillationMetrics getOscillationMetrics() {
+        return currentMetrics;
+    }
+
+    /**
+     * Check if oscillation tracking is enabled.
+     *
+     * @return true if oscillation tracking is enabled
+     */
+    public boolean isOscillationTrackingEnabled() {
+        return oscillationAnalyzer != null;
+    }
+
+    /**
+     * Get current timestamp for oscillation analysis.
+     *
+     * @return Current timestamp in seconds
+     */
+    public double getCurrentTimestamp() {
+        return currentTimestamp;
     }
 }
