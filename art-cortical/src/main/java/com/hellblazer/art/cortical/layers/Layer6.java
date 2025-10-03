@@ -2,6 +2,9 @@ package com.hellblazer.art.cortical.layers;
 
 import com.hellblazer.art.core.DenseVector;
 import com.hellblazer.art.core.Pattern;
+import com.hellblazer.art.cortical.analysis.CircularBuffer;
+import com.hellblazer.art.cortical.analysis.OscillationAnalyzer;
+import com.hellblazer.art.cortical.analysis.OscillationMetrics;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -46,6 +49,16 @@ public final class Layer6 implements Layer {
     private double[] modulationState;  // Persistent modulation state
     private Layer6Parameters currentParameters;
 
+    // Oscillation tracking (Phase 2: Oscillatory Dynamics Integration)
+    private OscillationAnalyzer oscillationAnalyzer;
+    private CircularBuffer<double[]> activationHistory;
+    private OscillationMetrics currentMetrics;
+    private double currentTimestamp;
+
+    // Learning infrastructure (Phase 3C: Multi-Layer Learning)
+    private com.hellblazer.art.cortical.learning.LearningRule learningRule;
+    private com.hellblazer.art.cortical.learning.LearningStatistics learningStatistics;
+
     /**
      * Create Layer 6 with given ID and size.
      *
@@ -65,6 +78,7 @@ public final class Layer6 implements Layer {
         this.activation = new DenseVector(new double[size]);
         this.topDownExpectation = new DenseVector(new double[size]);
         this.modulationState = new double[size];
+        this.currentTimestamp = 0.0;
     }
 
     @Override
@@ -172,6 +186,15 @@ public final class Layer6 implements Layer {
             listener.onActivationChanged(id, oldActivation, activation);
         }
 
+        // Oscillation analysis (if enabled)
+        if (oscillationAnalyzer != null && activationHistory != null) {
+            activationHistory.add(result.clone());
+            if (activationHistory.isFull()) {
+                currentMetrics = oscillationAnalyzer.analyze(activationHistory, currentTimestamp);
+            }
+            currentTimestamp += 0.001;
+        }
+
         return activation;
     }
 
@@ -210,6 +233,7 @@ public final class Layer6 implements Layer {
         return activation;
     }
 
+    @Deprecated
     @Override
     public void updateWeights(Pattern input, double learningRate) {
         if (learningRate < 0.0 || learningRate > 1.0) {
@@ -241,6 +265,11 @@ public final class Layer6 implements Layer {
             modulationState[i] = 0.0;
         }
         currentParameters = null;
+        if (activationHistory != null) {
+            activationHistory.clear();
+        }
+        currentMetrics = null;
+        currentTimestamp = 0.0;
     }
 
     @Override
@@ -346,5 +375,171 @@ public final class Layer6 implements Layer {
      */
     public void removeActivationListener(LayerActivationListener listener) {
         listeners.remove(listener);
+    }
+
+    // ============== Oscillation Tracking API (Phase 2) ==============
+
+    /**
+     * Enable oscillation tracking for this layer.
+     *
+     * <p>When enabled, the layer will maintain a circular buffer of activation
+     * history and compute oscillation metrics using FFT analysis.
+     *
+     * @param samplingRate Sampling rate in Hz (typically 1000 for 1ms timesteps)
+     * @param historySize Number of samples to analyze (power-of-2 recommended)
+     * @throws IllegalArgumentException if parameters invalid
+     */
+    public void enableOscillationTracking(double samplingRate, int historySize) {
+        if (samplingRate <= 0) {
+            throw new IllegalArgumentException("samplingRate must be positive: " + samplingRate);
+        }
+        if (historySize <= 0) {
+            throw new IllegalArgumentException("historySize must be positive: " + historySize);
+        }
+
+        this.oscillationAnalyzer = new OscillationAnalyzer(samplingRate, historySize);
+        this.activationHistory = new CircularBuffer<>(historySize);
+        this.currentMetrics = null;
+        this.currentTimestamp = 0.0;
+    }
+
+    /**
+     * Disable oscillation tracking.
+     *
+     * <p>Clears all oscillation-related state and metrics.
+     */
+    public void disableOscillationTracking() {
+        this.oscillationAnalyzer = null;
+        this.activationHistory = null;
+        this.currentMetrics = null;
+        this.currentTimestamp = 0.0;
+    }
+
+    /**
+     * Get current oscillation metrics.
+     *
+     * <p>Returns null if:
+     * <ul>
+     *   <li>Oscillation tracking is disabled</li>
+     *   <li>Activation history buffer not yet full</li>
+     * </ul>
+     *
+     * @return Current oscillation metrics, or null if unavailable
+     */
+    public OscillationMetrics getOscillationMetrics() {
+        return currentMetrics;
+    }
+
+    /**
+     * Check if oscillation tracking is enabled.
+     *
+     * @return true if oscillation tracking is enabled
+     */
+    public boolean isOscillationTrackingEnabled() {
+        return oscillationAnalyzer != null;
+    }
+
+    /**
+     * Get current timestamp for oscillation analysis.
+     *
+     * @return Current timestamp in seconds
+     */
+    public double getCurrentTimestamp() {
+        return currentTimestamp;
+    }
+
+    // ============== Learning API (Phase 3C) ==============
+
+    /**
+     * Enable resonance-gated learning for Layer 6.
+     *
+     * <p>Layer 6 learning characteristics:
+     * <ul>
+     *   <li>Learns corticothalamic feedback and gain modulation</li>
+     *   <li>Hebbian learning for modulatory connections</li>
+     *   <li>Gated by consciousness and attention from circuit</li>
+     *   <li>Time constant: 100-500ms (medium-slow)</li>
+     * </ul>
+     *
+     * @param learningRule learning rule to apply
+     * @throws IllegalArgumentException if learningRule is null
+     */
+    public void enableLearning(com.hellblazer.art.cortical.learning.LearningRule learningRule) {
+        if (learningRule == null) {
+            throw new IllegalArgumentException("learningRule cannot be null");
+        }
+        this.learningRule = learningRule;
+        this.learningStatistics = new com.hellblazer.art.cortical.learning.LearningStatistics();
+    }
+
+    /**
+     * Disable learning for Layer 6.
+     */
+    public void disableLearning() {
+        this.learningRule = null;
+        this.learningStatistics = null;
+    }
+
+    @Override
+    public boolean isLearningEnabled() {
+        return learningRule != null;
+    }
+
+    @Override
+    public com.hellblazer.art.cortical.learning.LearningStatistics getLearningStatistics() {
+        return learningStatistics;
+    }
+
+    @Override
+    public void learn(com.hellblazer.art.cortical.learning.LearningContext context, double baseLearningRate) {
+        if (!isLearningEnabled()) {
+            return;
+        }
+
+        // Apply learning rule with modulated learning rate
+        var newWeights = learningRule.update(
+            context.preActivation(),
+            context.postActivation(),
+            weights,
+            baseLearningRate * context.getLearningRateModulation()
+        );
+
+        // Compute weight change magnitude for statistics
+        double weightChange = computeWeightChangeMagnitude(weights, newWeights);
+
+        // Copy new weights to current weights (in-place update)
+        copyWeights(newWeights, weights);
+
+        // Update statistics
+        learningStatistics.recordLearningEvent(
+            context.resonanceState(),
+            context.attentionStrength(),
+            weightChange
+        );
+    }
+
+    /**
+     * Compute magnitude of weight change between two weight matrices.
+     */
+    private double computeWeightChangeMagnitude(WeightMatrix oldWeights, WeightMatrix newWeights) {
+        double sumSquares = 0.0;
+        for (int i = 0; i < oldWeights.getRows(); i++) {
+            for (int j = 0; j < oldWeights.getCols(); j++) {
+                double diff = newWeights.get(i, j) - oldWeights.get(i, j);
+                sumSquares += diff * diff;
+            }
+        }
+        return Math.sqrt(sumSquares);
+    }
+
+    /**
+     * Copy weights from source to destination (in-place).
+     */
+    private void copyWeights(WeightMatrix source, WeightMatrix destination) {
+        for (int i = 0; i < source.getRows(); i++) {
+            for (int j = 0; j < source.getCols(); j++) {
+                destination.set(i, j, source.get(i, j));
+            }
+        }
     }
 }

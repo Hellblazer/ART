@@ -7,6 +7,9 @@ import com.hellblazer.art.cortical.analysis.OscillationAnalyzer;
 import com.hellblazer.art.cortical.analysis.OscillationMetrics;
 import com.hellblazer.art.cortical.dynamics.ShuntingDynamics;
 import com.hellblazer.art.cortical.dynamics.ShuntingParameters;
+import com.hellblazer.art.cortical.learning.LearningContext;
+import com.hellblazer.art.cortical.learning.LearningRule;
+import com.hellblazer.art.cortical.learning.LearningStatistics;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -56,6 +59,10 @@ public final class Layer4 implements Layer {
     private CircularBuffer<double[]> activationHistory;
     private OscillationMetrics currentMetrics;
     private double currentTimestamp;
+
+    // Learning infrastructure (Phase 3: Learning & Adaptation)
+    private LearningRule learningRule;
+    private LearningStatistics learningStatistics;
 
     /**
      * Create Layer 4 with given ID and size.
@@ -460,5 +467,102 @@ public final class Layer4 implements Layer {
      */
     public double getCurrentTimestamp() {
         return currentTimestamp;
+    }
+
+    // ============== Learning API (Phase 3) ==============
+
+    /**
+     * Enable learning for this layer.
+     *
+     * @param learningRule Learning rule to use (e.g., HebbianLearning)
+     * @throws IllegalArgumentException if learningRule is null
+     */
+    public void enableLearning(LearningRule learningRule) {
+        if (learningRule == null) {
+            throw new IllegalArgumentException("learningRule cannot be null");
+        }
+
+        this.learningRule = learningRule;
+        this.learningStatistics = new LearningStatistics();
+    }
+
+    /**
+     * Disable learning for this layer.
+     */
+    public void disableLearning() {
+        this.learningRule = null;
+        this.learningStatistics = null;
+    }
+
+    @Override
+    public boolean isLearningEnabled() {
+        return learningRule != null;
+    }
+
+    @Override
+    public void learn(LearningContext context, double baseLearningRate) {
+        if (!isLearningEnabled()) {
+            return;  // Learning not enabled
+        }
+
+        // Apply learning rule
+        var newWeights = learningRule.update(
+            context.preActivation(),
+            context.postActivation(),
+            weights,
+            baseLearningRate * context.getLearningRateModulation()
+        );
+
+        // Compute weight change magnitude for statistics
+        double weightChange = computeWeightChangeMagnitude(weights, newWeights);
+
+        // Update weights
+        copyWeights(newWeights, weights);
+
+        // Record learning event
+        learningStatistics.recordLearningEvent(
+            context.resonanceState(),
+            context.attentionStrength(),
+            weightChange
+        );
+    }
+
+    @Override
+    public LearningStatistics getLearningStatistics() {
+        return learningStatistics;
+    }
+
+    /**
+     * Get the learning rule currently in use.
+     *
+     * @return learning rule, or null if learning not enabled
+     */
+    public LearningRule getLearningRule() {
+        return learningRule;
+    }
+
+    /**
+     * Compute magnitude of weight change between two weight matrices.
+     */
+    private double computeWeightChangeMagnitude(WeightMatrix oldWeights, WeightMatrix newWeights) {
+        double sumSquaredDiff = 0.0;
+        for (int i = 0; i < oldWeights.getRows(); i++) {
+            for (int j = 0; j < oldWeights.getCols(); j++) {
+                double diff = newWeights.get(i, j) - oldWeights.get(i, j);
+                sumSquaredDiff += diff * diff;
+            }
+        }
+        return Math.sqrt(sumSquaredDiff);
+    }
+
+    /**
+     * Copy weights from source to destination matrix.
+     */
+    private void copyWeights(WeightMatrix source, WeightMatrix destination) {
+        for (int i = 0; i < source.getRows(); i++) {
+            for (int j = 0; j < source.getCols(); j++) {
+                destination.set(i, j, source.get(i, j));
+            }
+        }
     }
 }

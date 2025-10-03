@@ -104,8 +104,46 @@ public interface Layer extends AutoCloseable {
      * @param input input pattern that drove this layer
      * @param learningRate learning rate parameter (0.0 to 1.0)
      * @throws IllegalArgumentException if learningRate is out of range
+     * @deprecated Use {@link #learn(com.hellblazer.art.cortical.learning.LearningContext, double)} instead
      */
+    @Deprecated
     void updateWeights(Pattern input, double learningRate);
+
+    /**
+     * Apply learning using the enhanced learning framework (Phase 3).
+     *
+     * <p>Integrates with resonance-gated learning:
+     * <ul>
+     *   <li>Uses {@link com.hellblazer.art.cortical.learning.LearningContext} for gating</li>
+     *   <li>Applies consciousness-based learning rate modulation</li>
+     *   <li>Updates weights according to configured learning rule</li>
+     *   <li>Tracks learning statistics</li>
+     * </ul>
+     *
+     * @param context Learning context with pre/post activations and resonance state
+     * @param baseLearningRate Base learning rate (before modulation)
+     */
+    default void learn(com.hellblazer.art.cortical.learning.LearningContext context, double baseLearningRate) {
+        // Default implementation: no-op (layers can override)
+    }
+
+    /**
+     * Get learning statistics for this layer.
+     *
+     * @return learning statistics, or null if learning not enabled
+     */
+    default com.hellblazer.art.cortical.learning.LearningStatistics getLearningStatistics() {
+        return null;
+    }
+
+    /**
+     * Check if learning is enabled for this layer.
+     *
+     * @return true if learning is enabled
+     */
+    default boolean isLearningEnabled() {
+        return false;
+    }
 
     /**
      * Reset layer to initial state.
