@@ -1,0 +1,116 @@
+digraph MaskingFieldCompetition {
+    rankdir=TB;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Masking Field Competition Dynamics\nSpatial Winner-Take-All with Mexican Hat Connectivity";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Input from working memory
+    subgraph cluster_input {
+        label="Input from Working Memory";
+        style=filled;
+        color="#E3F2FD";
+
+        wm [label="Working Memory\nActivation Pattern", shape=box, fillcolor="#BBDEFB", style=filled];
+        primacy [label="Primacy Gradient\nWeighted", shape=box, fillcolor="#90CAF9", style=filled];
+    }
+
+    wm -> primacy [label="apply gradient"];
+
+    // Masking field nodes
+    subgraph cluster_nodes {
+        label="Masking Field Nodes (Categories)";
+        style=filled;
+        color="#FFF9C4";
+
+        node1 [label="Node 1\nact=0.2", shape=ellipse, fillcolor="#FFECB3", style=filled];
+        node2 [label="Node 2\nact=0.8", shape=ellipse, fillcolor="#FDD835", style=filled, penwidth=3];
+        node3 [label="Node 3\nact=0.3", shape=ellipse, fillcolor="#FFF59D", style=filled];
+        node4 [label="Node 4\nact=0.1", shape=ellipse, fillcolor="#FFF9C4", style=filled];
+        node5 [label="Node 5\nact=0.5", shape=ellipse, fillcolor="#FFE082", style=filled];
+
+        node1 -> node2 -> node3 -> node4 -> node5 [style=invis];
+    }
+
+    primacy -> node2 [label="strongest input", color="#4CAF50", penwidth=2];
+    primacy -> node1 [style=dotted];
+    primacy -> node3 [style=dotted];
+    primacy -> node5 [style=dotted];
+
+    // Mexican hat connectivity
+    subgraph cluster_mexican {
+        label="Mexican Hat Lateral Connectivity";
+        style=filled;
+        color="#C8E6C9";
+
+        center [label="Center Node\n(winner)", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white];
+        near [label="Near Neighbors\n(distance 1-2)", shape=box, fillcolor="#FFCCBC", style=filled];
+        far [label="Far Neighbors\n(distance 3+)", shape=box, fillcolor="#E0E0E0", style=filled];
+
+        center -> near [label="INHIBIT\n(suppress)", color="#F44336", penwidth=2];
+        center -> far [label="weak excite\n(cooperate)", color="#4CAF50", style=dashed];
+    }
+
+    node2 -> center [label="becomes winner", style=dotted, color="#FF6F00"];
+
+    // Competition dynamics
+    node2 -> node1 [label="inhibit", color="#F44336", dir=both];
+    node2 -> node3 [label="inhibit", color="#F44336", dir=both];
+    node2 -> node5 [label="inhibit", color="#F44336"];
+
+    // Equations
+    subgraph cluster_equations {
+        label="Competition Equations";
+        style=filled;
+        color="#F3E5F5";
+
+        excite_eq [label="Excitation:\nw_exc(d) = A·exp(-d²/(2σ_e²))", shape=box, fillcolor="#C8E6C9", style=filled];
+        inhibit_eq [label="Inhibition:\nw_inh(d) = B·exp(-d²/(2σ_i²))", shape=box, fillcolor="#FFCCBC", style=filled];
+        total_eq [label="Total:\nW(d) = w_exc - w_inh", shape=box, fillcolor="#E1BEE7", style=filled];
+    }
+
+    excite_eq -> total_eq [style=dotted];
+    inhibit_eq -> total_eq [style=dotted];
+
+    // Winner determination
+    subgraph cluster_winner {
+        label="Winner-Take-All Mechanism";
+        style=filled;
+        color="#FFE0B2";
+
+        threshold [label="Threshold\nθ = 0.5", shape=parallelogram, fillcolor="#FFB74D", style=filled];
+        winner [label="Winner Selection\nargmax(activation)", shape=diamond, fillcolor="#FF9800", style=filled];
+        suppress [label="Suppress Losers\nact → 0", shape=box, fillcolor="#FFCCBC", style=filled];
+    }
+
+    node2 -> winner [label="highest", color="#4CAF50", penwidth=2];
+    winner -> suppress [label="inhibit others"];
+    threshold -> winner [style=dashed, label="above θ"];
+
+    suppress -> node1 [style=dotted, color="#F44336"];
+    suppress -> node3 [style=dotted, color="#F44336"];
+    suppress -> node4 [style=dotted, color="#F44336"];
+
+    // Output (chunk boundary)
+    output [label="Output:\nChunk Boundary Signal\n(sequence segmentation)", shape=box, fillcolor="#81C784", style=filled, penwidth=2];
+    winner -> output [label="emit", color="#4CAF50", penwidth=2];
+
+    // Implementation
+    impl [label="MaskingField.java\nperformSpatialCompetition()", shape=component, fillcolor="#FFE082", style=filled];
+    output -> impl [style=dotted, color="#FF6F00"];
+
+    // Parameters
+    params [label="Parameters:\n• σ_e (excite width): 1.0\n• σ_i (inhibit width): 3.0\n• A (excite strength): 2.0\n• B (inhibit strength): 1.5\n• θ (threshold): 0.5", shape=note, fillcolor="#E1F5FE", style=filled];
+
+    impl -> params [style=dotted];
+
+    // Functions
+    functions [label="Cognitive Functions:\n• Chunk boundary detection\n• Working memory gating\n• Context-dependent segmentation\n• Temporal credit assignment\n• LIST PARSE mechanism", shape=note, fillcolor="#FFF9C4", style=filled];
+
+    impl -> functions [style=dotted];
+}

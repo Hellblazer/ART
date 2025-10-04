@@ -1,0 +1,68 @@
+digraph ShuntingDynamics {
+    rankdir=TB;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Shunting Dynamics\nMembrane Equation: dx/dt = -A·x + (B - x)·E - (x + C)·I";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Equation breakdown
+    subgraph cluster_equation {
+        label="Components";
+        style=filled;
+        color=lightgrey;
+
+        decay [label="Passive Decay\n-Ax\n(decay rate)", shape=box, fillcolor="#FFCCCC", style=filled];
+        excitation [label="Excitatory Input\n(B-x)E\n(shunting excitation)", shape=box, fillcolor="#CCFFCC", style=filled];
+        inhibition [label="Inhibitory Input\n-(x+C)I\n(shunting inhibition)", shape=box, fillcolor="#CCCCFF", style=filled];
+    }
+
+    // Membrane potential evolution
+    subgraph cluster_dynamics {
+        label="Membrane Potential Evolution";
+        style=filled;
+        color="#F0F0F0";
+
+        x_t0 [label="x(t₀)\nInitial state", shape=ellipse, fillcolor="#FFF9C4", style=filled];
+        x_t1 [label="x(t₁)\nAfter excitation", shape=ellipse, fillcolor="#C8E6C9", style=filled];
+        x_t2 [label="x(t₂)\nAfter inhibition", shape=ellipse, fillcolor="#BBDEFB", style=filled];
+        x_ss [label="x(∞)\nSteady state", shape=ellipse, fillcolor="#E1BEE7", style=filled];
+    }
+
+    // Parameters
+    subgraph cluster_params {
+        label="Parameters";
+        style=filled;
+        color="#E8F5E9";
+
+        param_A [label="A: Decay rate\n(typically 1.0, uniform,\ncan be position-dependent)", shape=note, fillcolor="white", style=filled];
+        param_B [label="B: Excitation ceiling\n(typically 1.0)", shape=note, fillcolor="white", style=filled];
+        param_C [label="C: Inhibition floor\n(typically 0.1)", shape=note, fillcolor="white", style=filled];
+    }
+
+    // Implementation
+    impl [label="ShuntingDynamics.java\nupdate() method", shape=component, fillcolor="#FFE082", style=filled];
+
+    // Flow
+    decay -> x_t0 [label="passive decay", style=dashed];
+    excitation -> x_t1 [label="E > 0", color="#4CAF50"];
+    inhibition -> x_t2 [label="I > 0", color="#2196F3"];
+    x_t0 -> x_t1 [label="Δt"];
+    x_t1 -> x_t2 [label="Δt"];
+    x_t2 -> x_ss [label="converges"];
+
+    param_A -> decay [style=dotted];
+    param_B -> excitation [style=dotted];
+    param_C -> inhibition [style=dotted];
+
+    x_ss -> impl [label="implements", style=dashed, color="#FF6F00"];
+
+    // Key properties
+    properties [label="Key Properties:\n• Bounded: x ∈ [0, B]\n• Shunting: Rate depends on distance from bounds\n• Automatic gain control\n• Noise suppression", shape=note, fillcolor="#FFF59D", style=filled];
+
+    x_ss -> properties [style=dotted];
+}

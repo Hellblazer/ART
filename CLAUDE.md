@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a comprehensive **Adaptive Resonance Theory (ART)** implementation featuring 60+ ART algorithm variants with both standard and high-performance vectorized implementations. ART is a neural network architecture for unsupervised and supervised learning, pattern recognition, and clustering. The project is structured as a multi-module Maven build with extensive test coverage (1,408 tests, 100% pass rate), SIMD optimization via Java Vector API, and GPU acceleration support.
+This is a comprehensive **Adaptive Resonance Theory (ART)** implementation featuring 60+ ART algorithm variants with both standard and high-performance vectorized implementations. ART is a neural network architecture for unsupervised and supervised learning, pattern recognition, and clustering. The project is structured as a multi-module Maven build with extensive test coverage (1,680+ tests, 100% pass rate), SIMD optimization via Java Vector API, GPU acceleration support, and unified cortical architecture combining temporal and laminar processing.
 
 ## Build System & Commands
 
@@ -79,13 +79,19 @@ This is a comprehensive **Adaptive Resonance Theory (ART)** implementation featu
 - Use try-with-resources for resource management
 
 ### Maven Module Structure
-- Multi-module build with 3 active modules:
-  - **art-core**: Core algorithm implementations (818 tests)
-  - **art-performance**: Vectorized implementations (582 tests)
-  - **gpu-test-framework**: GPU acceleration experiments (8 tests)
+- Multi-module build with 7 active modules:
+  - **art-core**: Core algorithm implementations (128 test classes)
+  - **art-performance**: Vectorized implementations (60 test classes)
+  - **art-temporal**: Temporal processing with LIST PARSE model (19 test classes, 7 submodules)
+  - **art-laminar**: 6-layer laminar circuit architecture (43 test classes, 402 tests)
+  - **art-cortical**: Unified temporal + laminar architecture (13 test classes, 154 tests)
+  - **gpu-test-framework**: GPU acceleration experiments (6 test classes)
+  - **resource**: Shared resources and utilities
 - Generated sources go in `target/generated-sources/`
 - Protocol Buffers sources in `src/main/proto` and `src/test/proto`
 - JOOQ generated classes in `target/generated-sources/jooq`
+
+> **Note**: art-cortical combines temporal and laminar functionality in a unified architecture. All three modules are actively maintained.
 
 ### Graphics Programming
 - Use JOML for all 3D math operations
@@ -154,16 +160,20 @@ When working with ART performance algorithms:
 All above algorithms have vectorized implementations with "Vectorized" prefix using Java Vector API for 10-100x speedup
 
 ### Testing Strategy
-- **Total Tests**: 1,408 (100% pass rate)
-  - art-core: 818 tests
-  - art-performance: 582 tests  
-  - gpu-test-framework: 8 tests
+- **Total Tests**: 1,680+ (100% pass rate)
+  - art-core: 128 test classes
+  - art-performance: 60 test classes
+  - art-temporal: 19 test classes across 7 submodules
+  - art-laminar: 43 test classes (402 individual tests)
+  - art-cortical: 13 test classes (154 individual tests)
+  - gpu-test-framework: 6 test classes
 - **Test Types**:
   - Unit tests for individual ART components
   - Integration tests for full network behavior
   - Performance tests using JMH for critical paths
   - Visual tests for JavaFX components
   - Regression tests for historical bug prevention
+  - Neurobiological fidelity tests (1e-10 precision)
 - **BaseVectorizedARTTest** - Shared test framework (83% code reduction)
 
 ## Project-Specific Notes

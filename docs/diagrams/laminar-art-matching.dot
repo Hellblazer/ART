@@ -1,0 +1,43 @@
+digraph LaminarARTMatching {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=16];
+    edge [fontname="Arial", fontsize=14];
+    splines=ortho;
+    nodesep=1.0;
+    ranksep=1.2;
+
+    // Inputs
+    bottom_up [label="Bottom-Up\nInput", shape=ellipse,
+               fillcolor="#FFF9C4", penwidth=3, fontsize=18];
+    top_down [label="Top-Down\nExpectation", shape=ellipse,
+              fillcolor="#E1BEE7", penwidth=3, fontsize=18];
+
+    // Match computation
+    match [label="Match Computation\n\nM = |I ∩ E| / |I|",
+           fillcolor="#FFF176", penwidth=3, fontsize=16, width=3];
+
+    // Vigilance test
+    vigilance [label="Vigilance\nTest\n\nM ≥ ρ?", shape=diamond,
+               fillcolor="#FFE082", penwidth=4, fontsize=18];
+
+    // Outcomes
+    resonance [label="RESONANCE\n\n✓ Learn Category\nDriving gates",
+               fillcolor="#4CAF50", penwidth=4, fontcolor="white",
+               fontsize=16, width=2.5, style="rounded,filled,bold"];
+
+    reset [label="MISMATCH\n\n✗ Search New\nModulatory gates",
+           fillcolor="#F44336", penwidth=4, fontcolor="white",
+           fontsize=16, width=2.5, style="rounded,filled,bold"];
+
+    // Flow
+    bottom_up -> match [label="  I  ", penwidth=4, color="#FBC02D"];
+    top_down -> match [label="  E  ", penwidth=4, color="#9C27B0"];
+
+    match -> vigilance [penwidth=4];
+
+    vigilance -> resonance [label="  match  ", penwidth=4, color="#4CAF50"];
+    vigilance -> reset [label="  mismatch  ", penwidth=4, color="#F44336"];
+
+    {rank=same; bottom_up; top_down;}
+    {rank=same; resonance; reset;}
+}

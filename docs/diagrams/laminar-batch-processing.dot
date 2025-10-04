@@ -1,0 +1,35 @@
+digraph LaminarBatchProcessing {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=16];
+    edge [fontname="Arial", fontsize=14];
+    splines=ortho;
+    nodesep=0.8;
+    ranksep=1.2;
+
+    // Input
+    input [label="Pattern Batch\n\n32 patterns", shape=ellipse,
+           fillcolor="#E3F2FD", penwidth=3, fontsize=18];
+
+    // Transform
+    transform [label="Data Layout\nTransform\n\nRow → Column",
+               shape=hexagon, fillcolor="#FFE082", penwidth=3, fontsize=16];
+
+    // SIMD processing
+    simd [label="SIMD Processing\n\nLayers 4, 5, 6 vectorized\n32 patterns in parallel",
+          fillcolor="#FFF9C4", penwidth=3, fontsize=16, width=3,
+          style="rounded,filled,bold"];
+
+    // Stateful coordinator
+    stateful [label="Stateful Processor\n\nSequential semantics\nPattern N+1 sees N",
+              shape=hexagon, fillcolor="#FFCC80", penwidth=3, fontsize=16];
+
+    // Output
+    output [label="Category Batch\n\nlearned", shape=ellipse,
+            fillcolor="#E8F5E9", penwidth=3, fontsize=18];
+
+    // Flow
+    input -> transform [label="transpose", penwidth=4, color="#1976D2"];
+    transform -> simd [label="SIMD lanes", penwidth=4, color="#FBC02D"];
+    simd -> stateful [label="process", penwidth=4, color="#FF6F00"];
+    stateful -> output [label="categories", penwidth=4, color="#2E7D32"];
+}

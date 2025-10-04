@@ -1,0 +1,111 @@
+digraph BipoleCellNetwork {
+    rankdir=LR;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Bipole Cell Network (Layer 2/3)\nHorizontal Grouping and Illusory Contour Formation";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Input array
+    subgraph cluster_input {
+        label="Bottom-up Input (Layer 4)";
+        style=filled;
+        color="#FFF9C4";
+
+        i1 [label="●", shape=circle, fillcolor="#4CAF50", style=filled, width=0.3];
+        i2 [label="○", shape=circle, fillcolor="white", style=filled, width=0.3];
+        i3 [label="○", shape=circle, fillcolor="white", style=filled, width=0.3];
+        i4 [label="●", shape=circle, fillcolor="#4CAF50", style=filled, width=0.3];
+        i5 [label="○", shape=circle, fillcolor="white", style=filled, width=0.3];
+
+        i1 -> i2 -> i3 -> i4 -> i5 [style=invis];
+    }
+
+    // Bipole cells
+    subgraph cluster_bipole {
+        label="Bipole Cells (Layer 2/3)";
+        style=filled;
+        color="#FFE0B2";
+
+        b1 [label="Bipole 1\n◀━━○━━▶", shape=box, fillcolor="#FFB74D", style=filled];
+        b2 [label="Bipole 2\n◀━━○━━▶", shape=box, fillcolor="#FFB74D", style=filled];
+        b3 [label="Bipole 3\n◀━━○━━▶", shape=box, fillcolor="#FF9800", style=filled];
+        b4 [label="Bipole 4\n◀━━○━━▶", shape=box, fillcolor="#FFB74D", style=filled];
+
+        b1 -> b2 -> b3 -> b4 [style=invis];
+    }
+
+    // Receptive fields
+    i1 -> b1 [label="left RF", color="#2196F3", style=dashed];
+    i2 -> b2 [label="left RF", color="#2196F3", style=dashed];
+    i3 -> b3 [label="left RF", color="#2196F3", style=dashed];
+    i4 -> b3 [label="right RF", color="#F44336", style=dashed];
+    i5 -> b4 [label="right RF", color="#F44336", style=dashed];
+
+    // Gating rule
+    subgraph cluster_gating {
+        label="Bipole Gating Rule";
+        style=filled;
+        color="#E3F2FD";
+
+        left_input [label="Left Input\nL", shape=box, fillcolor="#BBDEFB", style=filled];
+        right_input [label="Right Input\nR", shape=box, fillcolor="#BBDEFB", style=filled];
+        and_gate [label="AND Gate\nL ∧ R", shape=diamond, fillcolor="#64B5F6", style=filled];
+        output [label="Bipole Output\nB = L ∧ R", shape=ellipse, fillcolor="#2196F3", style=filled, fontcolor=white];
+
+        left_input -> and_gate;
+        right_input -> and_gate;
+        and_gate -> output [label="both active", penwidth=2];
+    }
+
+    b3 -> and_gate [label="example", style=dotted, color="#FF6F00"];
+
+    // Illusory contour
+    subgraph cluster_illusory {
+        label="Illusory Contour Formation";
+        style=filled;
+        color="#C8E6C9";
+
+        gap [label="Gap in Input\n(missing data)", shape=box, fillcolor="#FFCCBC", style=filled];
+        completion [label="Completion Signal\n(bipole fires)", shape=box, fillcolor="#81C784", style=filled];
+        percept [label="Perceived Contour\n(filled-in)", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white];
+
+        gap -> completion [label="long-range", penwidth=2, color="#4CAF50"];
+        completion -> percept;
+    }
+
+    i3 -> gap [label="no input", style=dashed, color="#9E9E9E"];
+    b3 -> completion [label="bridges gap", color="#4CAF50", penwidth=2];
+
+    // Horizontal connections
+    subgraph cluster_horizontal {
+        label="Horizontal Connection Pattern";
+        style=filled;
+        color="#F3E5F5";
+
+        h_excite [label="Excitation\n(same orientation)", shape=box, fillcolor="#C8E6C9", style=filled];
+        h_inhibit [label="Inhibition\n(diff orientation)", shape=box, fillcolor="#FFCCBC", style=filled];
+        h_range [label="Range: 3-7 cells\n(collinear)", shape=box, fillcolor="#E1BEE7", style=filled];
+    }
+
+    b1 -> b2 [label="excite", color="#4CAF50", constraint=false];
+    b2 -> b3 [label="excite", color="#4CAF50", constraint=false];
+
+    // Implementation
+    impl [label="BipoleCellNetwork.java\nprocess()", shape=component, fillcolor="#FFE082", style=filled];
+    percept -> impl [style=dotted, color="#FF6F00"];
+
+    // Functions
+    functions [label="Functions:\n• Contour completion\n• Boundary grouping\n• Illusory contours (Kanizsa)\n• Object segmentation\n• Figure-ground separation", shape=note, fillcolor="#FFF9C4", style=filled];
+
+    impl -> functions [style=dotted];
+
+    // Parameters
+    params [label="Parameters:\n• RF width: 3-5 positions\n• AND threshold: 0.5\n• Horizontal range: 5-7\n• Decay rate: 0.1", shape=note, fillcolor="#E1F5FE", style=filled];
+
+    impl -> params [style=dotted];
+}

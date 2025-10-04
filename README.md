@@ -11,8 +11,9 @@ A comprehensive implementation of Adaptive Resonance Theory (ART) neural network
 
 - **High Performance**: SIMD vectorization via Vector API (6-8x average speedup)
 - **Comprehensive Coverage**: 60+ ART algorithm variants with vectorized implementations
-- **Extensive Testing**: 1,408 total tests with 100% pass rate across all modules
-- **Temporal Processing**: Complete temporal ART implementation with 144 tests (14x working memory speedup)
+- **Extensive Testing**: 1,680+ total tests with 100% pass rate across all modules
+- **Temporal Processing**: Complete temporal ART implementation with 140+ tests (14x working memory speedup)
+- **Cortical Architecture**: Unified temporal + laminar processing with 154 tests
 - **Data Preprocessing**: Complete data preprocessing pipeline with normalization and missing value handling
 - **Scikit-learn Compatible**: Familiar API for Python users transitioning to Java
 - **Production Ready**: Benchmarking, comprehensive documentation, and performance optimization
@@ -154,27 +155,49 @@ var vectorizedNetwork = new VectorizedFuzzyART(parameters);
 
 ## Performance
 
-All algorithms have vectorized implementations with:
-- 6-8x average performance improvement via SIMD
-- Temporal modules: 14x working memory speedup, 1.53x shunting dynamics speedup
-- Parallel processing support
-- Memory-optimized operations
+### Real-World Benchmarks (Measured)
+
+**VectorizedFuzzyART** throughput across workloads:
+- Small datasets (1K samples, 10D): 11K - 330K samples/sec
+- Medium datasets (10K samples, 50D): 13K - 255K samples/sec
+- Large datasets (50K samples, 100D): 8.7K - 156K samples/sec
+- Image recognition (5K samples, 784D): 1K - 23K samples/sec
+- Sensor data (100K samples, 32D): 23K - 377K samples/sec
+- Text embeddings (20K samples, 300D): 3.1K - 58K samples/sec
+
+**VectorizedHypersphereART** throughput across workloads:
+- Small datasets (1K samples, 10D): 493K - 3.4M samples/sec
+- Medium datasets (10K samples, 50D): 296K - 3M samples/sec
+- Large datasets (50K samples, 100D): 45K - 1.4M samples/sec
+- Image recognition (5K samples, 784D): 4.7K - 40K samples/sec
+- Sensor data (100K samples, 32D): 1.7M - 4M samples/sec
+- Text embeddings (20K samples, 300D): 14K - 123K samples/sec
+
+**Temporal Modules** (measured at dimension=100, 1000 iterations):
+- Working Memory: 34.20ms → 2.44ms (14x speedup)
+- Shunting Dynamics: 96.65ms → 63.20ms (1.53x speedup)
+- Laminar Circuit: 1239 μs/pattern → 953 μs/pattern (1.30x speedup, 1050 patterns/sec)
 
 Run benchmarks:
 ```bash
 ./mvnw test -pl art-performance -Dtest=*Benchmark
+./mvnw test -pl art-performance -Dtest=RealWorldPerformanceTest
 ```
 
 ## Project Structure
 
 ```
-art-core/           # Core algorithms and data structures (818 tests)
-art-performance/    # High-performance vectorized implementations (582 tests)
-art-temporal/       # Temporal processing modules (144 tests)
-art-markov/         # Markov chain integration
-gpu-test-framework/ # GPU testing infrastructure (8 tests)
+art-core/           # Core algorithms and data structures (128 test classes)
+art-performance/    # High-performance vectorized implementations (60 test classes)
+art-temporal/       # Temporal processing modules (19 test classes, 7 submodules)
+art-laminar/        # 6-layer laminar circuit architecture (43 test classes, 402 tests)
+art-cortical/       # Unified temporal + laminar architecture (13 test classes, 154 tests)
+gpu-test-framework/ # GPU testing infrastructure (6 test classes)
+resource/           # Shared resources
 docs/              # Documentation
 ```
+
+> **Note**: art-cortical provides a unified implementation combining temporal and laminar processing. All three modules are actively maintained.
 
 ## Testing
 

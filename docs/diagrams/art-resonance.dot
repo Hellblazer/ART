@@ -1,0 +1,101 @@
+digraph ARTResonance {
+    rankdir=TB;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="ART Resonance vs Reset\nMatch Criterion: |X ∩ E| / |X| ≥ ρ (vigilance)";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Input layer (F1)
+    subgraph cluster_f1 {
+        label="Layer F1 (Input/Comparison)";
+        style=filled;
+        color="#E3F2FD";
+
+        input [label="Bottom-up Input\nX = [x₁, x₂, ..., xₙ]", shape=box, fillcolor="#BBDEFB", style=filled];
+        expectation [label="Top-down Expectation\nE = [e₁, e₂, ..., eₙ]", shape=box, fillcolor="#CE93D8", style=filled];
+        match [label="Match = X ∩ E\n(fuzzy AND)", shape=box, fillcolor="#C8E6C9", style=filled];
+    }
+
+    // Recognition layer (F2)
+    subgraph cluster_f2 {
+        label="Layer F2 (Recognition)";
+        style=filled;
+        color="#FFF9C4";
+
+        category [label="Active Category\nwinner-take-all", shape=ellipse, fillcolor="#FFD54F", style=filled];
+        weights [label="Learned Weights\nW = [w₁, w₂, ..., wₙ]", shape=box, fillcolor="#FFE082", style=filled];
+    }
+
+    // Vigilance test
+    match_ratio [label="Match Ratio\nρ̂ = |X ∩ E| / |X|", shape=diamond, fillcolor="#FFF59D", style=filled];
+    vigilance [label="Vigilance Parameter\nρ ∈ [0, 1]", shape=parallelogram, fillcolor="#F0F4C3", style=filled];
+
+    // Outcomes
+    subgraph cluster_resonance {
+        label="RESONANCE (ρ̂ ≥ ρ)";
+        style=filled;
+        color="#C8E6C9";
+
+        resonate [label="Stabilize Match\nX* = X ∩ E", shape=box, fillcolor="#81C784", style=filled];
+        learn [label="Update Weights\nΔW ∝ (X* - W)", shape=box, fillcolor="#66BB6A", style=filled];
+        output [label="Confident\nPrediction", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white];
+    }
+
+    subgraph cluster_reset {
+        label="RESET (ρ̂ < ρ)";
+        style=filled;
+        color="#FFCCBC";
+
+        mismatch [label="Mismatch Detected\nNovelty signal", shape=box, fillcolor="#FF8A65", style=filled];
+        inhibit [label="Inhibit Category\nTemporary", shape=box, fillcolor="#FF7043", style=filled];
+        search [label="Search for\nBetter Match", shape=ellipse, fillcolor="#F4511E", style=filled, fontcolor=white];
+    }
+
+    // Flow
+    input -> match;
+    expectation -> match [dir=back, color="#9C27B0"];
+    match -> match_ratio;
+    vigilance -> match_ratio [style=dashed];
+
+    category -> expectation [label="top-down", color="#9C27B0"];
+    weights -> expectation [style=dotted];
+
+    match_ratio -> resonate [label="ρ̂ ≥ ρ\nGOOD MATCH", color="#4CAF50", penwidth=2];
+    match_ratio -> mismatch [label="ρ̂ < ρ\nPOOR MATCH", color="#F44336", penwidth=2];
+
+    resonate -> learn;
+    learn -> output;
+
+    mismatch -> inhibit;
+    inhibit -> search;
+    search -> category [label="new candidate", style=dashed, color="#FF6F00"];
+
+    // Examples
+    subgraph cluster_examples {
+        label="Examples";
+        style=filled;
+        color="#F3E5F5";
+
+        ex_match [label="Match Example:\nX = [1, 1, 0, 1]\nE = [1, 1, 1, 1]\n|X∩E| = 3, |X| = 3\nρ̂ = 1.0 ≥ ρ\n→ RESONATE", shape=note, fillcolor="#E1BEE7", style=filled];
+
+        ex_mismatch [label="Mismatch Example:\nX = [1, 1, 0, 1]\nE = [1, 0, 0, 0]\n|X∩E| = 1, |X| = 3\nρ̂ = 0.33 < ρ (0.7)\n→ RESET", shape=note, fillcolor="#FFCCBC", style=filled];
+    }
+
+    output -> ex_match [style=dotted];
+    search -> ex_mismatch [style=dotted];
+
+    // Implementation
+    impl [label="ARTLaminarCircuit.java\nisResonating()\nFuzzyART.learn()", shape=component, fillcolor="#FFE082", style=filled];
+    output -> impl [style=dashed, color="#FF6F00"];
+    search -> impl [style=dashed, color="#FF6F00"];
+
+    // Key properties
+    properties [label="Key Properties:\n• Prevents catastrophic forgetting\n• Self-stabilizing plasticity\n• Novelty detection\n• Category proliferation control", shape=note, fillcolor="#B2DFDB", style=filled];
+
+    impl -> properties [style=dotted];
+}

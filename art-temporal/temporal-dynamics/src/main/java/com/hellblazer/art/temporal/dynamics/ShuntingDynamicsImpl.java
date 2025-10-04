@@ -6,6 +6,11 @@ import com.hellblazer.art.temporal.core.ActivationState;
  * Shunting dynamics implementation for competitive neural networks.
  * Implements the equation: dx_i/dt = -A_i * x_i + (B - x_i) * S_i^+ - x_i * S_i^-
  * Based on Grossberg (1973) and used in Kazerounian & Grossberg (2014).
+ *
+ * This is the baseline scalar implementation.
+ * For SIMD-optimized version, see VectorizedShuntingDynamics in temporal-performance module.
+ *
+ * @author Hal Hildebrand
  */
 public class ShuntingDynamicsImpl {
 
@@ -155,14 +160,28 @@ public class ShuntingDynamicsImpl {
     }
 
     /**
-     * Reset dynamics to initial state.
+     * Reset all activations to zero.
      */
     public void reset() {
         for (int i = 0; i < dimension; i++) {
-            activations[i] = parameters.getInitialActivation();
+            activations[i] = 0.0;
             excitatory[i] = 0.0;
             inhibitory[i] = 0.0;
         }
+    }
+
+    /**
+     * Get parameter reference.
+     */
+    public ShuntingParameters getParameters() {
+        return parameters;
+    }
+
+    /**
+     * Get dimension.
+     */
+    public int getDimension() {
+        return dimension;
     }
 
     /**
@@ -209,19 +228,5 @@ public class ShuntingDynamicsImpl {
         }
 
         return maxChange < tolerance;
-    }
-
-    /**
-     * Get dimension of the dynamics.
-     */
-    public int getDimension() {
-        return dimension;
-    }
-
-    /**
-     * Get parameters.
-     */
-    public ShuntingParameters getParameters() {
-        return parameters;
     }
 }

@@ -1,0 +1,126 @@
+digraph TemporalPrediction {
+    rankdir=LR;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Temporal Prediction from Learned Chunks\nSequence Completion and Prediction";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Learned chunks (training)
+    subgraph cluster_learned {
+        label="Learned Chunk Repertoire";
+        style=filled;
+        color="#E3F2FD";
+
+        chunk_abc [label="Chunk A:\n[A, B, C]\nweight=0.95", shape=box, fillcolor="#BBDEFB", style=filled];
+        chunk_def [label="Chunk D:\n[D, E, F]\nweight=0.88", shape=box, fillcolor="#90CAF9", style=filled];
+        chunk_ghi [label="Chunk G:\n[G, H, I]\nweight=0.82", shape=box, fillcolor="#64B5F6", style=filled];
+        chunk_jkl [label="Chunk J:\n[J, K, L]\nweight=0.75", shape=box, fillcolor="#42A5F5", style=filled];
+    }
+
+    // Partial input
+    subgraph cluster_input {
+        label="Partial Input Sequence";
+        style=filled;
+        color="#FFF9C4";
+
+        input [label="Input: [A, B, ?]\nIncomplete", shape=ellipse, fillcolor="#FFD54F", style=filled, penwidth=2];
+        wm_state [label="Working Memory:\nA (t=0)\nB (t=1)\n_ (t=2)", shape=box, fillcolor="#FFE082", style=filled];
+    }
+
+    input -> wm_state [label="store"];
+
+    // Pattern matching
+    subgraph cluster_matching {
+        label="Chunk Activation (Match Computation)";
+        style=filled;
+        color="#C8E6C9";
+
+        match_a [label="Match with A:\n|[A,B,?] ∩ [A,B,C]|\n= 2/3 = 0.67\nHIGH", shape=diamond, fillcolor="#4CAF50", style=filled, fontcolor=white, penwidth=3];
+        match_d [label="Match with D:\n|[A,B,?] ∩ [D,E,F]|\n= 0/3 = 0.0\nNONE", shape=diamond, fillcolor="#FFCCBC", style=filled];
+        match_g [label="Match with G:\n|[A,B,?] ∩ [G,H,I]|\n= 0/3 = 0.0\nNONE", shape=diamond, fillcolor="#FFCCBC", style=filled];
+    }
+
+    wm_state -> match_a [label="compare", penwidth=2];
+    wm_state -> match_d [label="compare", style=dashed];
+    wm_state -> match_g [label="compare", style=dashed];
+
+    chunk_abc -> match_a [style=dotted];
+    chunk_def -> match_d [style=dotted];
+    chunk_ghi -> match_g [style=dotted];
+
+    // Winner selection
+    winner [label="Winner-Take-All:\nChunk A Selected\n(best match)", shape=ellipse, fillcolor="#FF9800", style=filled, penwidth=3];
+
+    match_a -> winner [label="highest\nactivation", color="#4CAF50", penwidth=2];
+
+    // Prediction generation
+    subgraph cluster_prediction {
+        label="Prediction Generation";
+        style=filled;
+        color="#FFE0B2";
+
+        top_down [label="Top-down\nExpectation:\n[A, B, C]", shape=box, fillcolor="#FFB74D", style=filled];
+        completion [label="Predicted Item:\nC\n(position 3)", shape=ellipse, fillcolor="#FF9800", style=filled, penwidth=3];
+    }
+
+    winner -> top_down [label="activate", penwidth=2];
+    chunk_abc -> top_down [label="weights", style=dotted, color="#FF6F00"];
+    top_down -> completion [label="extract\nmissing", color="#FF6F00", penwidth=2];
+
+    // Verification
+    subgraph cluster_verify {
+        label="Prediction Verification";
+        style=filled;
+        color="#F3E5F5";
+
+        actual [label="Actual Input:\nC arrives\nt=2", shape=box, fillcolor="#E1BEE7", style=filled];
+        match [label="Match!\nPrediction\nConfirmed", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white];
+        mismatch [label="Mismatch!\nReset &\nRelearn", shape=ellipse, fillcolor="#F44336", style=filled, fontcolor=white];
+    }
+
+    completion -> match [label="if match", color="#4CAF50", penwidth=2];
+    completion -> mismatch [label="if mismatch", color="#F44336", style=dashed];
+
+    actual -> match [style=dotted];
+    actual -> mismatch [style=dotted];
+
+    // Learning update
+    subgraph cluster_learning {
+        label="Adaptive Learning";
+        style=filled;
+        color="#C8E6C9";
+
+        strengthen [label="Strengthen\nChunk A\nΔw = +0.05", shape=box, fillcolor="#81C784", style=filled];
+        weaken [label="Weaken or\nCreate New\nChunk", shape=box, fillcolor="#FFCCBC", style=filled];
+    }
+
+    match -> strengthen [label="resonance", color="#4CAF50"];
+    mismatch -> weaken [label="reset", color="#F44336"];
+
+    strengthen -> chunk_abc [label="update", style=dashed, color="#4CAF50"];
+
+    // Continuation prediction
+    continuation [label="Continue Predicting:\n[A, B, C, D?, E?, F?]\nMulti-step ahead", shape=note, fillcolor="#FFF9C4", style=filled];
+
+    match -> continuation [style=dotted];
+
+    // Implementation
+    impl [label="ARTLaminarCircuit.java\nprocess()\n(top-down expectation)", shape=component, fillcolor="#FFE082", style=filled];
+
+    strengthen -> impl [style=dotted, color="#FF6F00"];
+
+    // Applications
+    applications [label="Applications:\n• Speech prediction\n• Motor sequence planning\n• Music anticipation\n• Typing autocomplete\n• Cognitive forecasting", shape=note, fillcolor="#E1F5FE", style=filled];
+
+    impl -> applications [style=dotted];
+
+    // Key properties
+    properties [label="Properties:\n• Probabilistic prediction\n• Context-sensitive\n• Multi-step lookahead\n• Error-driven learning\n• Uncertainty estimation", shape=note, fillcolor="#B2DFDB", style=filled];
+
+    impl -> properties [style=dotted];
+}

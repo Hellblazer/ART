@@ -1,0 +1,97 @@
+digraph LaminarPerformance {
+    rankdir=LR;
+    bgcolor="white";
+    node [fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Laminar Circuit Performance Benchmarks\nBatch Processing with SIMD Optimization";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Single pattern processing
+    subgraph cluster_single {
+        label="Single Pattern Processing";
+        style=filled;
+        color="#FFF9C4";
+
+        single_time [label="Processing Time\n1239 μs/pattern", shape=box, fillcolor="#FFE082", style=filled];
+        single_layers [label="6 Layers\nSequential", shape=box, fillcolor="#FFF59D", style=filled];
+        single_throughput [label="Throughput\n807 patterns/sec", shape=ellipse, fillcolor="#FFB300", style=filled];
+
+        single_layers -> single_time;
+        single_time -> single_throughput [style=dashed];
+    }
+
+    // Batch processing
+    subgraph cluster_batch {
+        label="Batch Processing (32 patterns)";
+        style=filled;
+        color="#C8E6C9";
+
+        batch_time [label="Processing Time\n953 μs/pattern", shape=box, fillcolor="#81C784", style=filled];
+        batch_simd [label="SIMD Vectorized\nTransposed layout", shape=box, fillcolor="#66BB6A", style=filled];
+        batch_throughput [label="Throughput\n1050 patterns/sec", shape=ellipse, fillcolor="#4CAF50", style=filled, fontcolor=white];
+
+        batch_simd -> batch_time;
+        batch_time -> batch_throughput [style=dashed];
+    }
+
+    // Speedup
+    speedup [label="Speedup: 1.30x\n(23% improvement)", shape=diamond, fillcolor="#A5D6A7", style=filled, penwidth=2];
+    single_time -> speedup [label="vs", color="#4CAF50"];
+    batch_time -> speedup [label="optimized", color="#4CAF50", penwidth=2];
+
+    // Layer-wise breakdown
+    subgraph cluster_layers {
+        label="Layer-wise Performance (μs/pattern in batch)";
+        style=filled;
+        color="#E3F2FD";
+
+        l1_perf [label="Layer 1\n95 μs\n(top-down)", shape=box, fillcolor="#CE93D8", style=filled];
+        l23_perf [label="Layer 2/3\n280 μs\n(grouping)", shape=box, fillcolor="#FFB74D", style=filled];
+        l4_perf [label="Layer 4\n320 μs\n(matching)", shape=box, fillcolor="#FFF176", style=filled];
+        l5_perf [label="Layer 5\n110 μs\n(output)", shape=box, fillcolor="#FFF176", style=filled];
+        l6_perf [label="Layer 6\n148 μs\n(feedback)", shape=box, fillcolor="#CE93D8", style=filled];
+
+        l1_perf -> l23_perf -> l4_perf -> l5_perf -> l6_perf [style=invis];
+    }
+
+    batch_time -> l23_perf [label="breakdown", style=dotted];
+
+    // Data layout optimization
+    subgraph cluster_layout {
+        label="Data Layout Optimization";
+        style=filled;
+        color="#F3E5F5";
+
+        row_major [label="Row-Major\n(Pattern-wise)\nCache misses", shape=box, fillcolor="#FFCCBC", style=filled];
+        transpose [label="Transpose\nOperation", shape=diamond, fillcolor="#E1BEE7", style=filled];
+        col_major [label="Column-Major\n(Feature-wise)\nSIMD friendly", shape=box, fillcolor="#C8E6C9", style=filled];
+
+        row_major -> transpose [label="reshape"];
+        transpose -> col_major [label="optimize", color="#4CAF50"];
+    }
+
+    col_major -> batch_simd [style=dashed, color="#4CAF50"];
+
+    // Implementation
+    impl [label="StatefulBatchProcessor.java\nprocessBatch()", shape=component, fillcolor="#FFE082", style=filled];
+    batch_throughput -> impl [style=dotted, color="#FF6F00"];
+
+    // Hardware utilization
+    hardware [label="Hardware:\n• Apple Silicon NEON\n• 4x double SIMD lanes\n• L1 cache optimization\n• Prefetching enabled", shape=note, fillcolor="#E1F5FE", style=filled];
+
+    impl -> hardware [style=dotted];
+
+    // Test results
+    tests [label="Test Coverage:\n• 43 test classes\n• 402 individual tests\n• 100% pass rate\n• Performance validated", shape=note, fillcolor="#FFF59D", style=filled];
+
+    impl -> tests [style=dotted];
+
+    // Future optimization
+    future [label="Future Optimizations:\n• AVX-512: 8x lanes (2.5x)\n• GPU: 100x potential\n• Batch size tuning", shape=note, fillcolor="#FFE0B2", style=filled];
+
+    speedup -> future [style=dashed, color="#9E9E9E"];
+}

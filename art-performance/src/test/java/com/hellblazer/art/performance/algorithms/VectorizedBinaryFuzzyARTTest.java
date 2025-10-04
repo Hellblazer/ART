@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests the binary-optimized fuzzy ART implementation with SIMD vectorization,
  * focusing on binary pattern processing, complement coding, and performance optimization.
  *
- * @author Claude (Anthropic AI)
+ * @author Hal Hildebrand
  * @version 1.0
  */
 @DisplayName("VectorizedBinaryFuzzyART Tests")

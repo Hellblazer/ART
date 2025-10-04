@@ -148,6 +148,28 @@ public final class ShuntingDynamics implements DynamicalSystem<ShuntingState, Sh
     }
 
     /**
+     * Override step to add proper clamping for shunting activations.
+     */
+    @Override
+    public ShuntingState step(ShuntingState state, ShuntingParameters parameters, double time, double dt) {
+        var derivative = computeDerivative(state, parameters, time);
+        @SuppressWarnings("unchecked")
+        var scaledDerivative = (ShuntingState) derivative.scale(dt);
+        @SuppressWarnings("unchecked")
+        var newState = (ShuntingState) state.add(scaledDerivative);
+
+        // Clamp activations to [lowerBound, upperBound]
+        var activations = newState.getActivations();
+        var clamped = new double[activations.length];
+        for (int i = 0; i < activations.length; i++) {
+            clamped[i] = Math.max(parameters.getLowerBound(),
+                                Math.min(parameters.getUpperBound(), activations[i]));
+        }
+
+        return new ShuntingState(clamped, newState.getExcitatoryInputs());
+    }
+
+    /**
      * Compute primacy gradient index.
      * Returns positive value if early items have higher activation.
      */
